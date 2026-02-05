@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { CreateUserRequest, userService } from '../services/userService';
+import { useState } from 'react';
+import { userService } from '../services/userService';
+
 
 interface UserModalProps {
     isOpen: boolean;
