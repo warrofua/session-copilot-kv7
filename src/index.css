@@ -9,7 +9,6 @@
   --brand-slate-200: #e2e8f0;
   --brand-slate-100: #edf2f7;
   --brand-slate-50: #f7fafc;
-
   --brand-blue-500: #4299e1;
   --brand-blue-600: #3182ce;
   --brand-green-500: #48bb78;
@@ -17,29 +16,23 @@
   --brand-amber-500: #ed8936;
   --brand-red-500: #f56565;
   --brand-red-600: #e53e3e;
-
   --surface-app: linear-gradient(135deg, #1a202c 0%, #2d3748 55%, #1a202c 100%);
-  --surface-panel: rgba(248, 250, 252, 0.95);
-  --surface-card: #ffffff;
+  --surface-panel: rgb(248 250 252 / 95%);
+  --surface-card: #fff;
   --surface-muted: #edf2f7;
-
   --text-main: #1a202c;
   --text-soft: #4a5568;
   --text-muted: #718096;
   --text-on-dark: #f7fafc;
-
   --border-soft: #e2e8f0;
   --border-strong: #cbd5e0;
-
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
-  --shadow-md: 0 8px 18px rgba(15, 23, 42, 0.12);
-  --shadow-lg: 0 18px 35px rgba(15, 23, 42, 0.2);
-
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 8%);
+  --shadow-md: 0 8px 18px rgb(15 23 42 / 12%);
+  --shadow-lg: 0 18px 35px rgb(15 23 42 / 20%);
   --radius-sm: 10px;
   --radius-md: 14px;
   --radius-lg: 18px;
   --radius-xl: 24px;
-
   --font-family: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
   --header-height: 68px;
   --drawer-width: 360px;
@@ -67,9 +60,9 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    radial-gradient(circle at 14% 16%, rgba(66, 153, 225, 0.14) 0%, transparent 42%),
-    radial-gradient(circle at 88% 78%, rgba(72, 187, 120, 0.12) 0%, transparent 40%),
-    linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
+    radial-gradient(circle at 14% 16%, rgb(66 153 225 / 14%) 0%, transparent 42%),
+    radial-gradient(circle at 88% 78%, rgb(72 187 120 / 12%) 0%, transparent 40%),
+    linear-gradient(rgb(255 255 255 / 3%), rgb(255 255 255 / 0%));
   pointer-events: none;
 }
 
@@ -88,7 +81,7 @@ body::before {
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-lg);
-  background: rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 20%);
   backdrop-filter: blur(14px);
 }
 
@@ -101,8 +94,8 @@ body::before {
 
 .desktop-summary {
   display: none;
-  border-left: 1px solid rgba(226, 232, 240, 0.7);
-  background: linear-gradient(180deg, rgba(247, 250, 252, 0.94) 0%, rgba(255, 255, 255, 0.92) 100%);
+  border-left: 1px solid rgb(226 232 240 / 70%);
+  background: linear-gradient(180deg, rgb(247 250 252 / 94%) 0%, rgb(255 255 255 / 92%) 100%);
 }
 
 .desktop-summary-header {
@@ -153,7 +146,7 @@ body::before {
 
 .header-back:hover,
 .header-menu:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgb(255 255 255 / 12%);
 }
 
 .header-title {
@@ -171,7 +164,7 @@ body::before {
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: linear-gradient(90deg, rgba(66, 153, 225, 0.08), rgba(72, 187, 120, 0.06));
+  background: linear-gradient(90deg, rgb(66 153 225 / 8%), rgb(72 187 120 / 6%));
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -213,22 +206,22 @@ body::before {
 }
 
 .sync-badge.synced {
-  background: rgba(72, 187, 120, 0.18);
+  background: rgb(72 187 120 / 18%);
   color: #226a42;
 }
 
 .sync-badge.offline {
-  background: rgba(237, 137, 54, 0.2);
+  background: rgb(237 137 54 / 20%);
   color: #8f4f1f;
 }
 
 .sync-badge.syncing {
-  background: rgba(66, 153, 225, 0.2);
+  background: rgb(66 153 225 / 20%);
   color: #1d5d95;
 }
 
 .sync-badge.error {
-  background: rgba(245, 101, 101, 0.2);
+  background: rgb(245 101 101 / 20%);
   color: #982b2b;
 }
 
@@ -246,9 +239,9 @@ body::before {
 .encryption-warning {
   margin: 10px 14px 0;
   padding: 10px 12px;
-  background: rgba(237, 137, 54, 0.16);
+  background: rgb(237 137 54 / 16%);
   color: #8f4f1f;
-  border: 1px solid rgba(237, 137, 54, 0.34);
+  border: 1px solid rgb(237 137 54 / 34%);
   border-radius: var(--radius-sm);
   font-size: 0.82rem;
   font-weight: 600;
@@ -261,7 +254,7 @@ body::before {
   padding: 8px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
-  background: linear-gradient(130deg, rgba(66, 153, 225, 0.08), rgba(72, 187, 120, 0.06));
+  background: linear-gradient(130deg, rgb(66 153 225 / 8%), rgb(72 187 120 / 6%));
   overflow-x: auto;
 }
 
@@ -406,7 +399,7 @@ body::before {
   flex-wrap: wrap;
   padding: 12px 14px;
   border-top: 1px solid var(--border-soft);
-  background: rgba(255, 255, 255, 0.75);
+  background: rgb(255 255 255 / 75%);
 }
 
 .action-btn {
@@ -436,14 +429,14 @@ body::before {
 
 .action-btn.behavior {
   color: #9f2f2f;
-  border-color: rgba(245, 101, 101, 0.44);
-  background: rgba(254, 226, 226, 0.45);
+  border-color: rgb(245 101 101 / 44%);
+  background: rgb(254 226 226 / 45%);
 }
 
 .action-btn.success {
   color: #1f7f43;
-  border-color: rgba(72, 187, 120, 0.46);
-  background: rgba(220, 252, 231, 0.45);
+  border-color: rgb(72 187 120 / 46%);
+  background: rgb(220 252 231 / 45%);
 }
 
 .action-btn.danger {
@@ -481,7 +474,7 @@ body::before {
 .form-textarea:focus,
 .form-select:focus {
   border-color: var(--brand-blue-500);
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+  box-shadow: 0 0 0 3px rgb(66 153 225 / 20%);
 }
 
 .form-textarea {
@@ -504,7 +497,7 @@ body::before {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgb(15 23 42 / 60%);
   z-index: 100;
   opacity: 0;
   visibility: hidden;
@@ -707,7 +700,7 @@ body::before {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgb(15 23 42 / 60%);
   display: flex;
   align-items: center;
   justify-content: center;
