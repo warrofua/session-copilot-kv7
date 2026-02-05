@@ -70,73 +70,75 @@ export default function OrgLogin() {
                 )}
 
                 <form onSubmit={handleSubmit} className="login-form">
-                    {mode === 'register' && (
-                        <>
-                            <div className="form-group">
-                                <label htmlFor="name">Your Name</label>
-                                <input
-                                    id="name"
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    required
-                                    placeholder="Jane Smith"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="orgName">Organization Name</label>
-                                <input
-                                    id="orgName"
-                                    type="text"
-                                    value={formData.orgName}
-                                    onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
-                                    required
-                                    placeholder="ABC Therapy Services"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="role">Your Role</label>
-                                <select
-                                    id="role"
-                                    value={formData.role}
-                                    onChange={(e) => setFormData({ ...formData, role: e.target.value as 'manager' | 'bcba' | 'rbt' })}
-                                >
-                                    <option value="manager">Manager / Admin</option>
-                                    <option value="bcba">BCBA</option>
-                                </select>
-                                <p className="form-hint">RBTs must be invited by an admin</p>
-                            </div>
-                        </>
-                    )}
+                    <fieldset disabled={isLoading} style={{ border: 'none', padding: 0, margin: 0 }}>
+                        {mode === 'register' && (
+                            <>
+                                <div className="form-group">
+                                    <label htmlFor="name">Your Name</label>
+                                    <input
+                                        id="name"
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        required
+                                        placeholder="Jane Smith"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="orgName">Organization Name</label>
+                                    <input
+                                        id="orgName"
+                                        type="text"
+                                        value={formData.orgName}
+                                        onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
+                                        required
+                                        placeholder="ABC Therapy Services"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="role">Your Role</label>
+                                    <select
+                                        id="role"
+                                        value={formData.role}
+                                        onChange={(e) => setFormData({ ...formData, role: e.target.value as 'manager' | 'bcba' | 'rbt' })}
+                                    >
+                                        <option value="manager">Manager / Admin</option>
+                                        <option value="bcba">BCBA</option>
+                                    </select>
+                                    <p className="form-hint">RBTs must be invited by an admin</p>
+                                </div>
+                            </>
+                        )}
 
-                    <div className="form-group">
-                        <label htmlFor="email">Email</label>
-                        <input
-                            id="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            required
-                            placeholder="you@organization.com"
-                        />
-                    </div>
+                        <div className="form-group">
+                            <label htmlFor="email">Email</label>
+                            <input
+                                id="email"
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                required
+                                placeholder="you@organization.com"
+                            />
+                        </div>
 
-                    <div className="form-group">
-                        <label htmlFor="password">Password</label>
-                        <input
-                            id="password"
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            required
-                            minLength={8}
-                            placeholder={mode === 'register' ? 'Min 8 characters' : '••••••••'}
-                        />
-                    </div>
+                        <div className="form-group">
+                            <label htmlFor="password">Password</label>
+                            <input
+                                id="password"
+                                type="password"
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                required
+                                minLength={8}
+                                placeholder={mode === 'register' ? 'Min 8 characters' : '••••••••'}
+                            />
+                        </div>
 
-                    <button type="submit" className="submit-btn" disabled={isLoading}>
-                        {isLoading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Organization'}
-                    </button>
+                        <button type="submit" className="submit-btn" disabled={isLoading}>
+                            {isLoading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Organization'}
+                        </button>
+                    </fieldset>
                 </form>
 
                 <div className="login-footer">

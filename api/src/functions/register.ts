@@ -133,7 +133,10 @@ async function registerHandler(request: HttpRequest, context: InvocationContext)
         context.error('Registration error:', error);
         return {
             status: 500,
-            jsonBody: { error: 'Internal server error' }
+            jsonBody: {
+                error: 'Internal server error',
+                details: error instanceof Error ? error.message : String(error)
+            }
         };
     }
 }
