@@ -95,7 +95,23 @@ export async function parseUserInput(userMessage: string): Promise<ParsedInput> 
         const content = data.choices[0]?.message?.content;
 
         if (content) {
-            return JSON.parse(content) as ParsedInput;
+            try {
+                const parsed = JSON.parse(content);
+                // Validate and sanitize structure
+                return {
+                    behaviors: Array.isArray(parsed.behaviors) ? parsed.behaviors : [],
+                    skillTrials: Array.isArray(parsed.skillTrials) ? parsed.skillTrials : [],
+                    antecedent: parsed.antecedent || undefined,
+                    functionGuess: parsed.functionGuess || undefined,
+                    intervention: parsed.intervention || undefined,
+                    needsClarification: parsed.needsClarification || false,
+                    clarificationQuestion: parsed.clarificationQuestion || undefined,
+                    narrativeFragment: parsed.narrativeFragment || ''
+                };
+            } catch (e) {
+                console.error('Failed to parse LLM JSON:', e);
+                return mockParseInput(userMessage);
+            }
         }
     } catch (error) {
         console.error('Error calling LLM:', error);

@@ -1,73 +1,53 @@
-# React + TypeScript + Vite
+# Session Co-Pilot 🧩
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An **Offline-First** AI assistant for ABA (Applied Behavior Analysis) therapists to log session data comfortably and accurately.
 
-Currently, two official plugins are available:
+## 🚀 Features
+-   **Natural Language Logging:** "He had 2 tantrums and an elopement (30s) after I took the iPad." -> Parsed automatically.
+-   **Offline-First:** Built with [Dexie.js](https://dexie.org/) (IndexedDB). Works completely without internet.
+-   **Hybrid AI:** Uses **GPT-4o-mini** (GitHub Models) when online, falls back to **Logic Engine** when offline.
+-   **Smart Hints:** Asks for missing context (Antecedents, Functions, Interventions) only when needed.
+-   **Safety First:** Dedicated "Oh Crap" button for reporting critical incidents.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🛠️ Tech Stack
+-   **Framework:** React 18 + Vite (TypeScript)
+-   **PWA:** Service Workers for offline caching (`vite-plugin-pwa`)
+-   **State:** Zustand
+-   **Database:** Dexie.js (Client-side IndexedDB)
+-   **LLM:** GitHub Models API (OpenAI SDK compatible)
+-   **Hosting:** Azure Static Web Apps (Free Tier)
 
-## React Compiler
+## 🏃‍♂️ Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
+-   Node.js 18+
+-   npm
 
-## Expanding the ESLint configuration
+### Installation
+1.  Clone the repo
+    ```bash
+    git clone https://github.com/warrofua/session-copilot-kv7.git
+    cd session-copilot-kv7
+    ```
+2.  Install dependencies
+    ```bash
+    npm install
+    ```
+3.  Set up Environment
+    Create a `.env` file:
+    ```env
+    VITE_GITHUB_TOKEN=gho_your_token_here
+    ```
+4.  Run Local Dev Server
+    ```bash
+    npm run dev
+    ```
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 📦 Deployment (Azure)
+This project is configured for **Azure Static Web Apps**.
+-   **CI/CD:** Commits to `master` automatically trigger a build/deploy via GitHub Actions.
+-   **Secrets:** The `VITE_GITHUB_TOKEN` must be set as a GitHub Repository Secret.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 📱 Architecture
+The database lives in the **Browser**. Azure only hosts the static assets.
+To sync data to the cloud (future feature), the `SyncQueue` table in Dexie.js tracks all local changes waiting to be pushed.
