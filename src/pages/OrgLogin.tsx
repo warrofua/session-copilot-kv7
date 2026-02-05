@@ -46,7 +46,7 @@ export default function OrgLogin() {
             <div className="login-container">
                 <div className="login-header">
                     <Link to="/" className="back-link">← Back to Home</Link>
-                    <h1>Organization Login</h1>
+                    <h1>Organization Login <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>(v1.1)</span></h1>
                     <p>For BCBAs, RBTs, and Clinic Managers</p>
                 </div>
 
