@@ -57,4 +57,28 @@ describe('LLM Service - Offline Regex Parsing', () => {
             delivered: true
         });
     });
+
+    // Regression Tests (User Reported)
+    it('should parse "Log tantrum for 5 mins"', async () => {
+        const input = "Log tantrum for 5 mins";
+        const result = await parseUserInput(input);
+
+        expect(result.behaviors).toHaveLength(1);
+        expect(result.behaviors[0]).toMatchObject({
+            type: 'tantrum',
+            duration: 300 // 5 mins * 60
+        });
+    });
+
+    it('should parse "Log imitation independent correct"', async () => {
+        const input = "Log imitation independent correct";
+        const result = await parseUserInput(input);
+
+        expect(result.skillTrials).toHaveLength(1);
+        expect(result.skillTrials?.[0]).toMatchObject({
+            skill: 'Imitation',
+            response: 'Correct',
+            target: 'Current Target' // Default if not found
+        });
+    });
 });

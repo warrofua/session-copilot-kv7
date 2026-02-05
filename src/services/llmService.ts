@@ -195,8 +195,8 @@ function mockParseInput(input: string): ParsedInput {
         if (pattern.keywords.some(k => lowerInput.includes(k))) {
             // Duration Check
             let duration = 0;
-            const secMatch = input.match(/(\d+)\s*sec/i);
-            const minMatch = input.match(/(\d+)\s*min/i);
+            const secMatch = input.match(/(\d+)\s*(sec|s\b|second)/i);
+            const minMatch = input.match(/(\d+)\s*(min|m\b|minute)/i);
             if (secMatch) duration += parseInt(secMatch[1]);
             if (minMatch) duration += parseInt(minMatch[1]) * 60;
 
@@ -213,19 +213,42 @@ function mockParseInput(input: string): ParsedInput {
     });
 
     // --- Skill Trial Detection ---
-    if (lowerInput.includes('trial') || lowerInput.includes('skill') || lowerInput.includes('target')) {
-        // Hacky regex extraction for demo
-        const skill = 'Unknown Skill'; // Parsing skill names without NLP is hard
-        let target = 'Target';
-        let response = 'Incorrect';
+    const skillKeywords = ['trial', 'skill', 'target', 'dtt', 'matching', 'imitation', 'labeling', 'mand', 'tact'];
+    if (skillKeywords.some(k => lowerInput.includes(k))) {
+        let skill = 'Unknown Skill';
+        let target = 'Current Target'; // Default to generic
+        let response = 'Incorrect'; // Default to incorrect (conservative)
 
-        if (lowerInput.includes('correct') || lowerInput.includes('+')) response = 'Correct';
-        if (lowerInput.includes('incorrect') || lowerInput.includes('-')) response = 'Incorrect';
-        if (lowerInput.includes('prompt')) response = 'Prompted';
+        // 1. Extract Skill Name
+        // First try to find a known keyword that isn't generic
+        const specificSkill = skillKeywords.find(k =>
+            lowerInput.includes(k) && !['trial', 'skill', 'target'].includes(k)
+        );
 
-        // Try to extract content in quotes as target?
+        if (specificSkill) {
+            skill = specificSkill.charAt(0).toUpperCase() + specificSkill.slice(1);
+        } else if (lowerInput.includes('trial')) {
+            skill = 'Generic Trial';
+        }
+
+        // 2. Extract Response
+        if (lowerInput.includes('incorrect') || lowerInput.includes('-') || lowerInput.includes('error') || lowerInput.includes('wrong')) {
+            response = 'Incorrect';
+        } else if (lowerInput.includes('correct') || lowerInput.includes('+') || lowerInput.includes('independent') || lowerInput.includes('ind')) {
+            response = 'Correct';
+        } else if (lowerInput.includes('prompt') || lowerInput.includes('help') || lowerInput.includes('assisted')) {
+            response = 'Prompted';
+        }
+
+        // 3. Extract Target (Heuristic: "target was X", "target X", or quotes)
         const quoteMatch = input.match(/"([^"]+)"/);
-        if (quoteMatch) target = quoteMatch[1];
+        const targetMatch = input.match(/target\s+(?:was\s+)?(\w+)/i);
+
+        if (quoteMatch) {
+            target = quoteMatch[1];
+        } else if (targetMatch) {
+            target = targetMatch[1];
+        }
 
         skillTrials.push({ skill, target, response });
     }
