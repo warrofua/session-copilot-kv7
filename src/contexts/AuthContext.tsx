@@ -2,13 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { User, Learner, Organization } from '../services/authService';
 export type { User };
 import {
-    getToken,
     getMe,
     login as apiLogin,
     register as apiRegister,
-    logout as apiLogout,
-    removeToken
+    logout as apiLogout
 } from '../services/authService';
+import { useEncryptionStore } from '../stores/encryptionStore';
+import { migrateLegacyPlaintextData } from '../db/db';
 
 interface AuthContextValue {
     user: User | null;
@@ -33,6 +33,7 @@ interface RegisterData {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -40,33 +41,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [organization, setOrganization] = useState<Organization | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const initializeEncryption = useEncryptionStore((state) => state.initializeWithPassword);
+    const clearEncryption = useEncryptionStore((state) => state.clear);
 
     const refreshUser = useCallback(async () => {
-        const token = getToken();
-        if (!token) {
-            setUser(null);
-            setLearners([]);
-            setOrganization(null);
-            setIsLoading(false);
-            return;
-        }
-
         try {
             const data = await getMe();
+            if (!useEncryptionStore.getState().isReady) {
+                await apiLogout();
+                clearEncryption();
+                setUser(null);
+                setLearners([]);
+                setOrganization(null);
+                setError('Please sign in again to unlock encrypted local data.');
+                return;
+            }
             setUser(data.user);
             setLearners(data.learners);
             setOrganization(data.organization);
             setError(null);
         } catch (err) {
             console.error('Failed to refresh user:', err);
+            clearEncryption();
             setUser(null);
             setLearners([]);
             setOrganization(null);
-            removeToken();
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [clearEncryption]);
 
     useEffect(() => {
         refreshUser();
@@ -77,6 +80,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(null);
         try {
             const response = await apiLogin(email, password);
+            if (!response.user.encryptionSalt) {
+                throw new Error('Account encryption is not configured');
+            }
+            await initializeEncryption(password, response.user.encryptionSalt);
+            await migrateLegacyPlaintextData();
             setUser(response.user);
             await refreshUser(); // Get full user data with learners
         } catch (err) {
@@ -93,6 +101,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(null);
         try {
             const response = await apiRegister(data);
+            if (!response.user.encryptionSalt) {
+                throw new Error('Account encryption is not configured');
+            }
+            await initializeEncryption(data.password, response.user.encryptionSalt);
+            await migrateLegacyPlaintextData();
             setUser(response.user);
             await refreshUser();
         } catch (err) {
@@ -104,13 +117,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         await apiLogout();
+        clearEncryption();
         setUser(null);
         setLearners([]);
         setOrganization(null);
         setError(null);
-    };
+    }, [clearEncryption]);
+
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+
+        let timeoutId = window.setTimeout(() => {
+            void logout();
+        }, SESSION_TIMEOUT_MS);
+
+        const reset = () => {
+            window.clearTimeout(timeoutId);
+            timeoutId = window.setTimeout(() => {
+                void logout();
+            }, SESSION_TIMEOUT_MS);
+        };
+
+        const activityEvents: Array<keyof WindowEventMap> = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        for (const eventName of activityEvents) {
+            window.addEventListener(eventName, reset, { passive: true });
+        }
+
+        return () => {
+            window.clearTimeout(timeoutId);
+            for (const eventName of activityEvents) {
+                window.removeEventListener(eventName, reset);
+            }
+        };
+    }, [user, logout]);
 
     const value: AuthContextValue = {
         user,

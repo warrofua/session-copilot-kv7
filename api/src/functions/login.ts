@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { findUserByEmail, logAuditEvent } from '../services/cosmosDb.js';
-import { verifyPassword, generateToken, setAuthCookie, getRequestMetadata } from '../utils/auth.js';
+import { findUserByEmail, logAuditEvent, updateUser } from '../services/cosmosDb.js';
+import { verifyPassword, generateEncryptionSalt, generateToken, setAuthCookie, getRequestMetadata } from '../utils/auth.js';
 
 interface LoginRequest {
     email: string;
@@ -78,25 +78,33 @@ async function loginHandler(request: HttpRequest, context: InvocationContext): P
             };
         }
 
+        let userRecord = user;
+        if (!userRecord.encryptionSalt) {
+            const patchedUser = await updateUser(userRecord.id, { encryptionSalt: generateEncryptionSalt() });
+            if (patchedUser) {
+                userRecord = patchedUser;
+            }
+        }
+
         // Generate token
-        const token = generateToken(user);
+        const token = generateToken(userRecord);
 
         // Log successful login
         await logAuditEvent({
-            userId: user.id,
-            userEmail: user.email,
+            userId: userRecord.id,
+            userEmail: userRecord.email,
             action: 'login_success',
             entityType: 'auth',
-            entityId: user.id,
-            orgId: user.orgId,
+            entityId: userRecord.id,
+            orgId: userRecord.orgId,
             ipAddress,
             userAgent,
             success: true,
-            details: { userType: user.userType, role: user.role }
+            details: { userType: userRecord.userType, role: userRecord.role }
         });
 
         // Return user info (without password hash)
-        const { passwordHash: _, ...safeUser } = user;
+        const { passwordHash: _, ...safeUser } = userRecord;
 
         // Set HttpOnly cookie with token
         const cookieHeader = setAuthCookie(token);

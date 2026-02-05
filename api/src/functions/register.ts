@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { findUserByEmail, createUser, createOrganization, logAuditEvent } from '../services/cosmosDb.js';
-import { hashPassword, generateToken, getPermissionsForRole, setAuthCookie, getRequestMetadata } from '../utils/auth.js';
+import { hashPassword, generateEncryptionSalt, generateToken, getPermissionsForRole, setAuthCookie, getRequestMetadata } from '../utils/auth.js';
 
 interface RegisterRequest {
     email: string;
@@ -119,7 +119,8 @@ async function registerHandler(request: HttpRequest, context: InvocationContext)
             permissions,
             createdAt: new Date().toISOString(),
             lastLogin: null,
-            isActive: true
+            isActive: true,
+            encryptionSalt: generateEncryptionSalt()
         });
 
         // Log registration

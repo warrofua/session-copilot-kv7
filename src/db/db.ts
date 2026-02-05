@@ -1,4 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { EncryptedData } from '../services/encryptionService';
+import { useEncryptionStore } from '../stores/encryptionStore';
 
 // Types for our data models
 export interface Session {
@@ -106,13 +108,34 @@ export interface Learner {
     createdAt: string;
 }
 
+// Encrypted Entity Types
+export interface EncryptedEntityRow {
+    id?: number;
+    sessionId: number;
+    timestamp: Date;
+    createdAt: Date;
+    synced: boolean;
+    encryptedData: EncryptedData; // { ciphertext, iv }
+    signature?: string;
+}
+
+export type EncryptedBehaviorEvent = EncryptedEntityRow;
+export type EncryptedSkillTrial = EncryptedEntityRow;
+export type EncryptedSessionNote = EncryptedEntityRow;
+export type EncryptedIncident = EncryptedEntityRow;
+
+type BehaviorSensitive = Omit<BehaviorEvent, 'id' | 'sessionId' | 'timestamp' | 'createdAt' | 'synced'>;
+type SkillTrialSensitive = Omit<SkillTrial, 'id' | 'sessionId' | 'timestamp' | 'createdAt' | 'synced'>;
+type SessionNoteSensitive = Omit<SessionNote, 'id' | 'sessionId' | 'createdAt' | 'updatedAt' | 'synced'>;
+type IncidentSensitive = Omit<Incident, 'id' | 'sessionId' | 'timestamp' | 'createdAt' | 'synced'>;
+
 // Create the database
 class SessionCoPilotDB extends Dexie {
     sessions!: EntityTable<Session, 'id'>;
-    behaviorEvents!: EntityTable<BehaviorEvent, 'id'>;
-    skillTrials!: EntityTable<SkillTrial, 'id'>;
-    sessionNotes!: EntityTable<SessionNote, 'id'>;
-    incidents!: EntityTable<Incident, 'id'>;
+    behaviorEvents!: EntityTable<EncryptedEntityRow, 'id'>;
+    skillTrials!: EntityTable<EncryptedEntityRow, 'id'>;
+    sessionNotes!: EntityTable<EncryptedEntityRow, 'id'>;
+    incidents!: EntityTable<EncryptedEntityRow, 'id'>;
     syncQueue!: EntityTable<SyncQueueItem, 'id'>;
     chatMessages!: EntityTable<ChatMessage, 'id'>;
 
@@ -128,10 +151,530 @@ class SessionCoPilotDB extends Dexie {
             syncQueue: '++id, entityType, entityId, action, createdAt',
             chatMessages: '++id, sessionId, role, timestamp'
         });
+
+        // Security migration: remove legacy plaintext PHI tables and recreate secure indexes.
+        this.version(2).stores({
+            sessions: '++id, clientId, status, startTime',
+            behaviorEvents: '++id, sessionId, synced, timestamp',
+            skillTrials: '++id, sessionId, synced, timestamp',
+            sessionNotes: '++id, sessionId, synced, timestamp',
+            incidents: '++id, sessionId, synced, timestamp',
+            syncQueue: '++id, entityType, entityId, action, createdAt',
+            chatMessages: '++id, sessionId, role, timestamp'
+        }).upgrade(async (transaction) => {
+            await transaction.table('behaviorEvents').clear();
+            await transaction.table('skillTrials').clear();
+            await transaction.table('sessionNotes').clear();
+            await transaction.table('incidents').clear();
+        });
     }
 }
 
 export const db = new SessionCoPilotDB();
+
+function getEncryptionStore() {
+    return useEncryptionStore.getState();
+}
+
+function requireEncryptionReadiness(): void {
+    if (!getEncryptionStore().isReady) {
+        throw new Error('Encryption key not initialized. Please sign in again.');
+    }
+}
+
+async function encryptEntity<T>(value: T): Promise<EncryptedData> {
+    requireEncryptionReadiness();
+    return getEncryptionStore().encryptData(value);
+}
+
+async function decryptEntity<T>(value: EncryptedData): Promise<T> {
+    requireEncryptionReadiness();
+    return getEncryptionStore().decryptData<T>(value);
+}
+
+async function signEncryptedData(value: EncryptedData): Promise<string> {
+    requireEncryptionReadiness();
+    return getEncryptionStore().signPayload(value);
+}
+
+async function verifyEncryptedData(value: EncryptedData, signature: string): Promise<boolean> {
+    requireEncryptionReadiness();
+    return getEncryptionStore().verifyPayload(value, signature);
+}
+
+function assertSignature(row: EncryptedEntityRow): string {
+    if (!row.signature) {
+        throw new Error('Data integrity signature missing. Please run data migration.');
+    }
+    return row.signature;
+}
+
+function isEncryptedData(value: unknown): value is EncryptedData {
+    if (!value || typeof value !== 'object') return false;
+    const candidate = value as Partial<EncryptedData>;
+    return (
+        typeof candidate.ciphertext === 'string' &&
+        typeof candidate.iv === 'string' &&
+        candidate.algorithm === 'AES-GCM' &&
+        candidate.version === 1
+    );
+}
+
+export async function addBehaviorEvent(event: Omit<BehaviorEvent, 'id'>): Promise<number> {
+    const sensitive: BehaviorSensitive = {
+        behaviorType: event.behaviorType,
+        count: event.count,
+        duration: event.duration,
+        antecedent: event.antecedent,
+        consequent: event.consequent,
+        functionGuess: event.functionGuess,
+        intervention: event.intervention,
+        intensity: event.intensity,
+        notes: event.notes
+    };
+
+    const encryptedData = await encryptEntity(sensitive);
+    const signature = await signEncryptedData(encryptedData);
+    const id = await db.behaviorEvents.add({
+        sessionId: event.sessionId,
+        timestamp: event.timestamp,
+        createdAt: event.createdAt,
+        synced: event.synced,
+        encryptedData,
+        signature
+    });
+    if (typeof id !== 'number') {
+        throw new Error('Failed to create behavior event');
+    }
+    return id;
+}
+
+export async function addSkillTrial(trial: Omit<SkillTrial, 'id'>): Promise<number> {
+    const sensitive: SkillTrialSensitive = {
+        skillName: trial.skillName,
+        target: trial.target,
+        promptLevel: trial.promptLevel,
+        response: trial.response,
+        reinforcementDelivered: trial.reinforcementDelivered,
+        reinforcementType: trial.reinforcementType,
+        notes: trial.notes
+    };
+
+    const encryptedData = await encryptEntity(sensitive);
+    const signature = await signEncryptedData(encryptedData);
+    const id = await db.skillTrials.add({
+        sessionId: trial.sessionId,
+        timestamp: trial.timestamp,
+        createdAt: trial.createdAt,
+        synced: trial.synced,
+        encryptedData,
+        signature
+    });
+    if (typeof id !== 'number') {
+        throw new Error('Failed to create skill trial');
+    }
+    return id;
+}
+
+export async function addSessionNote(note: Omit<SessionNote, 'id'>): Promise<number> {
+    const sensitive: SessionNoteSensitive = {
+        section: note.section,
+        content: note.content,
+        isAutoGenerated: note.isAutoGenerated,
+        editHistory: note.editHistory
+    };
+
+    const encryptedData = await encryptEntity(sensitive);
+    const signature = await signEncryptedData(encryptedData);
+    const id = await db.sessionNotes.add({
+        sessionId: note.sessionId,
+        timestamp: note.updatedAt,
+        createdAt: note.createdAt,
+        synced: note.synced,
+        encryptedData,
+        signature
+    });
+    if (typeof id !== 'number') {
+        throw new Error('Failed to create session note');
+    }
+    return id;
+}
+
+export async function addIncident(incident: Omit<Incident, 'id'>): Promise<number> {
+    const sensitive: IncidentSensitive = {
+        incidentType: incident.incidentType,
+        description: incident.description,
+        staffInvolved: incident.staffInvolved,
+        actionsToken: incident.actionsToken,
+        witnesses: incident.witnesses,
+        injuries: incident.injuries,
+        parentNotified: incident.parentNotified,
+        supervisorNotified: incident.supervisorNotified
+    };
+
+    const encryptedData = await encryptEntity(sensitive);
+    const signature = await signEncryptedData(encryptedData);
+    const id = await db.incidents.add({
+        sessionId: incident.sessionId,
+        timestamp: incident.timestamp,
+        createdAt: incident.createdAt,
+        synced: incident.synced,
+        encryptedData,
+        signature
+    });
+    if (typeof id !== 'number') {
+        throw new Error('Failed to create incident');
+    }
+    return id;
+}
+
+export async function getBehaviorEventsBySession(sessionId: number, limit = 500): Promise<BehaviorEvent[]> {
+    requireEncryptionReadiness();
+    const rows = await db.behaviorEvents.where('sessionId').equals(sessionId).reverse().limit(limit).toArray();
+
+    const decrypted = await Promise.all(rows.map(async (row) => {
+        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+        if (!isValid) {
+            throw new Error(`Data integrity check failed for behavior event ${row.id ?? 'unknown'}`);
+        }
+        const sensitive = await decryptEntity<BehaviorSensitive>(row.encryptedData);
+        return {
+            id: row.id,
+            sessionId: row.sessionId,
+            timestamp: row.timestamp,
+            createdAt: row.createdAt,
+            synced: row.synced,
+            ...sensitive
+        } satisfies BehaviorEvent;
+    }));
+
+    return decrypted;
+}
+
+export async function getSkillTrialsBySession(sessionId: number, limit = 500): Promise<SkillTrial[]> {
+    requireEncryptionReadiness();
+    const rows = await db.skillTrials.where('sessionId').equals(sessionId).reverse().limit(limit).toArray();
+
+    const decrypted = await Promise.all(rows.map(async (row) => {
+        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+        if (!isValid) {
+            throw new Error(`Data integrity check failed for skill trial ${row.id ?? 'unknown'}`);
+        }
+        const sensitive = await decryptEntity<SkillTrialSensitive>(row.encryptedData);
+        return {
+            id: row.id,
+            sessionId: row.sessionId,
+            timestamp: row.timestamp,
+            createdAt: row.createdAt,
+            synced: row.synced,
+            ...sensitive
+        } satisfies SkillTrial;
+    }));
+
+    return decrypted;
+}
+
+export async function getUnsyncedBehaviorEvents(): Promise<BehaviorEvent[]> {
+    requireEncryptionReadiness();
+    const rows = await db.behaviorEvents.filter((item) => !item.synced).toArray();
+
+    return Promise.all(rows.map(async (row) => {
+        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+        if (!isValid) {
+            throw new Error(`Data integrity check failed for behavior event ${row.id ?? 'unknown'}`);
+        }
+        const sensitive = await decryptEntity<BehaviorSensitive>(row.encryptedData);
+        return {
+            id: row.id,
+            sessionId: row.sessionId,
+            timestamp: row.timestamp,
+            createdAt: row.createdAt,
+            synced: row.synced,
+            ...sensitive
+        } satisfies BehaviorEvent;
+    }));
+}
+
+export async function getUnsyncedSkillTrials(): Promise<SkillTrial[]> {
+    requireEncryptionReadiness();
+    const rows = await db.skillTrials.filter((item) => !item.synced).toArray();
+
+    return Promise.all(rows.map(async (row) => {
+        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+        if (!isValid) {
+            throw new Error(`Data integrity check failed for skill trial ${row.id ?? 'unknown'}`);
+        }
+        const sensitive = await decryptEntity<SkillTrialSensitive>(row.encryptedData);
+        return {
+            id: row.id,
+            sessionId: row.sessionId,
+            timestamp: row.timestamp,
+            createdAt: row.createdAt,
+            synced: row.synced,
+            ...sensitive
+        } satisfies SkillTrial;
+    }));
+}
+
+export async function getUnsyncedSessionNotes(): Promise<SessionNote[]> {
+    requireEncryptionReadiness();
+    const rows = await db.sessionNotes.filter((item) => !item.synced).toArray();
+
+    return Promise.all(rows.map(async (row) => {
+        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+        if (!isValid) {
+            throw new Error(`Data integrity check failed for session note ${row.id ?? 'unknown'}`);
+        }
+        const sensitive = await decryptEntity<SessionNoteSensitive>(row.encryptedData);
+        return {
+            id: row.id,
+            sessionId: row.sessionId,
+            createdAt: row.createdAt,
+            updatedAt: row.timestamp,
+            synced: row.synced,
+            ...sensitive
+        } satisfies SessionNote;
+    }));
+}
+
+export async function getUnsyncedIncidents(): Promise<Incident[]> {
+    requireEncryptionReadiness();
+    const rows = await db.incidents.filter((item) => !item.synced).toArray();
+
+    return Promise.all(rows.map(async (row) => {
+        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+        if (!isValid) {
+            throw new Error(`Data integrity check failed for incident ${row.id ?? 'unknown'}`);
+        }
+        const sensitive = await decryptEntity<IncidentSensitive>(row.encryptedData);
+        return {
+            id: row.id,
+            sessionId: row.sessionId,
+            timestamp: row.timestamp,
+            createdAt: row.createdAt,
+            synced: row.synced,
+            ...sensitive
+        } satisfies Incident;
+    }));
+}
+
+export async function markBehaviorEventSynced(id: number): Promise<void> {
+    await db.behaviorEvents.update(id, { synced: true });
+}
+
+export async function markSkillTrialSynced(id: number): Promise<void> {
+    await db.skillTrials.update(id, { synced: true });
+}
+
+export async function markSessionNoteSynced(id: number): Promise<void> {
+    await db.sessionNotes.update(id, { synced: true });
+}
+
+export async function markIncidentSynced(id: number): Promise<void> {
+    await db.incidents.update(id, { synced: true });
+}
+
+function toDate(value: unknown): Date {
+    return value instanceof Date ? value : new Date(String(value ?? new Date().toISOString()));
+}
+
+async function migrateBehaviorRow(row: Record<string, unknown>): Promise<EncryptedEntityRow | null> {
+    if (isEncryptedData(row.encryptedData)) {
+        const signature = typeof row.signature === 'string' ? row.signature : await signEncryptedData(row.encryptedData);
+        return {
+            id: typeof row.id === 'number' ? row.id : undefined,
+            sessionId: Number(row.sessionId ?? 0),
+            timestamp: toDate(row.timestamp),
+            createdAt: toDate(row.createdAt),
+            synced: Boolean(row.synced),
+            encryptedData: row.encryptedData,
+            signature
+        };
+    }
+
+    if (typeof row.behaviorType !== 'string') {
+        return null;
+    }
+
+    const sensitive: BehaviorSensitive = {
+        behaviorType: row.behaviorType,
+        count: typeof row.count === 'number' ? row.count : undefined,
+        duration: typeof row.duration === 'number' ? row.duration : undefined,
+        antecedent: typeof row.antecedent === 'string' ? row.antecedent : undefined,
+        consequent: typeof row.consequent === 'string' ? row.consequent : undefined,
+        functionGuess: typeof row.functionGuess === 'string' ? row.functionGuess as BehaviorEvent['functionGuess'] : undefined,
+        intervention: typeof row.intervention === 'string' ? row.intervention : undefined,
+        intensity: typeof row.intensity === 'number' ? row.intensity as BehaviorEvent['intensity'] : undefined,
+        notes: typeof row.notes === 'string' ? row.notes : undefined
+    };
+
+    const encryptedData = await encryptEntity(sensitive);
+    return {
+        id: typeof row.id === 'number' ? row.id : undefined,
+        sessionId: Number(row.sessionId ?? 0),
+        timestamp: toDate(row.timestamp),
+        createdAt: toDate(row.createdAt),
+        synced: Boolean(row.synced),
+        encryptedData,
+        signature: await signEncryptedData(encryptedData)
+    };
+}
+
+async function migrateSkillTrialRow(row: Record<string, unknown>): Promise<EncryptedEntityRow | null> {
+    if (isEncryptedData(row.encryptedData)) {
+        const signature = typeof row.signature === 'string' ? row.signature : await signEncryptedData(row.encryptedData);
+        return {
+            id: typeof row.id === 'number' ? row.id : undefined,
+            sessionId: Number(row.sessionId ?? 0),
+            timestamp: toDate(row.timestamp),
+            createdAt: toDate(row.createdAt),
+            synced: Boolean(row.synced),
+            encryptedData: row.encryptedData,
+            signature
+        };
+    }
+
+    if (typeof row.skillName !== 'string' || typeof row.target !== 'string') {
+        return null;
+    }
+
+    const sensitive: SkillTrialSensitive = {
+        skillName: row.skillName,
+        target: row.target,
+        promptLevel: (typeof row.promptLevel === 'string' ? row.promptLevel : 'independent') as SkillTrial['promptLevel'],
+        response: (typeof row.response === 'string' ? row.response : 'correct') as SkillTrial['response'],
+        reinforcementDelivered: Boolean(row.reinforcementDelivered),
+        reinforcementType: typeof row.reinforcementType === 'string' ? row.reinforcementType : undefined,
+        notes: typeof row.notes === 'string' ? row.notes : undefined
+    };
+
+    const encryptedData = await encryptEntity(sensitive);
+    return {
+        id: typeof row.id === 'number' ? row.id : undefined,
+        sessionId: Number(row.sessionId ?? 0),
+        timestamp: toDate(row.timestamp),
+        createdAt: toDate(row.createdAt),
+        synced: Boolean(row.synced),
+        encryptedData,
+        signature: await signEncryptedData(encryptedData)
+    };
+}
+
+async function migrateSessionNoteRow(row: Record<string, unknown>): Promise<EncryptedEntityRow | null> {
+    if (isEncryptedData(row.encryptedData)) {
+        const signature = typeof row.signature === 'string' ? row.signature : await signEncryptedData(row.encryptedData);
+        return {
+            id: typeof row.id === 'number' ? row.id : undefined,
+            sessionId: Number(row.sessionId ?? 0),
+            timestamp: toDate(row.timestamp),
+            createdAt: toDate(row.createdAt),
+            synced: Boolean(row.synced),
+            encryptedData: row.encryptedData,
+            signature
+        };
+    }
+
+    if (typeof row.section !== 'string' || typeof row.content !== 'string') {
+        return null;
+    }
+
+    const sensitive: SessionNoteSensitive = {
+        section: row.section,
+        content: row.content,
+        isAutoGenerated: Boolean(row.isAutoGenerated),
+        editHistory: Array.isArray(row.editHistory) ? row.editHistory as SessionNote['editHistory'] : []
+    };
+
+    const encryptedData = await encryptEntity(sensitive);
+    return {
+        id: typeof row.id === 'number' ? row.id : undefined,
+        sessionId: Number(row.sessionId ?? 0),
+        timestamp: toDate(row.timestamp ?? row.updatedAt),
+        createdAt: toDate(row.createdAt),
+        synced: Boolean(row.synced),
+        encryptedData,
+        signature: await signEncryptedData(encryptedData)
+    };
+}
+
+async function migrateIncidentRow(row: Record<string, unknown>): Promise<EncryptedEntityRow | null> {
+    if (isEncryptedData(row.encryptedData)) {
+        const signature = typeof row.signature === 'string' ? row.signature : await signEncryptedData(row.encryptedData);
+        return {
+            id: typeof row.id === 'number' ? row.id : undefined,
+            sessionId: Number(row.sessionId ?? 0),
+            timestamp: toDate(row.timestamp),
+            createdAt: toDate(row.createdAt),
+            synced: Boolean(row.synced),
+            encryptedData: row.encryptedData,
+            signature
+        };
+    }
+
+    if (typeof row.incidentType !== 'string' || typeof row.description !== 'string') {
+        return null;
+    }
+
+    const sensitive: IncidentSensitive = {
+        incidentType: row.incidentType as Incident['incidentType'],
+        description: row.description,
+        staffInvolved: Array.isArray(row.staffInvolved) ? row.staffInvolved as string[] : [],
+        actionsToken: Array.isArray(row.actionsToken) ? row.actionsToken as string[] : [],
+        witnesses: Array.isArray(row.witnesses) ? row.witnesses as string[] : undefined,
+        injuries: typeof row.injuries === 'string' ? row.injuries : undefined,
+        parentNotified: Boolean(row.parentNotified),
+        supervisorNotified: Boolean(row.supervisorNotified)
+    };
+
+    const encryptedData = await encryptEntity(sensitive);
+    return {
+        id: typeof row.id === 'number' ? row.id : undefined,
+        sessionId: Number(row.sessionId ?? 0),
+        timestamp: toDate(row.timestamp),
+        createdAt: toDate(row.createdAt),
+        synced: Boolean(row.synced),
+        encryptedData,
+        signature: await signEncryptedData(encryptedData)
+    };
+}
+
+export async function migrateLegacyPlaintextData(): Promise<void> {
+    requireEncryptionReadiness();
+
+    await db.transaction('rw', db.behaviorEvents, db.skillTrials, db.sessionNotes, db.incidents, async () => {
+        const behaviorRows = await db.behaviorEvents.toArray() as unknown as Record<string, unknown>[];
+        for (const row of behaviorRows) {
+            const migrated = await migrateBehaviorRow(row);
+            if (migrated) {
+                await db.behaviorEvents.put(migrated);
+            }
+        }
+
+        const skillRows = await db.skillTrials.toArray() as unknown as Record<string, unknown>[];
+        for (const row of skillRows) {
+            const migrated = await migrateSkillTrialRow(row);
+            if (migrated) {
+                await db.skillTrials.put(migrated);
+            }
+        }
+
+        const noteRows = await db.sessionNotes.toArray() as unknown as Record<string, unknown>[];
+        for (const row of noteRows) {
+            const migrated = await migrateSessionNoteRow(row);
+            if (migrated) {
+                await db.sessionNotes.put(migrated);
+            }
+        }
+
+        const incidentRows = await db.incidents.toArray() as unknown as Record<string, unknown>[];
+        for (const row of incidentRows) {
+            const migrated = await migrateIncidentRow(row);
+            if (migrated) {
+                await db.incidents.put(migrated);
+            }
+        }
+    });
+}
 
 // Helper functions
 export async function addToSyncQueue(
@@ -151,9 +694,9 @@ export async function addToSyncQueue(
 }
 
 export async function getUnsyncedCount(): Promise<number> {
-    const behaviors = await db.behaviorEvents.where('synced').equals(0).count();
-    const trials = await db.skillTrials.where('synced').equals(0).count();
-    const notes = await db.sessionNotes.where('synced').equals(0).count();
-    const incidents = await db.incidents.where('synced').equals(0).count();
+    const behaviors = await db.behaviorEvents.filter((item) => !item.synced).count();
+    const trials = await db.skillTrials.filter((item) => !item.synced).count();
+    const notes = await db.sessionNotes.filter((item) => !item.synced).count();
+    const incidents = await db.incidents.filter((item) => !item.synced).count();
     return behaviors + trials + notes + incidents;
 }

@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { findUserById, findLearnersByIds, findLearnersByOrg, findOrganizationById, Learner, Organization, logAuditEvent } from '../services/cosmosDb.js';
-import { verifyRequestToken, getRequestMetadata } from '../utils/auth.js';
+import { findUserById, findLearnersByIds, findLearnersByOrg, findOrganizationById, Learner, Organization, logAuditEvent, updateUser } from '../services/cosmosDb.js';
+import { verifyRequestToken, generateEncryptionSalt, getRequestMetadata } from '../utils/auth.js';
 
 async function meHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log('Auth/me request');
@@ -27,7 +27,15 @@ async function meHandler(request: HttpRequest, context: InvocationContext): Prom
             };
         }
 
-        if (!user.isActive) {
+        let userRecord = user;
+        if (!userRecord.encryptionSalt) {
+            const patchedUser = await updateUser(userRecord.id, { encryptionSalt: generateEncryptionSalt() });
+            if (patchedUser) {
+                userRecord = patchedUser;
+            }
+        }
+
+        if (!userRecord.isActive) {
             return {
                 status: 403,
                 jsonBody: { error: 'Account is deactivated' }
@@ -38,42 +46,42 @@ async function meHandler(request: HttpRequest, context: InvocationContext): Prom
         let learners: Learner[] = [];
         let organization: Organization | null = null;
 
-        if (user.userType === 'org' && user.orgId) {
+        if (userRecord.userType === 'org' && userRecord.orgId) {
             // Get organization info
-            organization = await findOrganizationById(user.orgId);
+            organization = await findOrganizationById(userRecord.orgId);
 
-            if (user.role === 'manager' || user.role === 'bcba') {
+            if (userRecord.role === 'manager' || userRecord.role === 'bcba') {
                 // Full org access
-                learners = await findLearnersByOrg(user.orgId);
-            } else if (user.role === 'rbt') {
+                learners = await findLearnersByOrg(userRecord.orgId);
+            } else if (userRecord.role === 'rbt') {
                 // Only assigned learners
-                learners = await findLearnersByIds(user.assignedLearnerIds);
+                learners = await findLearnersByIds(userRecord.assignedLearnerIds);
             }
-        } else if (user.userType === 'parent') {
+        } else if (userRecord.userType === 'parent') {
             // Parents only see their assigned learners
-            learners = await findLearnersByIds(user.assignedLearnerIds);
+            learners = await findLearnersByIds(userRecord.assignedLearnerIds);
         }
 
         // Log access to user info (includes learner assignments - PHI)
         await logAuditEvent({
-            userId: user.id,
-            userEmail: user.email,
+            userId: userRecord.id,
+            userEmail: userRecord.email,
             action: 'read',
             entityType: 'user_profile',
-            entityId: user.id,
-            orgId: user.orgId,
+            entityId: userRecord.id,
+            orgId: userRecord.orgId,
             ipAddress,
             userAgent,
             success: true,
             details: {
-                userType: user.userType,
-                role: user.role,
+                userType: userRecord.userType,
+                role: userRecord.role,
                 learnerCount: learners.length
             }
         });
 
         // Remove password hash from response
-        const { passwordHash: _, ...safeUser } = user;
+        const { passwordHash: _, ...safeUser } = userRecord;
 
         return {
             status: 200,

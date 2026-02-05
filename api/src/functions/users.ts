@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { findUsersByOrg, createUser, findUserByEmail, updateUser, findUserById, logAuditEvent } from '../services/cosmosDb.js';
-import { verifyRequestToken, hashPassword, getPermissionsForRole, getRequestMetadata } from '../utils/auth.js';
+import { verifyRequestToken, hashPassword, generateEncryptionSalt, getPermissionsForRole, getRequestMetadata } from '../utils/auth.js';
 
 interface CreateUserRequest {
     email: string;
@@ -92,7 +92,8 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
                 permissions,
                 createdAt: new Date().toISOString(),
                 lastLogin: null,
-                isActive: true
+                isActive: true,
+                encryptionSalt: generateEncryptionSalt()
             });
 
             await logAuditEvent({

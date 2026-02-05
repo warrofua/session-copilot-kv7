@@ -50,6 +50,7 @@ export interface User {
     createdAt: string;
     lastLogin: string | null;
     isActive: boolean;
+    encryptionSalt: string;
 }
 
 export interface Organization {
@@ -195,6 +196,21 @@ export async function logAuditEvent(entry: Omit<AuditLogEntry, 'id' | 'timestamp
     await container.items.create({
         id: crypto.randomUUID(),
         ...entry,
+        orgId: entry.orgId ?? 'none',
         timestamp: new Date().toISOString()
     });
+}
+
+export async function findAuditLogsByOrg(orgId: string, limit = 100): Promise<AuditLogEntry[]> {
+    const container = getContainer(CONTAINERS.AUDIT_LOG);
+    const { resources } = await container.items
+        .query({
+            query: 'SELECT TOP @limit * FROM c WHERE c.orgId = @orgId ORDER BY c.timestamp DESC',
+            parameters: [
+                { name: '@orgId', value: orgId },
+                { name: '@limit', value: limit }
+            ]
+        })
+        .fetchAll();
+    return resources;
 }

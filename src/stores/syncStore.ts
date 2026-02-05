@@ -1,6 +1,17 @@
 import { create } from 'zustand';
-import { db } from '../db/db';
+import {
+    getUnsyncedBehaviorEvents,
+    getUnsyncedCount,
+    getUnsyncedIncidents,
+    getUnsyncedSessionNotes,
+    getUnsyncedSkillTrials,
+    markBehaviorEventSynced,
+    markIncidentSynced,
+    markSessionNoteSynced,
+    markSkillTrialSynced
+} from '../db/db';
 import type { SyncableDocument, SyncResult } from '../types/sync';
+import { useEncryptionStore } from './encryptionStore';
 
 export type SyncStatus = 'offline' | 'syncing' | 'synced' | 'error' | 'not-configured';
 
@@ -42,11 +53,12 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     setLastSyncTime: (time) => set({ lastSyncTime: time }),
 
     refreshUnsyncedCount: async () => {
-        const behaviors = await db.behaviorEvents.filter(item => !item.synced).count();
-        const trials = await db.skillTrials.filter(item => !item.synced).count();
-        const notes = await db.sessionNotes.filter(item => !item.synced).count();
-        const incidents = await db.incidents.filter(item => !item.synced).count();
-        set({ unsyncedCount: behaviors + trials + notes + incidents });
+        if (!useEncryptionStore.getState().isReady) {
+            set({ unsyncedCount: 0 });
+            return;
+        }
+        const unsyncedCount = await getUnsyncedCount();
+        set({ unsyncedCount });
     },
 
     syncToCloud: async () => {
@@ -58,15 +70,19 @@ export const useSyncStore = create<SyncState>((set, get) => ({
             set({ status: 'offline' });
             return { success: 0, failed: 0 };
         }
+        if (!useEncryptionStore.getState().isReady) {
+            set({ status: 'error' });
+            return { success: 0, failed: get().unsyncedCount };
+        }
 
         set({ isSyncing: true, status: 'syncing' });
 
         try {
-            // Fetch all unsynced items
-            const unsyncedBehaviors = await db.behaviorEvents.filter(item => !item.synced).toArray();
-            const unsyncedTrials = await db.skillTrials.filter(item => !item.synced).toArray();
-            const unsyncedNotes = await db.sessionNotes.filter(item => !item.synced).toArray();
-            const unsyncedIncidents = await db.incidents.filter(item => !item.synced).toArray();
+            // Fetch and decrypt all unsynced items
+            const unsyncedBehaviors = await getUnsyncedBehaviorEvents();
+            const unsyncedTrials = await getUnsyncedSkillTrials();
+            const unsyncedNotes = await getUnsyncedSessionNotes();
+            const unsyncedIncidents = await getUnsyncedIncidents();
 
             // Convert to SyncableDocuments
             const documents: SyncableDocument[] = [];
@@ -134,21 +150,25 @@ export const useSyncStore = create<SyncState>((set, get) => ({
 
             // Mark successfully synced items in Dexie
             if (result.success > 0) {
-                // Mark behaviors as synced
                 for (const behavior of unsyncedBehaviors) {
-                    await db.behaviorEvents.update(behavior.id!, { synced: true });
+                    if (typeof behavior.id === 'number') {
+                        await markBehaviorEventSynced(behavior.id);
+                    }
                 }
-                // Mark trials as synced
                 for (const trial of unsyncedTrials) {
-                    await db.skillTrials.update(trial.id!, { synced: true });
+                    if (typeof trial.id === 'number') {
+                        await markSkillTrialSynced(trial.id);
+                    }
                 }
-                // Mark notes as synced
                 for (const note of unsyncedNotes) {
-                    await db.sessionNotes.update(note.id!, { synced: true });
+                    if (typeof note.id === 'number') {
+                        await markSessionNoteSynced(note.id);
+                    }
                 }
-                // Mark incidents as synced
                 for (const incident of unsyncedIncidents) {
-                    await db.incidents.update(incident.id!, { synced: true });
+                    if (typeof incident.id === 'number') {
+                        await markIncidentSynced(incident.id);
+                    }
                 }
             }
 
@@ -187,4 +207,3 @@ if (typeof window !== 'undefined') {
     // Initial unsynced count
     useSyncStore.getState().refreshUnsyncedCount();
 }
-

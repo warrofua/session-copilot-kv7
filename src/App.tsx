@@ -8,9 +8,10 @@ import { SideDrawer } from './components/SideDrawer';
 import { IncidentButton } from './components/IncidentButton';
 import { useSessionStore } from './stores/sessionStore';
 import { useSyncStore } from './stores/syncStore';
-import { db, type BehaviorEvent, type Incident } from './db/db';
+import { addBehaviorEvent, addIncident, addSkillTrial, getBehaviorEventsBySession, getSkillTrialsBySession, type BehaviorEvent, type Incident, type SkillTrial } from './db/db';
 import { parseUserInput, generateConfirmation, generateNoteDraft, type ParsedInput } from './services/llmService';
 import { TermsModal } from './components/TermsModal';
+import { useEncryptionStore } from './stores/encryptionStore';
 
 function App() {
   const { user } = useAuth();
@@ -20,15 +21,24 @@ function App() {
   const [pendingData, setPendingData] = useState<ParsedInput | null>(null);
   const [selectedFunction, setSelectedFunction] = useState<string | null>(null);
   const [sessionTime, setSessionTime] = useState('00:00:00');
+  const isEncryptionReady = useEncryptionStore((state) => state.isReady);
 
   // Live Queries (Reactive, Single Source of Truth)
   // Limit to 500 most recent items to avoid performance issues with large datasets
-  const behaviorEvents = useLiveQuery(() =>
-    db.behaviorEvents.where('sessionId').equals(1).reverse().limit(500).toArray()
+  const behaviorEvents = useLiveQuery(
+    async () => {
+      if (!isEncryptionReady) return [];
+      return getBehaviorEventsBySession(1, 500);
+    },
+    [isEncryptionReady]
   ) || [];
 
-  const skillTrials = useLiveQuery(() =>
-    db.skillTrials.where('sessionId').equals(1).reverse().limit(500).toArray()
+  const skillTrials = useLiveQuery(
+    async () => {
+      if (!isEncryptionReady) return [];
+      return getSkillTrialsBySession(1, 500);
+    },
+    [isEncryptionReady]
   ) || [];
 
   const {
@@ -149,6 +159,11 @@ function App() {
   }, [inputValue, isProcessing, addMessage]);
 
   const handleButtonClick = useCallback(async (action: string, value: string) => {
+    if (!isEncryptionReady) {
+      addMessage('assistant', 'Your local encryption key is not unlocked. Please sign out and sign in again to access session data.');
+      return;
+    }
+
     if (action === 'confirm' && value === 'yes' && pendingData) {
       // Save the behavior events
       for (const behavior of pendingData.behaviors) {
@@ -164,25 +179,25 @@ function App() {
           synced: false
         };
 
-        await db.behaviorEvents.add(event);
+        await addBehaviorEvent(event);
         incrementUnsyncedCount();
       }
 
       // Save skill trials
       if (pendingData.skillTrials && pendingData.skillTrials.length > 0) {
         for (const trial of pendingData.skillTrials) {
-          const skillTrial = {
+          const skillTrial: Omit<SkillTrial, 'id'> = {
             sessionId: 1, // Demo session
             skillName: trial.skill,
             target: trial.target,
-            promptLevel: trial.promptLevel as any || 'independent',
-            response: trial.response as any || 'correct',
+            promptLevel: (trial.promptLevel as SkillTrial['promptLevel']) || 'independent',
+            response: (trial.response as SkillTrial['response']) || 'correct',
             reinforcementDelivered: false,
             timestamp: new Date(),
             createdAt: new Date(),
             synced: false
           };
-          await db.skillTrials.add(skillTrial);
+          await addSkillTrial(skillTrial);
           // Note: need to add addSkillTrial to destructuring above if not present
           // userSessionStore destructuring has 'addSkillTrial' (verified in file view line 27)
           incrementUnsyncedCount();
@@ -215,7 +230,7 @@ function App() {
     } else if (action === 'logSkillTrial') {
       addMessage('assistant', 'What skill trial would you like to log? Include the skill name, target, and result.');
     }
-  }, [pendingData, selectedFunction, incrementUnsyncedCount, addMessage]);
+  }, [pendingData, selectedFunction, incrementUnsyncedCount, addMessage, isEncryptionReady]);
 
   const handleFunctionSelect = useCallback((func: string) => {
     setSelectedFunction(func);
@@ -267,7 +282,7 @@ function App() {
       synced: false
     };
 
-    await db.incidents.add(incident);
+    await addIncident(incident);
     incrementUnsyncedCount();
 
     addMessage('system', `⚠️ Incident report filed: ${data.incidentType}. ${data.parentNotified ? 'Parent notified.' : ''} ${data.supervisorNotified ? 'Supervisor notified.' : ''}`);
@@ -326,6 +341,22 @@ function App() {
             }}
           >
             👶 Caseload
+          </button>
+          <button
+            onClick={() => window.location.href = '/admin/audit'}
+            style={{
+              flex: '1',
+              padding: '8px 12px',
+              backgroundColor: '#fef3c7',
+              color: '#92400e',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              border: 'none',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🧾 Audit Log
           </button>
         </div>
       )}

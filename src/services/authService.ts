@@ -13,6 +13,7 @@ export interface User {
     assignedLearnerIds: string[];
     permissions: string[];
     isActive: boolean;
+    encryptionSalt: string;
 }
 
 export interface Learner {
@@ -42,29 +43,6 @@ export interface MeResponse {
     learners: Learner[];
 }
 
-// Token management (DEPRECATED - tokens now in HttpOnly cookies)
-// These functions are kept for backward compatibility with sync service
-// but are no-ops since tokens are now managed server-side
-const TOKEN_KEY = 'auth_token';
-
-export function getToken(): string | null {
-    // Tokens are now in HttpOnly cookies, not accessible to JavaScript
-    // This function kept for backward compatibility with sync service
-    // Return null to trigger "not authenticated" flow in sync
-    return null;
-}
-
-export function setToken(_token: string): void {
-    // No-op: tokens now set as HttpOnly cookies by backend
-    // Kept for backward compatibility
-}
-
-export function removeToken(): void {
-    // No-op: token cleared via logout endpoint
-    // Clean up any old tokens that might exist
-    localStorage.removeItem(TOKEN_KEY);
-}
-
 // API calls
 export async function login(email: string, password: string): Promise<AuthResponse> {
     const response = await fetch(`${API_BASE}/auth/login`, {
@@ -79,9 +57,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
         throw new Error(error.error || 'Login failed');
     }
 
-    const data = await response.json();
-    // Token is now in HttpOnly cookie, not in response body
-    return data;
+    return response.json();
 }
 
 export async function register(data: {
@@ -105,9 +81,7 @@ export async function register(data: {
         throw new Error(errorMessage);
     }
 
-    const result = await response.json();
-    // Token is now in HttpOnly cookie, not in response body
-    return result;
+    return response.json();
 }
 
 export async function getMe(): Promise<MeResponse> {
@@ -138,8 +112,7 @@ export async function logout(): Promise<void> {
         // Continue with logout even if API call fails
     }
 
-    // Clean up any old localStorage tokens
-    removeToken();
+    // Session cookie is managed by backend.
 }
 
 // Permission checks

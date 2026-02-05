@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { User } from '../services/cosmosDb.js';
 import type { HttpRequest } from '@azure/functions';
+import { randomBytes } from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const JWT_EXPIRES_IN = '7d';
@@ -23,6 +24,10 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
     return bcrypt.compare(password, hash);
+}
+
+export function generateEncryptionSalt(): string {
+    return randomBytes(16).toString('base64');
 }
 
 export function generateToken(user: User): string {
