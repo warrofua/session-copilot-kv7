@@ -5,7 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Header } from './components/Header';
 import { ChatArea, MessageInput, type ChatMessageData } from './components/ChatArea';
 import { ActionButtons } from './components/ActionButtons';
-import { SideDrawer } from './components/SideDrawer';
+import { SessionSummaryContent, SideDrawer } from './components/SideDrawer';
 import { IncidentButton } from './components/IncidentButton';
 import { useSessionStore } from './stores/sessionStore';
 import { useSyncStore } from './stores/syncStore';
@@ -282,6 +282,11 @@ function App() {
     parentNotified: boolean;
     supervisorNotified: boolean;
   }) => {
+    if (!isEncryptionReady) {
+      addMessage('assistant', 'Your local encryption key is not unlocked. Please sign out and sign in again to access incident logging.');
+      return;
+    }
+
     const incident: Incident = {
       sessionId: 1,
       incidentType: data.incidentType,
@@ -300,103 +305,79 @@ function App() {
     incrementUnsyncedCount();
 
     addMessage('system', `⚠️ Incident report filed: ${data.incidentType}. ${data.parentNotified ? 'Parent notified.' : ''} ${data.supervisorNotified ? 'Supervisor notified.' : ''}`);
-  }, [incrementUnsyncedCount, addMessage]);
+  }, [incrementUnsyncedCount, addMessage, isEncryptionReady]);
 
   return (
-    <div className="app-container">
-      <Header
-        clientName={clientName}
-        sessionTime={sessionTime}
-        onMenuClick={toggleDrawer}
-      />
+    <div className="app-shell">
+      <div className="app-container">
+        <section className="app-main">
+          <Header
+            clientName={clientName}
+            sessionTime={sessionTime}
+            onMenuClick={toggleDrawer}
+          />
 
-      {/* Admin Quick Access Card */}
-      {(user?.role === 'manager' || user?.role === 'bcba') && (
-        <div style={{
-          margin: '12px',
-          padding: '12px',
-          backgroundColor: '#f8fafc',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0',
-          display: 'flex',
-          gap: '8px',
-          overflowX: 'auto'
-        }}>
-          {user.role === 'manager' && (
-            <button
-              onClick={goToUsers}
-              style={{
-                flex: '1',
-                padding: '8px 12px',
-                backgroundColor: '#e0e7ff',
-                color: '#4338ca',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                border: 'none',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              👥 Manage Users
-            </button>
+          {!isEncryptionReady && (
+            <div className="encryption-warning">
+              Local encrypted data is currently locked. Sign out and sign in again to log session entries.
+            </div>
           )}
-          <button
-            onClick={goToLearners}
-            style={{
-              flex: '1',
-              padding: '8px 12px',
-              backgroundColor: '#dcfce7',
-              color: '#15803d',
-              borderRadius: '8px',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              border: 'none',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            👶 Caseload
-          </button>
-          <button
-            onClick={goToAuditLogs}
-            style={{
-              flex: '1',
-              padding: '8px 12px',
-              backgroundColor: '#fef3c7',
-              color: '#92400e',
-              borderRadius: '8px',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              border: 'none',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            🧾 Audit Log
-          </button>
-        </div>
-      )}
 
-      <ChatArea
-        messages={messages}
-        onButtonClick={handleButtonClick}
-        onFunctionSelect={handleFunctionSelect}
-        selectedFunction={selectedFunction || undefined}
-      />
+          {(user?.role === 'manager' || user?.role === 'bcba') && (
+            <div className="admin-quick-access">
+              {user.role === 'manager' && (
+                <button className="admin-chip users" onClick={goToUsers}>
+                  <span>👥</span>
+                  Manage Users
+                </button>
+              )}
+              <button className="admin-chip learners" onClick={goToLearners}>
+                <span>👶</span>
+                Caseload
+              </button>
+              <button className="admin-chip audit" onClick={goToAuditLogs}>
+                <span>🧾</span>
+                Audit Log
+              </button>
+            </div>
+          )}
 
-      <ActionButtons
-        onLogBehavior={handleLogBehavior}
-        onLogSkillTrial={handleLogSkillTrial}
-        onLogABC={handleLogABC}
-        onDeliverReinforcement={handleDeliverReinforcement}
-        onIncidentReport={() => { }} // Handled by IncidentButton
-      />
+          <ChatArea
+            messages={messages}
+            onButtonClick={handleButtonClick}
+            onFunctionSelect={handleFunctionSelect}
+            selectedFunction={selectedFunction || undefined}
+          />
 
-      <MessageInput
-        value={inputValue}
-        onChange={setInputValue}
-        onSend={handleSendMessage}
-        disabled={isProcessing}
-        placeholder={isProcessing ? 'Processing...' : 'Type a message...'}
-      />
+          <ActionButtons
+            onLogBehavior={handleLogBehavior}
+            onLogSkillTrial={handleLogSkillTrial}
+            onLogABC={handleLogABC}
+            onDeliverReinforcement={handleDeliverReinforcement}
+            onIncidentReport={() => { }}
+          />
+
+          <MessageInput
+            value={inputValue}
+            onChange={setInputValue}
+            onSend={handleSendMessage}
+            disabled={isProcessing}
+            placeholder={isProcessing ? 'Processing...' : 'Type a message...'}
+          />
+        </section>
+
+        <aside className="desktop-summary" aria-label="Session summary panel">
+          <div className="desktop-summary-header">
+            <h2>Session Summary</h2>
+            <p>Live records and draft notes</p>
+          </div>
+          <SessionSummaryContent
+            behaviorEvents={behaviorEvents}
+            skillTrials={skillTrials}
+            noteDraft={noteDraft}
+          />
+        </aside>
+      </div>
 
       <SideDrawer
         isOpen={isDrawerOpen}

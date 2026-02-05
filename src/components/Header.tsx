@@ -34,7 +34,7 @@ export function Header({ clientName, sessionTime, onBack, onMenuClick }: HeaderP
                             </svg>
                         </button>
                     )}
-                    <h1 className="header-title" style={{ marginLeft: onBack ? 0 : '16px' }}>Session Co-Pilot</h1>
+                    <h1 className={`header-title ${onBack ? '' : 'no-back'}`}>Session Co-Pilot</h1>
                 </div>
                 <button className="header-menu" onClick={onMenuClick} aria-label="Menu">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

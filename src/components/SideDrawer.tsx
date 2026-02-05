@@ -10,6 +10,133 @@ interface SideDrawerProps {
     noteDraft: string;
 }
 
+interface SessionSummaryContentProps {
+    behaviorEvents: BehaviorEvent[];
+    skillTrials: SkillTrial[];
+    noteDraft: string;
+    onNavigateComplete?: () => void;
+}
+
+export function SessionSummaryContent({
+    behaviorEvents,
+    skillTrials,
+    noteDraft,
+    onNavigateComplete
+}: SessionSummaryContentProps) {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+
+    const navigateTo = (path: string) => {
+        navigate(path);
+        onNavigateComplete?.();
+    };
+
+    return (
+        <div className="drawer-content">
+            <section className="drawer-section">
+                <h3 className="drawer-section-title">Navigation</h3>
+                <div className="drawer-nav-list">
+                    <button
+                        className="drawer-nav-btn"
+                        onClick={() => navigateTo('/app')}
+                    >
+                        Dashboard
+                    </button>
+                    {user?.role === 'manager' && (
+                        <button
+                            className="drawer-nav-btn users"
+                            onClick={() => navigateTo('/admin/users')}
+                        >
+                            User Management
+                        </button>
+                    )}
+                    {(user?.role === 'manager' || user?.role === 'bcba') && (
+                        <button
+                            className="drawer-nav-btn learners"
+                            onClick={() => navigateTo('/admin/learners')}
+                        >
+                            Caseload (Learners)
+                        </button>
+                    )}
+                </div>
+            </section>
+
+            <section className="drawer-section">
+                <h3 className="drawer-section-title">Behavior Events</h3>
+                {behaviorEvents.length === 0 ? (
+                    <p className="drawer-empty">No behaviors logged yet</p>
+                ) : (
+                    <div className="event-list">
+                        {behaviorEvents.map((event, idx) => (
+                            <div key={event.id || idx} className="event-item">
+                                <span className="event-icon">▸</span>
+                                <div className="event-details">
+                                    <span className="event-label">
+                                        {event.count && event.count > 1 ? `${event.count} ` : ''}
+                                        {event.behaviorType}
+                                        {event.duration ? `: ${event.duration}s` : ''}
+                                        {event.count && event.count > 1 ? ` (${formatDurations(event)})` : ''}
+                                    </span>
+                                    {event.antecedent && (
+                                        <div className="event-value">
+                                            <strong>Antecedent:</strong> {event.antecedent}
+                                        </div>
+                                    )}
+                                    {event.functionGuess && (
+                                        <div className="event-value">
+                                            <strong>Likely Function:</strong> {capitalize(event.functionGuess)}
+                                        </div>
+                                    )}
+                                    {event.intervention && (
+                                        <div className="event-value">
+                                            <strong>Intervention:</strong> {event.intervention}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            <section className="drawer-section">
+                <h3 className="drawer-section-title">Skill Trials</h3>
+                {skillTrials.length === 0 ? (
+                    <p className="drawer-empty">No skill trials logged yet</p>
+                ) : (
+                    <div className="event-list">
+                        {skillTrials.map((trial, idx) => (
+                            <div key={trial.id || idx} className="event-item">
+                                <span className="event-icon">▸</span>
+                                <div className="event-details">
+                                    <span className="event-label">{trial.skillName}: {trial.target}</span>
+                                    <div className="event-value">
+                                        <strong>Response:</strong> {capitalize(trial.response)}
+                                        {trial.promptLevel !== 'independent' && ` (${trial.promptLevel})`}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            <section className="drawer-section">
+                <h3 className="drawer-section-title">Session Notes Draft</h3>
+                <div className="notes-draft">
+                    {noteDraft ? (
+                        <div dangerouslySetInnerHTML={{ __html: formatNoteDraft(noteDraft) }} />
+                    ) : (
+                        <p className="drawer-empty italic">
+                            Notes will be generated as you log session data...
+                        </p>
+                    )}
+                </div>
+            </section>
+        </div>
+    );
+}
+
 export function SideDrawer({
     isOpen,
     onClose,
@@ -17,9 +144,6 @@ export function SideDrawer({
     skillTrials,
     noteDraft
 }: SideDrawerProps) {
-    const { user } = useAuth();
-    const navigate = useNavigate();
-
     return (
         <>
             <div
@@ -36,114 +160,12 @@ export function SideDrawer({
                         </svg>
                     </button>
                 </div>
-
-
-
-                <div className="drawer-content">
-                    {/* Navigation Section */}
-                    <section className="drawer-section">
-                        <h3 className="drawer-section-title">Navigation</h3>
-                        <div className="flex flex-col gap-2">
-                            <button
-                                className="text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-800 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700"
-                                onClick={() => { navigate('/app'); onClose(); }}
-                            >
-                                Dashboard
-                            </button>
-                            {user?.role === 'manager' && (
-                                <button
-                                    className="text-left px-3 py-2 rounded bg-indigo-50 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200 text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-800"
-                                    onClick={() => { navigate('/admin/users'); onClose(); }}
-                                >
-                                    User Management
-                                </button>
-                            )}
-                            {(user?.role === 'manager' || user?.role === 'bcba') && (
-                                <button
-                                    className="text-left px-3 py-2 rounded bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-200 text-sm font-medium hover:bg-green-100 dark:hover:bg-green-800"
-                                    onClick={() => { navigate('/admin/learners'); onClose(); }}
-                                >
-                                    Caseload (Learners)
-                                </button>
-                            )}
-                        </div>
-                    </section>
-                    {/* Behavior Events Section */}
-                    <section className="drawer-section">
-                        <h3 className="drawer-section-title">Behavior Events</h3>
-                        {behaviorEvents.length === 0 ? (
-                            <p style={{ fontSize: '0.875rem', color: '#718096' }}>No behaviors logged yet</p>
-                        ) : (
-                            <div className="event-list">
-                                {behaviorEvents.map((event, idx) => (
-                                    <div key={event.id || idx} className="event-item">
-                                        <span className="event-icon">▸</span>
-                                        <div className="event-details">
-                                            <span className="event-label">
-                                                {event.count && event.count > 1 ? `${event.count} ` : ''}
-                                                {event.behaviorType}
-                                                {event.duration ? `: ${event.duration}s` : ''}
-                                                {event.count && event.count > 1 ? ` (${formatDurations(event)})` : ''}
-                                            </span>
-                                            {event.antecedent && (
-                                                <div className="event-value">
-                                                    <strong>Antecedent:</strong> {event.antecedent}
-                                                </div>
-                                            )}
-                                            {event.functionGuess && (
-                                                <div className="event-value">
-                                                    <strong>Likely Function:</strong> {capitalize(event.functionGuess)}
-                                                </div>
-                                            )}
-                                            {event.intervention && (
-                                                <div className="event-value">
-                                                    <strong>Intervention:</strong> {event.intervention}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-
-                    {/* Skill Trials Section */}
-                    <section className="drawer-section">
-                        <h3 className="drawer-section-title">Skill Trials</h3>
-                        {skillTrials.length === 0 ? (
-                            <p style={{ fontSize: '0.875rem', color: '#718096' }}>No skill trials logged yet</p>
-                        ) : (
-                            <div className="event-list">
-                                {skillTrials.map((trial, idx) => (
-                                    <div key={trial.id || idx} className="event-item">
-                                        <span className="event-icon">▸</span>
-                                        <div className="event-details">
-                                            <span className="event-label">{trial.skillName}: {trial.target}</span>
-                                            <div className="event-value">
-                                                <strong>Response:</strong> {capitalize(trial.response)}
-                                                {trial.promptLevel !== 'independent' && ` (${trial.promptLevel})`}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-
-                    {/* Notes Draft Section */}
-                    <section className="drawer-section">
-                        <h3 className="drawer-section-title">Session Notes Draft</h3>
-                        <div className="notes-draft">
-                            {noteDraft ? (
-                                <div dangerouslySetInnerHTML={{ __html: formatNoteDraft(noteDraft) }} />
-                            ) : (
-                                <p style={{ color: '#718096', fontStyle: 'italic' }}>
-                                    Notes will be generated as you log session data...
-                                </p>
-                            )}
-                        </div>
-                    </section>
-                </div>
+                <SessionSummaryContent
+                    behaviorEvents={behaviorEvents}
+                    skillTrials={skillTrials}
+                    noteDraft={noteDraft}
+                    onNavigateComplete={onClose}
+                />
             </aside >
         </>
     );
