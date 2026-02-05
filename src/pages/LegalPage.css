@@ -1,0 +1,56 @@
+/* Inherit font but override colors for Light Mode */
+.legal-page {
+    background: #ffffff !important;
+    /* Force white background */
+    color: #2d3748;
+}
+
+/* Remove the dark pattern overlay */
+.legal-page::before {
+    display: none;
+}
+
+/* Navigation - Force dark text on the white navbar */
+.legal-page .landing-nav {
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.legal-page .landing-logo-text {
+    color: #2d3748;
+}
+
+.legal-page .landing-nav-btn.ghost {
+    color: #4a5568;
+    border-color: #cbd5e0;
+}
+
+.legal-page .landing-nav-btn.ghost:hover {
+    background: #edf2f7;
+    color: #2d3748;
+}
+
+/* Footer - Light theme variation */
+.legal-page .landing-footer {
+    background: #f7fafc;
+    border-top: 1px solid #e2e8f0;
+    color: #4a5568;
+}
+
+.legal-page .landing-footer-logo {
+    color: #2d3748;
+}
+
+.legal-page .landing-footer p {
+    color: #718096;
+}
+
+/* Ensure links in footer are visible */
+.legal-page .landing-footer a {
+    color: #4a5568 !important;
+}
+
+.legal-page .landing-footer a:hover {
+    color: #2b6cb0 !important;
+    text-decoration: underline !important;
+}

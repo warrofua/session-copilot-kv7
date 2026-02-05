@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import './LandingPage.css'; // Re-use landing page styles for consistency
+import './LandingPage.css'; // Base styles
+import './LegalPage.css';   // Light theme overrides
 
 export default function LegalPage() {
     const { hash } = useLocation();
@@ -20,7 +21,7 @@ export default function LegalPage() {
     return (
         <div className="landing-page legal-page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
             {/* Navigation */}
-            <nav className="landing-nav" style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255, 255, 255, 0.95)', borderBottom: '1px solid #e2e8f0' }}>
+            <nav className="landing-nav">
                 <Link to="/" className="landing-logo">
                     <span className="landing-logo-text">Agents <span>of ABA</span></span>
                 </Link>
@@ -111,8 +112,8 @@ export default function LegalPage() {
                 </div>
                 <p>&copy; {new Date().getFullYear()} Agents of ABA. All rights reserved.</p>
                 <div style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-                    <Link to="/legal#terms" style={{ color: '#718096', textDecoration: 'none', marginRight: '1rem' }}>Terms</Link>
-                    <Link to="/legal#privacy" style={{ color: '#718096', textDecoration: 'none' }}>Privacy</Link>
+                    <Link to="/legal#terms" style={{ marginRight: '1rem' }}>Terms</Link>
+                    <Link to="/legal#privacy">Privacy</Link>
                 </div>
             </footer>
         </div>
