@@ -10,7 +10,6 @@ import { useSyncStore } from './stores/syncStore';
 import { db, type BehaviorEvent, type Incident } from './db/db';
 import { parseUserInput, generateConfirmation, generateNoteDraft, type ParsedInput } from './services/llmService';
 import { TermsModal } from './components/TermsModal';
-import './index.css';
 
 function App() {
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
