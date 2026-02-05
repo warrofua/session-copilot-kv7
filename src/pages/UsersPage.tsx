@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserModal } from '../components/UserModal';
 
 export default function UsersPage() {
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, isLoading: isAuthLoading } = useAuth();
     const navigate = useNavigate();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -14,12 +14,15 @@ export default function UsersPage() {
     const [showAddModal, setShowAddModal] = useState(false);
 
     useEffect(() => {
+        if (isAuthLoading) {
+            return;
+        }
         if (!currentUser || currentUser.role !== 'manager') {
             navigate('/app');
             return;
         }
         loadUsers();
-    }, [currentUser, navigate]);
+    }, [currentUser, isAuthLoading, navigate]);
 
     async function loadUsers() {
         try {
@@ -34,7 +37,7 @@ export default function UsersPage() {
         }
     }
 
-    if (isLoading) return <div className="p-8 text-center">Loading users...</div>;
+    if (isAuthLoading || isLoading) return <div className="p-8 text-center">Loading users...</div>;
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

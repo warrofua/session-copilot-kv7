@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { LearnerModal } from '../components/LearnerModal';
 
 export default function LearnersPage() {
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, isLoading: isAuthLoading } = useAuth();
     const navigate = useNavigate();
     const [learners, setLearners] = useState<Learner[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -14,13 +14,16 @@ export default function LearnersPage() {
     const [showAddModal, setShowAddModal] = useState(false);
 
     useEffect(() => {
+        if (isAuthLoading) {
+            return;
+        }
         const canAccessLearners = currentUser?.role === 'manager' || currentUser?.role === 'bcba';
         if (!canAccessLearners) {
             navigate('/app');
             return;
         }
         loadLearners();
-    }, [currentUser, navigate]);
+    }, [currentUser, isAuthLoading, navigate]);
 
     async function loadLearners() {
         try {
@@ -34,7 +37,7 @@ export default function LearnersPage() {
         }
     }
 
-    if (isLoading) return <div className="p-8 text-center text-gray-500">Loading learners...</div>;
+    if (isAuthLoading || isLoading) return <div className="p-8 text-center text-gray-500">Loading learners...</div>;
 
     const canManage = currentUser?.role === 'manager' || currentUser?.role === 'bcba';
 
