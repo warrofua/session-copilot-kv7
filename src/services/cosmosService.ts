@@ -104,7 +104,7 @@ export async function queryDocuments(
     }
 
     try {
-        let querySpec = {
+        let querySpec: { query: string; parameters: { name: string; value: string | number }[] } = {
             query: 'SELECT * FROM c WHERE c.sessionId = @sessionId',
             parameters: [{ name: '@sessionId', value: sessionId }]
         };
