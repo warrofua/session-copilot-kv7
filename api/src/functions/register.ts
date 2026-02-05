@@ -68,14 +68,38 @@ async function registerHandler(request: HttpRequest, context: InvocationContext)
                     };
                 }
 
-                // Create new organization
+                // Create new organization with trial subscription
+                const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(); // +14 days
                 const org = await createOrganization({
                     name: orgName,
                     settings: {
                         defaultSessionDuration: 120,
                         requireSupervisorApproval: false
                     },
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    subscription: {
+                        stripeCustomerId: null,
+                        stripeSubscriptionId: null,
+                        plan: 'trial',
+                        status: 'trialing',
+                        billingPeriod: null,
+                        currentPeriodStart: new Date().toISOString(),
+                        currentPeriodEnd: trialEndsAt,
+                        trialEndsAt,
+                        cancelAtPeriodEnd: false,
+                        canceledAt: null,
+                        activeLearnerCount: 0,
+                        maxActiveLearners: 50, // Growth tier limits during trial
+                        lastCountedAt: null
+                    },
+                    billing: {
+                        billingEmail: email.toLowerCase(),
+                        billingName: name,
+                        lastPaymentDate: null,
+                        lastPaymentAmount: null,
+                        nextBillingDate: null,
+                        alertSentAt90Percent: null
+                    }
                 });
                 orgId = org.id;
 

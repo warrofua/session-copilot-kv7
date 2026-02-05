@@ -110,6 +110,22 @@ export function getTokenFromCookie(request: HttpRequest): string | null {
     return cookies[COOKIE_NAME] || null;
 }
 
+/**
+ * Parse cookies from a cookie header string
+ */
+export function parseCookies(cookieHeader: string): Record<string, string> {
+    if (!cookieHeader) {
+        return {};
+    }
+    return cookieHeader.split(';').reduce((acc, cookie) => {
+        const [key, value] = cookie.trim().split('=');
+        if (key) {
+            acc[key] = value || '';
+        }
+        return acc;
+    }, {} as Record<string, string>);
+}
+
 export function getTokenFromRequest(request: HttpRequest): string | null {
     // Try cookie first (preferred method)
     const cookieToken = getTokenFromCookie(request);

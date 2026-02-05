@@ -13,6 +13,7 @@ export default function LearnersPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
+    const [editingLearnerId, setEditingLearnerId] = useState<string | null>(null);
 
     useEffect(() => {
         if (isAuthLoading) {
@@ -39,6 +40,7 @@ export default function LearnersPage() {
     }
 
     if (isAuthLoading || isLoading) return <div className="admin-loading">Loading learners...</div>;
+    const editingLearner = editingLearnerId ? learners.find((learner) => learner.id === editingLearnerId) ?? null : null;
 
     const canManage = currentUser?.role === 'manager' || currentUser?.role === 'bcba';
 
@@ -102,7 +104,13 @@ export default function LearnersPage() {
                                                 </span>
                                             </td>
                                             <td>
-                                                <button type="button" className="admin-link-btn">Edit</button>
+                                                <button
+                                                    type="button"
+                                                    className="admin-link-btn"
+                                                    onClick={() => setEditingLearnerId(learner.id)}
+                                                >
+                                                    Edit
+                                                </button>
                                             </td>
                                         </tr>
                                     ))
@@ -116,8 +124,16 @@ export default function LearnersPage() {
             <LearnerModal
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
-                onLearnerAdded={loadLearners}
+                onLearnerSaved={loadLearners}
             />
+            {editingLearner && (
+                <LearnerModal
+                    isOpen={Boolean(editingLearner)}
+                    editingLearner={editingLearner}
+                    onClose={() => setEditingLearnerId(null)}
+                    onLearnerSaved={loadLearners}
+                />
+            )}
         </div>
     );
 }

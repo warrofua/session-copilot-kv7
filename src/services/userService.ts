@@ -10,6 +10,14 @@ export interface CreateUserRequest {
 export interface UserService {
     getUsers: () => Promise<User[]>;
     createUser: (data: CreateUserRequest) => Promise<User>;
+    updateUser: (data: UpdateUserRequest) => Promise<User>;
+}
+
+export interface UpdateUserRequest {
+    id: string;
+    name?: string;
+    role?: 'manager' | 'bcba' | 'rbt';
+    isActive?: boolean;
 }
 
 const API_Base = '/api';
@@ -41,6 +49,25 @@ export const userService: UserService = {
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to create user');
+        }
+
+        const data = await response.json();
+        return data.user;
+    },
+
+    updateUser: async (userData: UpdateUserRequest) => {
+        const response = await fetch(`${API_Base}/users`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(userData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update user');
         }
 
         const data = await response.json();

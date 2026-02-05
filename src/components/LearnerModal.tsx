@@ -1,18 +1,37 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { learnerService } from '../services/learnerService';
+import type { Learner } from '../db/db';
 
 interface LearnerModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onLearnerAdded: () => void;
+    onLearnerSaved: () => void;
+    editingLearner?: Learner | null;
 }
 
-export function LearnerModal({ isOpen, onClose, onLearnerAdded }: LearnerModalProps) {
+export function LearnerModal({ isOpen, onClose, onLearnerSaved, editingLearner }: LearnerModalProps) {
     const [name, setName] = useState('');
     const [dob, setDob] = useState('');
     const [status, setStatus] = useState<'active' | 'inactive' | 'discharged'>('active');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const isEditMode = Boolean(editingLearner);
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+        setError('');
+        if (editingLearner) {
+            setName(editingLearner.name);
+            setDob(editingLearner.dob ? editingLearner.dob.slice(0, 10) : '');
+            setStatus(editingLearner.status);
+            return;
+        }
+        setName('');
+        setDob('');
+        setStatus('active');
+    }, [editingLearner, isOpen]);
 
     if (!isOpen) return null;
 
@@ -22,86 +41,90 @@ export function LearnerModal({ isOpen, onClose, onLearnerAdded }: LearnerModalPr
         setIsLoading(true);
 
         try {
-            await learnerService.createLearner({
-                name,
-                dob,
-                status
-            });
-            onLearnerAdded();
+            if (editingLearner) {
+                await learnerService.updateLearner({
+                    id: editingLearner.id,
+                    name: name.trim(),
+                    dob,
+                    status
+                });
+            } else {
+                await learnerService.createLearner({
+                    name: name.trim(),
+                    dob,
+                    status
+                });
+            }
+            onLearnerSaved();
             onClose();
-            // Reset form
-            setName('');
-            setDob('');
-            setStatus('active');
         } catch (err: any) {
-            setError(err.message || 'Failed to create learner');
+            setError(err.message || `Failed to ${isEditMode ? 'update' : 'create'} learner`);
         } finally {
             setIsLoading(false);
         }
     }
 
     return (
-        <div className="fixed inset-0 z-10 overflow-y-auto">
-            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 text-gray-900 bg-white dark:bg-gray-800 dark:text-gray-100">
-                    <div>
-                        <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100">Add New Learner</h3>
-                        {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
-                        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                            <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+        <div className={`modal-overlay ${isOpen ? 'open' : ''}`} aria-labelledby="learner-modal-title" role="dialog" aria-modal="true">
+            <div className="modal admin-modal">
+                <div className="modal-header">
+                    <h3 id="learner-modal-title" className="modal-title admin-modal-title">
+                        {isEditMode ? 'Edit Learner' : 'Add New Learner'}
+                    </h3>
+                    <button type="button" className="drawer-close" onClick={onClose} aria-label="Close">
+                        ✕
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        {error && <div className="admin-error">{error}</div>}
+                        <div className="admin-form-grid">
+                            <div className="form-group">
+                                <label htmlFor="learner-name" className="form-label">Name</label>
                                 <input
                                     type="text"
-                                    id="name"
+                                    id="learner-name"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600"
+                                    className="form-input"
                                     required
                                 />
                             </div>
-                            <div>
-                                <label htmlFor="dob" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Date of Birth</label>
+                            <div className="form-group">
+                                <label htmlFor="learner-dob" className="form-label">Date of Birth</label>
                                 <input
                                     type="date"
-                                    id="dob"
+                                    id="learner-dob"
                                     value={dob}
                                     onChange={(e) => setDob(e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600"
+                                    className="form-input"
                                     required
                                 />
                             </div>
-                            <div>
-                                <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                            <div className="form-group">
+                                <label htmlFor="learner-status" className="form-label">Status</label>
                                 <select
-                                    id="status"
+                                    id="learner-status"
                                     value={status}
-                                    onChange={(e) => setStatus(e.target.value as any)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600"
+                                    onChange={(e) => setStatus(e.target.value as 'active' | 'inactive' | 'discharged')}
+                                    className="form-select"
                                 >
                                     <option value="active">Active</option>
                                     <option value="inactive">Inactive</option>
                                     <option value="discharged">Discharged</option>
                                 </select>
                             </div>
-                            <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                                <button
-                                    type="submit"
-                                    disabled={isLoading}
-                                    className="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-2 sm:text-sm"
-                                >
-                                    {isLoading ? 'Creating...' : 'Create Learner'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-1 sm:mt-0 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
+                        </div>
                     </div>
-                </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>
+                            Cancel
+                        </button>
+                        <button type="submit" disabled={isLoading} className="btn btn-primary">
+                            {isLoading ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create Learner')}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

@@ -159,6 +159,19 @@
     font-weight: 700;
 }
 
+.admin-modal {
+    width: min(560px, 100%);
+}
+
+.admin-modal-title {
+    color: #1a202c;
+}
+
+.admin-form-grid {
+    display: grid;
+    gap: 0.5rem;
+}
+
 @media (max-width: 700px) {
     .admin-page {
         padding: 0.75rem 0.5rem;

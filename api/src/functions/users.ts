@@ -10,6 +10,7 @@ interface CreateUserRequest {
 }
 
 interface UpdateUserRequest {
+    id: string;
     role?: 'manager' | 'bcba' | 'rbt';
     isActive?: boolean;
     name?: string;
@@ -111,6 +112,70 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
 
             const { passwordHash: _, ...safeUser } = newUser;
             return { status: 201, jsonBody: { user: safeUser } };
+        } else if (request.method === 'PUT') {
+            // UPDATE USER (Manager only)
+            if (requester.role !== 'manager') {
+                return { status: 403, jsonBody: { error: 'Only managers can update users' } };
+            }
+
+            const body = await request.json() as UpdateUserRequest;
+            const { id, role, isActive, name } = body;
+
+            if (!id) {
+                return { status: 400, jsonBody: { error: 'User id is required' } };
+            }
+
+            const targetUser = await findUserById(id);
+            if (!targetUser || targetUser.orgId !== requester.orgId) {
+                return { status: 404, jsonBody: { error: 'User not found' } };
+            }
+
+            if (targetUser.id === requester.id && isActive === false) {
+                return { status: 400, jsonBody: { error: 'You cannot deactivate your own account' } };
+            }
+
+            const updates: UpdateUserRequest = { id };
+            if (typeof role !== 'undefined') {
+                updates.role = role;
+            }
+            if (typeof isActive !== 'undefined') {
+                updates.isActive = isActive;
+            }
+            if (typeof name !== 'undefined' && name.trim()) {
+                updates.name = name.trim();
+            }
+
+            const permissions = updates.role ? getPermissionsForRole(updates.role, 'org') : undefined;
+            const updatedUser = await updateUser(id, {
+                ...(typeof updates.role !== 'undefined' ? { role: updates.role, permissions } : {}),
+                ...(typeof updates.isActive !== 'undefined' ? { isActive: updates.isActive } : {}),
+                ...(typeof updates.name !== 'undefined' ? { name: updates.name } : {})
+            });
+
+            if (!updatedUser) {
+                return { status: 404, jsonBody: { error: 'User not found' } };
+            }
+
+            await logAuditEvent({
+                userId: requester.id,
+                userEmail: requester.email,
+                action: 'update',
+                entityType: 'user',
+                entityId: updatedUser.id,
+                orgId: requester.orgId,
+                ipAddress,
+                userAgent,
+                success: true,
+                details: {
+                    updatedUserEmail: updatedUser.email,
+                    role: updatedUser.role,
+                    isActive: updatedUser.isActive,
+                    name: updatedUser.name
+                }
+            });
+
+            const { passwordHash: _, ...safeUser } = updatedUser;
+            return { status: 200, jsonBody: { user: safeUser } };
         }
 
         return { status: 405, jsonBody: { error: 'Method not allowed' } };
@@ -122,7 +187,7 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
 }
 
 app.http('users', {
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PUT'],
     authLevel: 'anonymous',
     route: 'users',
     handler: usersHandler

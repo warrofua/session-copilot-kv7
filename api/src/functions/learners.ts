@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { createLearner, findLearnersByOrg, findUserById, logAuditEvent } from '../services/cosmosDb.js';
+import { createLearner, findLearnersByOrg, findUserById, logAuditEvent, updateLearner } from '../services/cosmosDb.js';
 import { verifyRequestToken, getRequestMetadata } from '../utils/auth.js';
 
 interface CreateLearnerRequest {
@@ -8,6 +8,13 @@ interface CreateLearnerRequest {
     status: 'active' | 'inactive' | 'discharged';
     primaryBcbaId?: string;
     assignedRbtIds?: string[];
+}
+
+interface UpdateLearnerRequest {
+    id: string;
+    name?: string;
+    dob?: string;
+    status?: 'active' | 'inactive' | 'discharged';
 }
 
 export async function learnersHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -107,6 +114,69 @@ export async function learnersHandler(request: HttpRequest, context: InvocationC
                 status: 201,
                 jsonBody: learner
             };
+        } else if (request.method === 'PUT') {
+            // Update learner (Manager/BCBA)
+            if (user.role !== 'manager' && user.role !== 'bcba') {
+                return {
+                    status: 403,
+                    jsonBody: { error: 'Access denied: Only Managers and BCBAs can update learners' }
+                };
+            }
+
+            const body = await request.json() as UpdateLearnerRequest;
+            const { id, name, dob, status } = body;
+            if (!id) {
+                return { status: 400, jsonBody: { error: 'Learner id is required' } };
+            }
+
+            const orgLearners = await findLearnersByOrg(user.orgId);
+            const existing = orgLearners.find((learner) => learner.id === id);
+            if (!existing) {
+                return { status: 404, jsonBody: { error: 'Learner not found' } };
+            }
+
+            const updates: Partial<typeof existing> = {};
+            if (typeof name !== 'undefined' && name.trim()) {
+                updates.name = name.trim();
+            }
+            if (typeof dob !== 'undefined' && dob) {
+                updates.dob = dob;
+            }
+            if (typeof status !== 'undefined') {
+                updates.status = status;
+            }
+
+            if (Object.keys(updates).length === 0) {
+                return { status: 400, jsonBody: { error: 'No valid fields to update' } };
+            }
+
+            const updatedLearner = await updateLearner(id, updates);
+            if (!updatedLearner) {
+                return { status: 404, jsonBody: { error: 'Learner not found' } };
+            }
+
+            await logAuditEvent({
+                userId: user.id,
+                userEmail: user.email,
+                action: 'update',
+                entityType: 'learner',
+                entityId: updatedLearner.id,
+                orgId: user.orgId,
+                ipAddress,
+                userAgent,
+                success: true,
+                details: {
+                    learnerName: updatedLearner.name,
+                    status: updatedLearner.status,
+                    updatedBy: user.name,
+                    updatedByRole: user.role
+                }
+            });
+
+            return {
+                status: 200,
+                jsonBody: updatedLearner
+            };
         } else {
             return { status: 405, jsonBody: { error: 'Method not allowed' } };
         }
@@ -123,7 +193,7 @@ export async function learnersHandler(request: HttpRequest, context: InvocationC
 }
 
 app.http('learners', {
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PUT'],
     authLevel: 'anonymous',
     route: 'learners',
     handler: learnersHandler

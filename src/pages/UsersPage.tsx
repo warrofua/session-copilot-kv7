@@ -13,6 +13,7 @@ export default function UsersPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
     useEffect(() => {
         if (isAuthLoading) {
@@ -39,6 +40,7 @@ export default function UsersPage() {
     }
 
     if (isAuthLoading || isLoading) return <div className="admin-loading">Loading users...</div>;
+    const editingUser = editingUserId ? users.find((person) => person.id === editingUserId) ?? null : null;
 
     return (
         <div className="admin-page">
@@ -95,7 +97,13 @@ export default function UsersPage() {
                                             </span>
                                         </td>
                                         <td>
-                                            <button type="button" className="admin-link-btn">Edit</button>
+                                            <button
+                                                type="button"
+                                                className="admin-link-btn"
+                                                onClick={() => setEditingUserId(person.id)}
+                                            >
+                                                Edit
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -110,7 +118,15 @@ export default function UsersPage() {
                 <UserModal
                     isOpen={showAddModal}
                     onClose={() => setShowAddModal(false)}
-                    onUserAdded={loadUsers}
+                    onUserSaved={loadUsers}
+                />
+            )}
+            {editingUser && (
+                <UserModal
+                    isOpen={Boolean(editingUser)}
+                    editingUser={editingUser}
+                    onClose={() => setEditingUserId(null)}
+                    onUserSaved={loadUsers}
                 />
             )}
         </div>

@@ -61,6 +61,31 @@ export interface Organization {
         requireSupervisorApproval: boolean;
     };
     createdAt: string;
+
+    // Subscription & Billing (Stripe integration)
+    subscription: {
+        stripeCustomerId: string | null;
+        stripeSubscriptionId: string | null;
+        plan: 'starter' | 'growth' | 'scale' | 'enterprise' | 'trial' | null;
+        status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'paused';
+        billingPeriod: 'monthly' | 'annual' | null;
+        currentPeriodStart: string | null;
+        currentPeriodEnd: string | null;
+        trialEndsAt: string | null;
+        cancelAtPeriodEnd: boolean;
+        canceledAt: string | null;
+        activeLearnerCount: number;
+        maxActiveLearners: number;
+        lastCountedAt: string | null;
+    };
+    billing: {
+        billingEmail: string;
+        billingName: string;
+        lastPaymentDate: string | null;
+        lastPaymentAmount: number | null;
+        nextBillingDate: string | null;
+        alertSentAt90Percent: string | null;
+    };
 }
 
 export interface Learner {
@@ -191,6 +216,21 @@ export async function findLearnersByIds(learnerIds: string[]): Promise<Learner[]
     return resources;
 }
 
+export async function updateLearner(learnerId: string, updates: Partial<Learner>): Promise<Learner | null> {
+    const container = getContainer(CONTAINERS.LEARNERS);
+    try {
+        const { resource: existing } = await container.item(learnerId, learnerId).read<Learner>();
+        if (!existing) {
+            return null;
+        }
+        const updated: Learner = { ...existing, ...updates, id: existing.id, orgId: existing.orgId };
+        await container.item(learnerId, learnerId).replace(updated);
+        return updated;
+    } catch {
+        return null;
+    }
+}
+
 export async function logAuditEvent(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): Promise<void> {
     const container = getContainer(CONTAINERS.AUDIT_LOG);
     await container.items.create({
@@ -213,4 +253,33 @@ export async function findAuditLogsByOrg(orgId: string, limit = 100): Promise<Au
         })
         .fetchAll();
     return resources;
+}
+
+export async function updateOrganization(orgId: string, updates: Partial<Organization>): Promise<Organization | null> {
+    const container = getContainer(CONTAINERS.ORGANIZATIONS);
+    try {
+        const { resource: existing } = await container.item(orgId, orgId).read<Organization>();
+        if (!existing) {
+            return null;
+        }
+        const updated: Organization = { ...existing, ...updates, id: existing.id };
+        await container.item(orgId, orgId).replace(updated);
+        return updated;
+    } catch {
+        return null;
+    }
+}
+
+export async function countActiveLearnersByOrg(orgId: string): Promise<number> {
+    const container = getContainer(CONTAINERS.LEARNERS);
+    const { resources } = await container.items
+        .query({
+            query: 'SELECT VALUE COUNT(1) FROM c WHERE c.orgId = @orgId AND c.status = @status',
+            parameters: [
+                { name: '@orgId', value: orgId },
+                { name: '@status', value: 'active' }
+            ]
+        })
+        .fetchAll();
+    return resources[0] || 0;
 }
