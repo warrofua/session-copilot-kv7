@@ -89,10 +89,7 @@ async function loginHandler(request: HttpRequest, context: InvocationContext): P
         context.error('Login error:', error);
         return {
             status: 500,
-            jsonBody: {
-                error: 'Internal server error',
-                details: error instanceof Error ? error.message : String(error)
-            }
+            jsonBody: { error: 'Internal server error' }
         };
     }
 }

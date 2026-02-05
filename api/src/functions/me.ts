@@ -77,10 +77,7 @@ async function meHandler(request: HttpRequest, context: InvocationContext): Prom
         context.error('Auth/me error:', error);
         return {
             status: 500,
-            jsonBody: {
-                error: 'Internal server error',
-                details: error instanceof Error ? error.message : String(error)
-            }
+            jsonBody: { error: 'Internal server error' }
         };
     }
 }
