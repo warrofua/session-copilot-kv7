@@ -9,6 +9,7 @@ import ParentLogin from './pages/ParentLogin.tsx'
 import UsersPage from './pages/UsersPage.tsx'
 import LearnersPage from './pages/LearnersPage.tsx'
 import AuditLogsPage from './pages/AuditLogsPage.tsx'
+import LegalPage from './pages/LegalPage.tsx'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -25,6 +26,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/admin/users" element={<UsersPage />} />
           <Route path="/admin/learners" element={<LearnersPage />} />
           <Route path="/admin/audit" element={<AuditLogsPage />} />
+          <Route path="/legal" element={<LegalPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

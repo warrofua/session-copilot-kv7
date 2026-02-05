@@ -292,6 +292,10 @@ export default function LandingPage() {
                     <span>Agents of ABA</span>
                 </div>
                 <p>&copy; {new Date().getFullYear()} Agents of ABA. All rights reserved.</p>
+                <div style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>
+                    <Link to="/legal#terms" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', marginRight: '1rem' }}>Terms</Link>
+                    <Link to="/legal#privacy" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Privacy</Link>
+                </div>
             </footer>
         </div>
     );

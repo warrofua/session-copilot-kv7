@@ -78,6 +78,10 @@ export default function ParentLogin() {
 
                 <div className="login-footer">
                     <Link to="/login/org">Organization Login →</Link>
+                    <div style={{ marginTop: '1rem', fontSize: '0.8rem', opacity: 0.7 }}>
+                        <Link to="/legal#terms" style={{ color: 'inherit', marginRight: '1rem' }}>Terms</Link>
+                        <Link to="/legal#privacy" style={{ color: 'inherit' }}>Privacy</Link>
+                    </div>
                 </div>
             </div>
         </div>
