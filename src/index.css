@@ -14,15 +14,15 @@
   /* Backgrounds */
   --bg-primary: #F7FAFC;
   --bg-secondary: #EDF2F7;
-  --bg-white: #FFFFFF;
+  --bg-white: #FFF;
   --bg-user-message: #E2E8F0;
-  --bg-system-message: #FFFFFF;
+  --bg-system-message: #FFF;
   
   /* Text */
   --text-primary: #1A202C;
   --text-secondary: #4A5568;
   --text-muted: #718096;
-  --text-light: #FFFFFF;
+  --text-light: #FFF;
   
   /* Borders */
   --border-color: #E2E8F0;
@@ -32,9 +32,9 @@
   --border-radius-full: 9999px;
   
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 5%);
+  --shadow-md: 0 4px 6px rgb(0 0 0 / 10%);
+  --shadow-lg: 0 10px 15px rgb(0 0 0 / 10%);
   
   /* Spacing */
   --spacing-xs: 4px;
@@ -44,7 +44,7 @@
   --spacing-xl: 32px;
   
   /* Typography */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family: 'Inter', -apple-system, blinkmacsystemfont, 'Segoe UI', roboto, sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -115,7 +115,7 @@ html, body, #root {
 }
 
 .header-back:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(255 255 255 / 10%);
 }
 
 .header-title {
@@ -184,22 +184,22 @@ html, body, #root {
 }
 
 .sync-badge.synced {
-  background: rgba(72, 187, 120, 0.1);
+  background: rgb(72 187 120 / 10%);
   color: var(--color-success);
 }
 
 .sync-badge.offline {
-  background: rgba(237, 137, 54, 0.1);
+  background: rgb(237 137 54 / 10%);
   color: var(--color-warning);
 }
 
 .sync-badge.syncing {
-  background: rgba(66, 153, 225, 0.1);
+  background: rgb(66 153 225 / 10%);
   color: var(--color-accent);
 }
 
 .sync-badge.error {
-  background: rgba(245, 101, 101, 0.1);
+  background: rgb(245 101 101 / 10%);
   color: var(--color-danger);
 }
 
@@ -207,7 +207,7 @@ html, body, #root {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: currentColor;
+  background: currentcolor;
 }
 
 .sync-badge.syncing .status-dot {
@@ -369,17 +369,17 @@ html, body, #root {
 
 .action-btn.behavior {
   color: var(--color-danger);
-  border-color: rgba(245, 101, 101, 0.3);
+  border-color: rgb(245 101 101 / 30%);
 }
 
 .action-btn.skill {
   color: var(--color-accent);
-  border-color: rgba(66, 153, 225, 0.3);
+  border-color: rgb(66 153 225 / 30%);
 }
 
 .action-btn.success {
   color: var(--color-success);
-  border-color: rgba(72, 187, 120, 0.3);
+  border-color: rgb(72 187 120 / 30%);
 }
 
 .action-btn.danger {
@@ -439,7 +439,7 @@ html, body, #root {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgb(0 0 0 / 50%);
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s;
@@ -622,7 +622,7 @@ html, body, #root {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgb(0 0 0 / 50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -800,7 +800,7 @@ html, body, #root {
 }
 
 /* Responsive */
-@media (max-width: 480px) {
+@media (width <= 480px) {
   .app-container {
     max-width: 100%;
   }
@@ -815,7 +815,7 @@ html, body, #root {
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid currentColor;
+  border: 2px solid currentcolor;
   border-right-color: transparent;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;

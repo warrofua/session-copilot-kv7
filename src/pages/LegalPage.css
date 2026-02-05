@@ -1,6 +1,7 @@
 /* Inherit font but override colors for Light Mode */
 .legal-page {
-    background: #ffffff !important;
+    background: #fff !important;
+
     /* Force white background */
     color: #2d3748;
 }
@@ -12,7 +13,7 @@
 
 /* Navigation - Force dark text on the white navbar */
 .legal-page .landing-nav {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgb(255 255 255 / 95%);
     border-bottom: 1px solid #e2e8f0;
 }
 
