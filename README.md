@@ -9,6 +9,16 @@ An **Offline-First** AI assistant for ABA (Applied Behavior Analysis) therapists
 -   **Smart Hints:** Asks for missing context (Antecedents, Functions, Interventions) only when needed.
 -   **Safety First:** Dedicated "Oh Crap" button for reporting critical incidents.
 
+## 📐 Architecture
+```mermaid
+graph LR
+    User -->|Chat| ReactApp
+    ReactApp -->|Offline| RegexEngine
+    ReactApp -->|Online| GPT-4o
+    ReactApp -->|Persist| IndexedDB
+```
+For deep dive, see [Architecture Guide](architecture.md) and [Agent Guide](agents.md).
+
 ## 🛠️ Tech Stack
 -   **Framework:** React 18 + Vite (TypeScript)
 -   **PWA:** Service Workers for offline caching (`vite-plugin-pwa`)

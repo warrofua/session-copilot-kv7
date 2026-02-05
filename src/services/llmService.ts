@@ -50,6 +50,10 @@ When the user describes what happened, extract:
 4. Antecedents (what happened before)
 5. Consequences/interventions used
 6. Likely behavioral function (escape, tangible, attention, automatic)
+7. SKILL TRIALS: If the user mentions a skill trial (e.g. "DTT", "matching", "naming"), extract:
+   - Skill name
+   - Target (e.g. "blue", "apple")
+   - Response (correct/incorrect/prompted)
 
 Common ABA abbreviations:
 - SIB = Self-Injurious Behavior
@@ -171,36 +175,65 @@ export async function generateNoteDraft(
 function mockParseInput(input: string): ParsedInput {
     const lowerInput = input.toLowerCase();
     const behaviors: ParsedInput['behaviors'] = [];
+    const skillTrials: ParsedInput['skillTrials'] = [];
+    let reinforcement: ParsedInput['reinforcement'] | undefined;
 
-    // Simple pattern matching for demo
-    if (lowerInput.includes('elopement') || lowerInput.includes('ran') || lowerInput.includes('ran away')) {
-        const durationMatch = input.match(/(\d+)\s*seconds?/gi);
-        if (durationMatch) {
-            durationMatch.forEach(match => {
-                const seconds = parseInt(match);
-                if (!isNaN(seconds)) {
-                    behaviors.push({ type: 'elopement', duration: seconds });
-                }
+    // --- Behavior Detection ---
+    const behaviorPatterns = [
+        { type: 'elopement', keywords: ['elopement', 'ran away', 'bolted', 'left room'] },
+        { type: 'tantrum', keywords: ['tantrum', 'scream', 'cry', 'flop', 'drop to floor'] },
+        { type: 'aggression', keywords: ['aggression', 'hit', 'kick', 'bite', 'scratch', 'pinch'] },
+        { type: 'SIB', keywords: ['sib', 'self-injur', 'head bang', 'bit hand', 'bit self'] },
+        { type: 'property_destruction', keywords: ['property destruction', 'threw', 'broke', 'ripped'] },
+        { type: 'refusal', keywords: ['refusal', 'non-compliance', 'no', 'refused'] },
+        { type: 'stereotypy', keywords: ['stereotypy', 'stimming', 'hand flap', 'rocking'] }
+    ];
+
+    behaviorPatterns.forEach(pattern => {
+        if (pattern.keywords.some(k => lowerInput.includes(k))) {
+            // Duration Check
+            let duration = 0;
+            const secMatch = input.match(/(\d+)\s*sec/i);
+            const minMatch = input.match(/(\d+)\s*min/i);
+            if (secMatch) duration += parseInt(secMatch[1]);
+            if (minMatch) duration += parseInt(minMatch[1]) * 60;
+
+            // Count Check
+            const countMatch = input.match(/(\d+|once|twice|two|three|four|five)\s*times?/i);
+            const count = countMatch ? parseCount(countMatch[1]) : 1;
+
+            behaviors.push({
+                type: pattern.type,
+                count: duration > 0 ? undefined : count,
+                duration: duration > 0 ? duration : undefined
             });
         }
-        if (behaviors.length === 0) {
-            const countMatch = input.match(/(\d+|two|three|four|five)/i);
-            const count = countMatch ? parseCount(countMatch[0]) : 1;
-            behaviors.push({ type: 'elopement', count });
-        }
+    });
+
+    // --- Skill Trial Detection ---
+    if (lowerInput.includes('trial') || lowerInput.includes('skill') || lowerInput.includes('target')) {
+        // Hacky regex extraction for demo
+        const skill = 'Unknown Skill'; // Parsing skill names without NLP is hard
+        let target = 'Target';
+        let response = 'Incorrect';
+
+        if (lowerInput.includes('correct') || lowerInput.includes('+')) response = 'Correct';
+        if (lowerInput.includes('incorrect') || lowerInput.includes('-')) response = 'Incorrect';
+        if (lowerInput.includes('prompt')) response = 'Prompted';
+
+        // Try to extract content in quotes as target?
+        const quoteMatch = input.match(/"([^"]+)"/);
+        if (quoteMatch) target = quoteMatch[1];
+
+        skillTrials.push({ skill, target, response });
     }
 
-    if (lowerInput.includes('tantrum')) {
-        behaviors.push({ type: 'tantrum', count: 1 });
-    }
-
-    if (lowerInput.includes('aggression') || lowerInput.includes('hit') || lowerInput.includes('kick')) {
-        behaviors.push({ type: 'aggression', count: 1 });
-    }
-
-    if (lowerInput.includes('sib') || lowerInput.includes('self-injur') || lowerInput.includes('bit his hand')) {
-        const countMatch = input.match(/(\d+|twice|two|three)/i);
-        behaviors.push({ type: 'SIB', count: parseCount(countMatch?.[0] || '1') });
+    // --- Reinforcement Detection ---
+    if (lowerInput.includes('token') || lowerInput.includes('praise') || lowerInput.includes('candy') || lowerInput.includes('ipad')) {
+        reinforcement = {
+            type: 'Reinforcement',
+            delivered: true
+        };
     }
 
     // Detect antecedent
@@ -221,13 +254,19 @@ function mockParseInput(input: string): ParsedInput {
         functionGuess = 'tangible';
     }
 
+    // Narrative generation
+    const narrativeFragment = generateNarrativeFragment(behaviors, antecedent);
+
     return {
         behaviors,
+        skillTrials,
+        reinforcement,
         antecedent,
         functionGuess,
-        needsClarification: behaviors.length === 0,
-        clarificationQuestion: behaviors.length === 0 ? 'I couldn\'t identify a specific behavior. What type of behavior occurred?' : undefined,
-        narrativeFragment: generateNarrativeFragment(behaviors, antecedent)
+        intervention: undefined,
+        needsClarification: behaviors.length === 0 && skillTrials.length === 0 && !reinforcement,
+        clarificationQuestion: behaviors.length === 0 ? 'I detected an event but wasn\'t sure how to categorize it. Can you specify the behavior?' : undefined,
+        narrativeFragment
     };
 }
 
@@ -316,9 +355,19 @@ export function generateConfirmation(parsed: ParsedInput): ConfirmationResponse 
         return b.type;
     }).join(', ');
 
+    const skillSummary = parsed.skillTrials?.map(t =>
+        `${t.skill} (${t.target}): ${t.response}`
+    ).join(', ') || '';
+
+    const summaryParts = [];
+    if (behaviorSummary) summaryParts.push(behaviorSummary);
+    if (skillSummary) summaryParts.push(skillSummary);
+
+    const combinedSummary = summaryParts.join(' + ');
+
     const message = parsed.antecedent
-        ? `Logging: ${behaviorSummary} after ${parsed.antecedent}. Is this correct?`
-        : `Logging: ${behaviorSummary}. Is this correct?`;
+        ? `Logging: ${combinedSummary} after ${parsed.antecedent}. Is this correct?`
+        : `Logging: ${combinedSummary}. Is this correct?`;
 
     const buttons: ConfirmationResponse['buttons'] = [
         { label: 'Yes', action: 'confirm', value: 'yes' },

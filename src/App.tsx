@@ -24,6 +24,7 @@ function App() {
     noteDraft,
     isDrawerOpen,
     addBehaviorEvent,
+    addSkillTrial,
     setNoteDraft,
     toggleDrawer,
     setDrawerOpen
@@ -150,6 +151,28 @@ function App() {
         await db.behaviorEvents.add(event);
         addBehaviorEvent(event);
         incrementUnsyncedCount();
+      }
+
+      // Save skill trials
+      if (pendingData.skillTrials && pendingData.skillTrials.length > 0) {
+        for (const trial of pendingData.skillTrials) {
+          const skillTrial = {
+            sessionId: 1, // Demo session
+            skillName: trial.skill,
+            target: trial.target,
+            promptLevel: trial.promptLevel as any || 'independent',
+            response: trial.response as any || 'correct',
+            reinforcementDelivered: false,
+            timestamp: new Date(),
+            createdAt: new Date(),
+            synced: false
+          };
+          await db.skillTrials.add(skillTrial);
+          // Note: need to add addSkillTrial to destructuring above if not present
+          // userSessionStore destructuring has 'addSkillTrial' (verified in file view line 27)
+          addSkillTrial(skillTrial);
+          incrementUnsyncedCount();
+        }
       }
 
       addMessage('assistant', '✓ Data logged successfully!');
