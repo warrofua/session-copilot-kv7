@@ -30,6 +30,8 @@ export interface ParsedInput {
         type: string;
         delivered: boolean;
     };
+    incident?: boolean;
+    note?: boolean;
     needsClarification: boolean;
     clarificationQuestion?: string;
     narrativeFragment: string;

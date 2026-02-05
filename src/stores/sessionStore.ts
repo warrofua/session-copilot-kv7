@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Session, BehaviorEvent, SkillTrial, Incident } from '../db/db';
+import type { Session } from '../db/db';
 
 interface SessionState {
     currentSession: Session | null;
