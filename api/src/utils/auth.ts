@@ -125,6 +125,24 @@ export function verifyRequestToken(request: HttpRequest): JWTPayload | null {
     return verifyToken(token);
 }
 
+// Extract request metadata for audit logging
+export interface RequestMetadata {
+    ipAddress: string;
+    userAgent: string;
+}
+
+export function getRequestMetadata(request: HttpRequest): RequestMetadata {
+    // Get IP address (Azure provides this in x-forwarded-for header)
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+        || request.headers.get('x-real-ip')
+        || 'unknown';
+
+    // Get user agent
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+
+    return { ipAddress, userAgent };
+}
+
 // Role-based permission checks
 export function getPermissionsForRole(role: 'manager' | 'bcba' | 'rbt' | null, userType: 'org' | 'parent'): string[] {
     if (userType === 'parent') {

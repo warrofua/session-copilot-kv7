@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { findUserByEmail, createUser, createOrganization, logAuditEvent } from '../services/cosmosDb.js';
-import { hashPassword, generateToken, getPermissionsForRole, setAuthCookie } from '../utils/auth.js';
+import { hashPassword, generateToken, getPermissionsForRole, setAuthCookie, getRequestMetadata } from '../utils/auth.js';
 
 interface RegisterRequest {
     email: string;
@@ -16,6 +16,9 @@ interface RegisterRequest {
 
 async function registerHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log('Registration attempt');
+
+    // Extract request metadata for audit logging
+    const { ipAddress, userAgent } = getRequestMetadata(request);
 
     try {
         const body = await request.json() as RegisterRequest;
@@ -78,9 +81,14 @@ async function registerHandler(request: HttpRequest, context: InvocationContext)
 
                 await logAuditEvent({
                     userId: 'registration',
+                    userEmail: email,
                     action: 'org_created',
                     entityType: 'organization',
                     entityId: org.id,
+                    orgId: org.id,
+                    ipAddress,
+                    userAgent,
+                    success: true,
                     details: { name: orgName }
                 });
             } else {
@@ -117,10 +125,15 @@ async function registerHandler(request: HttpRequest, context: InvocationContext)
         // Log registration
         await logAuditEvent({
             userId: user.id,
+            userEmail: user.email,
             action: 'user_registered',
             entityType: 'user',
             entityId: user.id,
-            details: { userType, role }
+            orgId: user.orgId,
+            ipAddress,
+            userAgent,
+            success: true,
+            details: { userType, role, name }
         });
 
         // Generate token

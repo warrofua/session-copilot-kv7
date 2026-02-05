@@ -1,9 +1,12 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { findUserById, findLearnersByIds, findLearnersByOrg, findOrganizationById, Learner, Organization } from '../services/cosmosDb.js';
-import { verifyRequestToken } from '../utils/auth.js';
+import { findUserById, findLearnersByIds, findLearnersByOrg, findOrganizationById, Learner, Organization, logAuditEvent } from '../services/cosmosDb.js';
+import { verifyRequestToken, getRequestMetadata } from '../utils/auth.js';
 
 async function meHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log('Auth/me request');
+
+    // Extract request metadata for audit logging
+    const { ipAddress, userAgent } = getRequestMetadata(request);
 
     try {
         // Verify token from cookie or Authorization header
@@ -50,6 +53,24 @@ async function meHandler(request: HttpRequest, context: InvocationContext): Prom
             // Parents only see their assigned learners
             learners = await findLearnersByIds(user.assignedLearnerIds);
         }
+
+        // Log access to user info (includes learner assignments - PHI)
+        await logAuditEvent({
+            userId: user.id,
+            userEmail: user.email,
+            action: 'read',
+            entityType: 'user_profile',
+            entityId: user.id,
+            orgId: user.orgId,
+            ipAddress,
+            userAgent,
+            success: true,
+            details: {
+                userType: user.userType,
+                role: user.role,
+                learnerCount: learners.length
+            }
+        });
 
         // Remove password hash from response
         const { passwordHash: _, ...safeUser } = user;

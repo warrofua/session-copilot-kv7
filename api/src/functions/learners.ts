@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { createLearner, findLearnersByOrg, findUserById } from '../services/cosmosDb.js';
-import { verifyRequestToken } from '../utils/auth.js';
+import { createLearner, findLearnersByOrg, findUserById, logAuditEvent } from '../services/cosmosDb.js';
+import { verifyRequestToken, getRequestMetadata } from '../utils/auth.js';
 
 interface CreateLearnerRequest {
     name: string;
@@ -12,6 +12,9 @@ interface CreateLearnerRequest {
 
 export async function learnersHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log(`Learners API request: ${request.method} ${request.url}`);
+
+    // Extract request metadata for audit logging
+    const { ipAddress, userAgent } = getRequestMetadata(request);
 
     // Verify token (checks cookie first, then header)
     const payload = verifyRequestToken(request);
@@ -31,6 +34,21 @@ export async function learnersHandler(request: HttpRequest, context: InvocationC
             // Note: For MVP, we allow all org users to see the learner list.
             // In future, RBTs might only see assigned learners.
             const learners = await findLearnersByOrg(user.orgId);
+
+            // Log learner list access (PHI access)
+            await logAuditEvent({
+                userId: user.id,
+                userEmail: user.email,
+                action: 'read',
+                entityType: 'learners_list',
+                entityId: user.orgId,
+                orgId: user.orgId,
+                ipAddress,
+                userAgent,
+                success: true,
+                details: { learnerCount: learners.length, userRole: user.role }
+            });
+
             return {
                 status: 200,
                 jsonBody: learners
@@ -64,6 +82,25 @@ export async function learnersHandler(request: HttpRequest, context: InvocationC
                 primaryBcbaId: body.primaryBcbaId || null,
                 assignedRbtIds: body.assignedRbtIds || [],
                 createdAt: new Date().toISOString()
+            });
+
+            // Log learner creation (PHI creation)
+            await logAuditEvent({
+                userId: user.id,
+                userEmail: user.email,
+                action: 'create',
+                entityType: 'learner',
+                entityId: learner.id,
+                orgId: user.orgId,
+                ipAddress,
+                userAgent,
+                success: true,
+                details: {
+                    learnerName: name,
+                    status,
+                    createdBy: user.name,
+                    createdByRole: user.role
+                }
             });
 
             return {

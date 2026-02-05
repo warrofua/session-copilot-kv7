@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { findUserByEmail, logAuditEvent } from '../services/cosmosDb.js';
-import { verifyPassword, generateToken, setAuthCookie } from '../utils/auth.js';
+import { verifyPassword, generateToken, setAuthCookie, getRequestMetadata } from '../utils/auth.js';
 
 interface LoginRequest {
     email: string;
@@ -9,6 +9,9 @@ interface LoginRequest {
 
 async function loginHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log('Login attempt');
+
+    // Extract request metadata for audit logging
+    const { ipAddress, userAgent } = getRequestMetadata(request);
 
     try {
         const body = await request.json() as LoginRequest;
@@ -28,10 +31,16 @@ async function loginHandler(request: HttpRequest, context: InvocationContext): P
             // Log failed attempt for security
             await logAuditEvent({
                 userId: 'anonymous',
+                userEmail: email,
                 action: 'login_failed',
                 entityType: 'auth',
                 entityId: email,
-                details: { reason: 'user_not_found' }
+                orgId: null,
+                ipAddress,
+                userAgent,
+                success: false,
+                failureReason: 'user_not_found',
+                details: { attemptedEmail: email }
             });
             return {
                 status: 401,
@@ -52,10 +61,16 @@ async function loginHandler(request: HttpRequest, context: InvocationContext): P
         if (!isValid) {
             await logAuditEvent({
                 userId: user.id,
+                userEmail: user.email,
                 action: 'login_failed',
                 entityType: 'auth',
                 entityId: user.id,
-                details: { reason: 'invalid_password' }
+                orgId: user.orgId,
+                ipAddress,
+                userAgent,
+                success: false,
+                failureReason: 'invalid_password',
+                details: { email: user.email }
             });
             return {
                 status: 401,
@@ -69,10 +84,15 @@ async function loginHandler(request: HttpRequest, context: InvocationContext): P
         // Log successful login
         await logAuditEvent({
             userId: user.id,
+            userEmail: user.email,
             action: 'login_success',
             entityType: 'auth',
             entityId: user.id,
-            details: {}
+            orgId: user.orgId,
+            ipAddress,
+            userAgent,
+            success: true,
+            details: { userType: user.userType, role: user.role }
         });
 
         // Return user info (without password hash)

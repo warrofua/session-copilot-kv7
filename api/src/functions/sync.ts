@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { verifyRequestToken } from '../utils/auth.js';
-import { getContainer, CONTAINERS } from '../services/cosmosDb.js';
+import { verifyRequestToken, getRequestMetadata } from '../utils/auth.js';
+import { getContainer, CONTAINERS, logAuditEvent } from '../services/cosmosDb.js';
 
 export interface SyncableDocument {
     id: string;
@@ -14,6 +14,9 @@ export interface SyncableDocument {
 
 async function batchSyncHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log('Batch sync request');
+
+    // Extract request metadata for audit logging
+    const { ipAddress, userAgent } = getRequestMetadata(request);
 
     try {
         // Verify authentication from cookie or header
@@ -84,6 +87,26 @@ async function batchSyncHandler(request: HttpRequest, context: InvocationContext
         }
 
         context.log(`Sync complete: ${success} success, ${failed} failed`);
+
+        // Log sync operation (PHI access - syncing session data)
+        await logAuditEvent({
+            userId: payload.userId,
+            userEmail: payload.email,
+            action: 'sync',
+            entityType: 'session_data',
+            entityId: `batch_${documents.length}`,
+            orgId: payload.orgId,
+            ipAddress,
+            userAgent,
+            success: failed === 0,
+            failureReason: failed > 0 ? `${failed} documents failed to sync` : undefined,
+            details: {
+                totalDocuments: documents.length,
+                successCount: success,
+                failedCount: failed,
+                entityTypes: [...new Set(documents.map(d => d.entityType))]
+            }
+        });
 
         return {
             status: 200,

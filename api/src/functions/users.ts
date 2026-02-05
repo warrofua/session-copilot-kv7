@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { findUsersByOrg, createUser, findUserByEmail, updateUser, findUserById, logAuditEvent } from '../services/cosmosDb.js';
-import { verifyRequestToken, hashPassword, getPermissionsForRole } from '../utils/auth.js';
+import { verifyRequestToken, hashPassword, getPermissionsForRole, getRequestMetadata } from '../utils/auth.js';
 
 interface CreateUserRequest {
     email: string;
@@ -17,6 +17,9 @@ interface UpdateUserRequest {
 
 async function usersHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log('Users API request');
+
+    // Extract request metadata for audit logging
+    const { ipAddress, userAgent } = getRequestMetadata(request);
 
     try {
         // Verify token (checks cookie first, then header)
@@ -38,6 +41,21 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
         if (request.method === 'GET') {
             // LIST USERS
             const users = await findUsersByOrg(requester.orgId);
+
+            // Log user list access
+            await logAuditEvent({
+                userId: requester.id,
+                userEmail: requester.email,
+                action: 'read',
+                entityType: 'users_list',
+                entityId: requester.orgId,
+                orgId: requester.orgId,
+                ipAddress,
+                userAgent,
+                success: true,
+                details: { userCount: users.length }
+            });
+
             // Remove sensitive data
             const safeUsers = users.map(({ passwordHash, ...u }) => u);
             return { status: 200, jsonBody: { users: safeUsers } };
@@ -79,10 +97,15 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
 
             await logAuditEvent({
                 userId: requester.id,
-                action: 'user_created',
+                userEmail: requester.email,
+                action: 'create',
                 entityType: 'user',
                 entityId: newUser.id,
-                details: { role, name }
+                orgId: requester.orgId,
+                ipAddress,
+                userAgent,
+                success: true,
+                details: { role, name, createdUserEmail: newUser.email }
             });
 
             const { passwordHash: _, ...safeUser } = newUser;

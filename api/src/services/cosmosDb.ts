@@ -77,12 +77,17 @@ export interface Learner {
 export interface AuditLogEntry {
     id: string;
     userId: string;
-    action: string;
-    entityType: string;
+    userEmail: string;
+    action: string;           // 'read', 'create', 'update', 'delete', 'login', 'logout', etc.
+    entityType: string;       // 'session', 'behavior', 'incident', 'user', 'learner', 'auth'
     entityId: string;
-    details: Record<string, unknown>;
+    orgId: string | null;     // Organization for multi-tenant isolation
+    ipAddress: string;        // Required for HIPAA compliance
+    userAgent: string;        // Required for HIPAA compliance
+    success: boolean;         // Whether the action succeeded
+    failureReason?: string;   // If failed, why?
+    details: Record<string, unknown>;  // Additional context
     timestamp: string;
-    ipAddress?: string;
 }
 
 // CRUD operations
