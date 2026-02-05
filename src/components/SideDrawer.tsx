@@ -44,16 +44,25 @@ export function SideDrawer({
                     <section className="drawer-section">
                         <h3 className="drawer-section-title">Navigation</h3>
                         <div className="flex flex-col gap-2">
-                            <button className="text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-800 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700" onClick={() => navigate('/app')}>
+                            <button
+                                className="text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-800 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700"
+                                onClick={() => { navigate('/app'); onClose(); }}
+                            >
                                 Dashboard
                             </button>
                             {user?.role === 'manager' && (
-                                <button className="text-left px-3 py-2 rounded bg-indigo-50 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200 text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-800" onClick={() => navigate('/admin/users')}>
+                                <button
+                                    className="text-left px-3 py-2 rounded bg-indigo-50 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200 text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-800"
+                                    onClick={() => { navigate('/admin/users'); onClose(); }}
+                                >
                                     User Management
                                 </button>
                             )}
                             {(user?.role === 'manager' || user?.role === 'bcba') && (
-                                <button className="text-left px-3 py-2 rounded bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-200 text-sm font-medium hover:bg-green-100 dark:hover:bg-green-800" onClick={() => navigate('/admin/learners')}>
+                                <button
+                                    className="text-left px-3 py-2 rounded bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-200 text-sm font-medium hover:bg-green-100 dark:hover:bg-green-800"
+                                    onClick={() => { navigate('/admin/learners'); onClose(); }}
+                                >
                                     Caseload (Learners)
                                 </button>
                             )}

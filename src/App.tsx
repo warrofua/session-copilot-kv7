@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useAuth } from './contexts/AuthContext';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Header } from './components/Header';
 import { ChatArea, MessageInput, type ChatMessageData } from './components/ChatArea';
@@ -12,6 +13,7 @@ import { parseUserInput, generateConfirmation, generateNoteDraft, type ParsedInp
 import { TermsModal } from './components/TermsModal';
 
 function App() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -278,6 +280,55 @@ function App() {
         sessionTime={sessionTime}
         onMenuClick={toggleDrawer}
       />
+
+      {/* Admin Quick Access Card */}
+      {(user?.role === 'manager' || user?.role === 'bcba') && (
+        <div style={{
+          margin: '12px',
+          padding: '12px',
+          backgroundColor: '#f8fafc',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          display: 'flex',
+          gap: '8px',
+          overflowX: 'auto'
+        }}>
+          {user.role === 'manager' && (
+            <button
+              onClick={() => window.location.href = '/admin/users'}
+              style={{
+                flex: '1',
+                padding: '8px 12px',
+                backgroundColor: '#e0e7ff',
+                color: '#4338ca',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                border: 'none',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              👥 Manage Users
+            </button>
+          )}
+          <button
+            onClick={() => window.location.href = '/admin/learners'}
+            style={{
+              flex: '1',
+              padding: '8px 12px',
+              backgroundColor: '#dcfce7',
+              color: '#15803d',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              border: 'none',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            👶 Caseload
+          </button>
+        </div>
+      )}
 
       <ChatArea
         messages={messages}

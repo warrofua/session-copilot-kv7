@@ -27,12 +27,14 @@ export function Header({ clientName, sessionTime, onBack, onMenuClick }: HeaderP
         <>
             <header className="header">
                 <div className="header-left">
-                    <button className="header-back" onClick={onBack} aria-label="Go back">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M15 18l-6-6 6-6" />
-                        </svg>
-                    </button>
-                    <h1 className="header-title">Session Co-Pilot</h1>
+                    {onBack && (
+                        <button className="header-back" onClick={onBack} aria-label="Go back">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M15 18l-6-6 6-6" />
+                            </svg>
+                        </button>
+                    )}
+                    <h1 className="header-title" style={{ marginLeft: onBack ? 0 : '16px' }}>Session Co-Pilot</h1>
                 </div>
                 <button className="header-menu" onClick={onMenuClick} aria-label="Menu">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
