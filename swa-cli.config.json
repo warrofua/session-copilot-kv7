@@ -1,0 +1,11 @@
+{
+    "$schema": "https://aka.ms/azure-static-web-apps-swa-cli/schema",
+    "configurations": {
+        "app": {
+            "appDevserverUrl": "http://localhost:5173",
+            "apiLocation": "api",
+            "outputLocation": "dist",
+            "apiDevserverUrl": "http://localhost:7071"
+        }
+    }
+}
