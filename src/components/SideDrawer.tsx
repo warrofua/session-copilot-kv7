@@ -1,4 +1,6 @@
 import type { BehaviorEvent, SkillTrial } from '../db/db';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface SideDrawerProps {
     isOpen: boolean;
@@ -15,6 +17,9 @@ export function SideDrawer({
     skillTrials,
     noteDraft
 }: SideDrawerProps) {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+
     return (
         <>
             <div
@@ -32,7 +37,23 @@ export function SideDrawer({
                     </button>
                 </div>
 
+
+
                 <div className="drawer-content">
+                    {/* Navigation Section */}
+                    <section className="drawer-section">
+                        <h3 className="drawer-section-title">Navigation</h3>
+                        <div className="flex flex-col gap-2">
+                            <button className="text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-800 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700" onClick={() => navigate('/app')}>
+                                Dashboard
+                            </button>
+                            {user?.role === 'manager' && (
+                                <button className="text-left px-3 py-2 rounded bg-indigo-50 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200 text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-800" onClick={() => navigate('/admin/users')}>
+                                    User Management
+                                </button>
+                            )}
+                        </div>
+                    </section>
                     {/* Behavior Events Section */}
                     <section className="drawer-section">
                         <h3 className="drawer-section-title">Behavior Events</h3>
@@ -109,7 +130,7 @@ export function SideDrawer({
                         </div>
                     </section>
                 </div>
-            </aside>
+            </aside >
         </>
     );
 }

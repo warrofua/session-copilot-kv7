@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { User, Learner, Organization } from '../services/authService';
+export type { User };
 import {
     getToken,
     getMe,

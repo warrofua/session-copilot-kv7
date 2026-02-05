@@ -107,6 +107,17 @@ export async function findUserById(userId: string): Promise<User | null> {
     }
 }
 
+export async function findUsersByOrg(orgId: string): Promise<User[]> {
+    const container = getContainer(CONTAINERS.USERS);
+    const { resources } = await container.items
+        .query({
+            query: 'SELECT * FROM c WHERE c.orgId = @orgId',
+            parameters: [{ name: '@orgId', value: orgId }]
+        })
+        .fetchAll();
+    return resources;
+}
+
 export async function createUser(user: Omit<User, 'id'>): Promise<User> {
     const container = getContainer(CONTAINERS.USERS);
     const id = crypto.randomUUID();

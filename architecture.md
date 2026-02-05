@@ -13,7 +13,8 @@ graph TD
     User[Therapist] -->|Chat/Click| UI[React UI]
     UI -->|State Updates| Store[Zustand Store]
     UI -->|Data Persist| DB[(Dexie.js / IndexedDB)]
-    
+    UI -->|Auth| AuthContext[Auth Context]
+
     subgraph Intelligence Layer
         UI -->|Input| Router{Router}
         Router -->|Online| API[GitHub Models API]
@@ -21,13 +22,19 @@ graph TD
         API -->|JSON| Parser[Response Parser]
         Regex -->|JSON| Parser
     end
-    
+
     Parser -->|Structured Data| Confirmation[Confirmation Flow]
     Confirmation -->|User Approves| DB
     Confirmation -->|User Approves| Store
-    
+
+    AuthContext -->|Login/Register| Functions[Azure Functions API]
+    Functions -->|Query/Persist| Cosmos[(Cosmos DB)]
+    DB -->|Sync Queue| SyncService[Sync Service]
+    SyncService -->|When Online| Cosmos
+
     subgraph Cloud
         CI[GitHub Actions] -->|Build & Deploy| SWA[Azure Static Web App]
+        SWA -->|Hosts| Functions
     end
 ```
 
@@ -44,10 +51,11 @@ graph TD
 -   `SideDrawer.tsx`: The "Session Summary" view (Read-Model of the data).
 -   `llmService.ts`: The interface for all "Intelligence" operations.
 
-### 2. State Management (Zustand)
-We use **Zustand** for transient UI state and in-memory data mirroring.
+### 2. State Management (Zustand + React Context)
+We use **Zustand** for transient UI state and **React Context** for authentication.
 -   `sessionStore.ts`: Holds the *current* session's active data (events, trials, draft notes). This allows for instant UI reactivity without querying IndexedDB on every render.
 -   `syncStore.ts`: Tracks online/offline status and pending sync counts.
+-   `AuthContext.tsx`: Manages user authentication state, JWT tokens, and role-based permissions.
 
 ### 3. Data Layer (Dexie.js / IndexedDB)
 This is the **Core** of the application.
@@ -65,13 +73,31 @@ We use a **Fallback Strategy** for AI:
 2.  **Fallback Offline:** Token missing or Network Error? -> Run `mockParseInput` (Regular Expressions).
     -   *Note:* The Regex engine has been robustly tuned to handle standard ABA terminology ("elopement", "SIB", "trials", durations).
 
-### 5. Infrastructure (Azure)
--   **Host:** Azure Static Web Apps (Free Tier).
+### 5. Backend Layer (Azure Functions)
+-   **API:** Node.js Azure Functions in `api/src/functions/`
+-   **Endpoints:**
+    -   `POST /api/auth/login`: Authenticate user, return JWT token
+    -   `POST /api/auth/register`: Create new user/organization
+    -   `GET /api/auth/me`: Get current user info with assigned learners
+-   **Database:** Cosmos DB for users, organizations, learners, and audit logs
+-   **Auth:** JWT-based authentication with role-based access control (Manager, BCBA, RBT, Parent)
+
+### 6. Infrastructure (Azure)
+-   **Host:** Azure Static Web Apps with integrated Azure Functions
 -   **CI/CD:** GitHub Actions automatically builds and deploys on push to `master`.
--   **Security:** API Tokens are injected at build time via GitHub Secrets. No secrets are stored in the repo.
+-   **Security:** API Tokens and connection strings injected at build time via GitHub Secrets. No secrets are stored in the repo.
 
 ## Data Flow
+
+### Authentication Flow
+1.  **Login:** User submits credentials -> Azure Function verifies -> Returns JWT token
+2.  **Storage:** Token stored in localStorage, user data in AuthContext
+3.  **Authorization:** Protected routes check AuthContext.isAuthenticated
+4.  **Permissions:** Role-based access control enforced in UI and API
+
+### Session Data Flow
 1.  **Capture:** User types "Patient ran away for 5 mins".
 2.  **Process:** `llmService` parses text -> `{ type: 'elopement', duration: 300 }`.
 3.  **Confirm:** UI shows "Logging: Elopement (300s). Correct?".
 4.  **Persist:** On "Yes" -> Write to DexieDB -> Update Zustand -> Update UI.
+5.  **Sync:** Background sync to Cosmos DB when online (via SyncQueue).
