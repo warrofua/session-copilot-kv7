@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Header } from './components/Header';
 import { ChatArea, MessageInput, type ChatMessageData } from './components/ChatArea';
 import { ActionButtons } from './components/ActionButtons';
@@ -18,13 +19,19 @@ function App() {
   const [selectedFunction, setSelectedFunction] = useState<string | null>(null);
   const [sessionTime, setSessionTime] = useState('00:00:00');
 
+  // Live Queries (Reactive, Single Source of Truth)
+  // Limit to 500 most recent items to avoid performance issues with large datasets
+  const behaviorEvents = useLiveQuery(() =>
+    db.behaviorEvents.where('sessionId').equals(1).reverse().limit(500).toArray()
+  ) || [];
+
+  const skillTrials = useLiveQuery(() =>
+    db.skillTrials.where('sessionId').equals(1).reverse().limit(500).toArray()
+  ) || [];
+
   const {
-    behaviorEvents,
-    skillTrials,
     noteDraft,
     isDrawerOpen,
-    addBehaviorEvent,
-    addSkillTrial,
     setNoteDraft,
     toggleDrawer,
     setDrawerOpen
@@ -97,6 +104,13 @@ function App() {
     try {
       // Parse the input using LLM or mock
       const parsed = await parseUserInput(userMessage);
+
+      // If no data extracted, ask for clarification
+      if (parsed.behaviors.length === 0 && (!parsed.skillTrials || parsed.skillTrials.length === 0) && !parsed.incident && !parsed.note) {
+        addMessage('assistant', "I didn't catch any specific behaviors or skills. Could you try rephrasing? (e.g. 'Log elopement for 2 mins')");
+        return;
+      }
+
       setPendingData(parsed);
 
       // Generate confirmation response
@@ -149,7 +163,6 @@ function App() {
         };
 
         await db.behaviorEvents.add(event);
-        addBehaviorEvent(event);
         incrementUnsyncedCount();
       }
 
@@ -170,7 +183,6 @@ function App() {
           await db.skillTrials.add(skillTrial);
           // Note: need to add addSkillTrial to destructuring above if not present
           // userSessionStore destructuring has 'addSkillTrial' (verified in file view line 27)
-          addSkillTrial(skillTrial);
           incrementUnsyncedCount();
         }
       }
@@ -201,7 +213,7 @@ function App() {
     } else if (action === 'logSkillTrial') {
       addMessage('assistant', 'What skill trial would you like to log? Include the skill name, target, and result.');
     }
-  }, [pendingData, selectedFunction, addBehaviorEvent, incrementUnsyncedCount, addMessage]);
+  }, [pendingData, selectedFunction, incrementUnsyncedCount, addMessage]);
 
   const handleFunctionSelect = useCallback((func: string) => {
     setSelectedFunction(func);
