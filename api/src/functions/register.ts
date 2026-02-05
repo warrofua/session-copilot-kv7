@@ -65,93 +65,92 @@ async function registerHandler(request: HttpRequest, context: InvocationContext)
                     };
                 }
 
-                if (orgName) {
-                    // Create new organization
-                    const org = await createOrganization({
-                        name: orgName,
-                        settings: {
-                            defaultSessionDuration: 120,
-                            requireSupervisorApproval: false
-                        },
-                        createdAt: new Date().toISOString()
-                    });
-                    orgId = org.id;
+                // Create new organization
+                const org = await createOrganization({
+                    name: orgName,
+                    settings: {
+                        defaultSessionDuration: 120,
+                        requireSupervisorApproval: false
+                    },
+                    createdAt: new Date().toISOString()
+                });
+                orgId = org.id;
 
-                    await logAuditEvent({
-                        userId: 'registration',
-                        action: 'org_created',
-                        entityType: 'organization',
-                        entityId: org.id,
-                        details: { name: orgName }
-                    });
-                } else if (role !== 'manager') {
-                    // Non-manager users need an invite code or org assignment
-                    // For MVP, this would need to be handled via admin UI
-                    return {
-                        status: 400,
-                        jsonBody: { error: 'Non-manager users must be invited by an organization administrator' }
-                    };
-                }
+                await logAuditEvent({
+                    userId: 'registration',
+                    action: 'org_created',
+                    entityType: 'organization',
+                    entityId: org.id,
+                    details: { name: orgName }
+                });
+            } else {
+                // Non-manager users need an invite code or org assignment
+                // For MVP, this would need to be handled via admin UI
+                return {
+                    status: 400,
+                    jsonBody: { error: 'Non-manager users must be invited by an organization administrator' }
+                };
             }
-
-            // Hash password
-            const passwordHash = await hashPassword(password);
-
-            // Get permissions based on role
-            const permissions = getPermissionsForRole(role || null, userType);
-
-            // Create user
-            const user = await createUser({
-                email: email.toLowerCase(),
-                passwordHash,
-                userType,
-                orgId,
-                role: userType === 'org' ? role || null : null,
-                name,
-                assignedLearnerIds: [],
-                permissions,
-                createdAt: new Date().toISOString(),
-                lastLogin: null,
-                isActive: true
-            });
-
-            // Log registration
-            await logAuditEvent({
-                userId: user.id,
-                action: 'user_registered',
-                entityType: 'user',
-                entityId: user.id,
-                details: { userType, role }
-            });
-
-            // Generate token
-            const token = generateToken(user);
-
-            // Return user info (without password hash)
-            const { passwordHash: _, ...safeUser } = user;
-
-            return {
-                status: 201,
-                jsonBody: {
-                    token,
-                    user: safeUser
-                }
-            };
-        } catch (error) {
-            context.error('Registration error:', error);
-            return {
-                status: 500,
-                jsonBody: {
-                    error: 'Internal server error',
-                    details: error instanceof Error ? error.message : String(error)
-                }
-            };
         }
+
+        // Hash password
+        const passwordHash = await hashPassword(password);
+
+        // Get permissions based on role
+        const permissions = getPermissionsForRole(role || null, userType);
+
+        // Create user
+        const user = await createUser({
+            email: email.toLowerCase(),
+            passwordHash,
+            userType,
+            orgId,
+            role: userType === 'org' ? role || null : null,
+            name,
+            assignedLearnerIds: [],
+            permissions,
+            createdAt: new Date().toISOString(),
+            lastLogin: null,
+            isActive: true
+        });
+
+        // Log registration
+        await logAuditEvent({
+            userId: user.id,
+            action: 'user_registered',
+            entityType: 'user',
+            entityId: user.id,
+            details: { userType, role }
+        });
+
+        // Generate token
+        const token = generateToken(user);
+
+        // Return user info (without password hash)
+        const { passwordHash: _, ...safeUser } = user;
+
+        return {
+            status: 201,
+            jsonBody: {
+                token,
+                user: safeUser
+            }
+        };
+    } catch (error) {
+        context.error('Registration error:', error);
+        return {
+            status: 500,
+            jsonBody: {
+                error: 'Internal server error',
+                details: error instanceof Error ? error.message : String(error)
+            }
+        };
     }
+}
 
 app.http('register', {
-        methods: ['POST'],
-        authLevel: 'anonymous',
-        route: 'auth/register',
-        handler: registerHandler
-    });
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'auth/register',
+    handler: registerHandler
+});
