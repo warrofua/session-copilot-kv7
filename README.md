@@ -48,10 +48,18 @@ For deep dive, see [Architecture Guide](architecture.md) and [Agent Guide](agent
     ```env
     VITE_GITHUB_TOKEN=gho_your_token_here
     ```
-4.  Run Local Dev Server
-    ```bash
     npm run dev
     ```
+5.  Run Tests
+    ```bash
+    npm test
+    ```
+
+## 🧪 Testing
+The project uses **Vitest** for unit testing, focused on the offline logic engine.
+-   **Unit Tests:** Located in `src/services/llmService.test.ts`. Covers regex parsing for behaviors, durations, and skill trials.
+-   **CI/CD:** Tests run automatically on every push via GitHub Actions.
+-   **Mocking:** `src/test/setup.ts` mocks `localStorage` and `fetch` to simulate offline conditions.
 
 ## 📦 Deployment (Azure)
 This project is configured for **Azure Static Web Apps**.

@@ -8,6 +8,7 @@ This is a **Session Co-Pilot** application for Applied Behavior Analysis (ABA) t
 1.  **Offline-First:** All features MUST work without internet. Do not add dependencies that require online CDN or API calls for core functionality (except the LLM which has a local fallback).
 2.  **Strict Types:** Use TypeScript strict mode. Define interfaces in `src/db/db.ts` or `src/services/llmService.ts`.
 3.  **Data Integrity:** All data persists to IndexedDB via Dexie.js (`src/db/db.ts`). Do not rely on `localStorage` for critical session data.
+4.  **Testing:** Always run `npm test` before pushing. Maintain 100% pass rate on the `llmService` logic tests.
 
 ## Architecture
 -   **Frontend:** React 18 + Vite
@@ -21,6 +22,8 @@ This is a **Session Co-Pilot** application for Applied Behavior Analysis (ABA) t
 ## Key Files
 -   `src/db/db.ts`: **Source of Truth** for data models.
 -   `src/services/llmService.ts`: **Brain** of the chat parsing.
+-   `src/services/llmService.test.ts`: **Verifier** of the offline logic engine.
+-   `src/test/setup.ts`: **Environment** configuration (mocks).
 -   `src/App.tsx`: **Main Controller** integrating Chat, Store, and UI.
 
 ## "Oh Crap" Protocol
