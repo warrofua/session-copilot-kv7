@@ -2,7 +2,7 @@
   "name": "api",
   "version": "1.0.0",
   "description": "Azure Functions API for Agents of ABA authentication",
-  "main": "dist/functions/index.js",
+  "main": "dist/functions/*.js",
   "type": "module",
   "scripts": {
     "build": "tsc",
