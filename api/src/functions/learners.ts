@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { createLearner, findLearnersByOrg, findUserById } from '../services/cosmosDb.js';
-import { extractTokenFromHeader, verifyToken } from '../utils/auth.js';
+import { verifyRequestToken } from '../utils/auth.js';
 
 interface CreateLearnerRequest {
     name: string;
@@ -13,18 +13,11 @@ interface CreateLearnerRequest {
 export async function learnersHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log(`Learners API request: ${request.method} ${request.url}`);
 
-    // Extract token from Authorization header
-    const authHeader = request.headers.get('authorization');
-    const token = extractTokenFromHeader(authHeader || undefined);
+    // Verify token (checks cookie first, then header)
+    const payload = verifyRequestToken(request);
 
-    if (!token) {
-        return { status: 401, jsonBody: { error: 'Authorization token required' } };
-    }
-
-    // Verify token
-    const payload = verifyToken(token);
     if (!payload) {
-        return { status: 401, jsonBody: { error: 'Invalid or expired token' } };
+        return { status: 401, jsonBody: { error: 'Unauthorized - valid session required' } };
     }
 
     const user = await findUserById(payload.userId);

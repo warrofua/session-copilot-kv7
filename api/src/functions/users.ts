@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { findUsersByOrg, createUser, findUserByEmail, updateUser, findUserById, logAuditEvent } from '../services/cosmosDb.js';
-import { extractTokenFromHeader, verifyToken, hashPassword, getPermissionsForRole } from '../utils/auth.js';
+import { verifyRequestToken, hashPassword, getPermissionsForRole } from '../utils/auth.js';
 
 interface CreateUserRequest {
     email: string;
@@ -19,15 +19,12 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
     context.log('Users API request');
 
     try {
-        // Authenticate User
-        const authHeader = request.headers.get('authorization');
-        const token = extractTokenFromHeader(authHeader || undefined);
-        if (!token) return { status: 401, jsonBody: { error: 'Authorization token required' } };
+        // Verify token (checks cookie first, then header)
+        const payload = verifyRequestToken(request);
 
-        const payload = verifyToken(token);
-        if (!payload) return { status: 401, jsonBody: { error: 'Invalid token' } };
-
-        // Verify Manager or BCBA role
+        if (!payload) {
+            return { status: 401, jsonBody: { error: 'Unauthorized - valid session required' } };
+        }     // Verify Manager or BCBA role
         if (!['manager', 'bcba'].includes(payload.role || '')) {
             return { status: 403, jsonBody: { error: 'Insufficient permissions' } };
         }
