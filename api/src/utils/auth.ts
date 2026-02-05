@@ -114,7 +114,7 @@ export function getTokenFromRequest(request: HttpRequest): string | null {
 
     // Fall back to Authorization header (for API clients, mobile apps, etc.)
     const authHeader = request.headers.get('authorization');
-    return extractTokenFromHeader(authHeader);
+    return extractTokenFromHeader(authHeader || undefined);
 }
 
 export function verifyRequestToken(request: HttpRequest): JWTPayload | null {

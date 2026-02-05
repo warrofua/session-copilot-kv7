@@ -19,7 +19,7 @@ interface AuthContextValue {
     error: string | null;
     login: (email: string, password: string) => Promise<void>;
     register: (data: RegisterData) => Promise<void>;
-    logout: () => void;
+    logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
 }
 
@@ -104,8 +104,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const logout = () => {
-        apiLogout();
+    const logout = async () => {
+        await apiLogout();
         setUser(null);
         setLearners([]);
         setOrganization(null);

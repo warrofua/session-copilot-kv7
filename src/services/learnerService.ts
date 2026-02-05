@@ -17,11 +17,8 @@ const API_Base = '/api';
 
 export const learnerService: LearnerService = {
     getLearners: async () => {
-        const token = localStorage.getItem('auth_token');
         const response = await fetch(`${API_Base}/learners`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            credentials: 'include' // Important: send HttpOnly cookies
         });
 
         if (!response.ok) {
@@ -32,13 +29,12 @@ export const learnerService: LearnerService = {
     },
 
     createLearner: async (learnerData: CreateLearnerRequest) => {
-        const token = localStorage.getItem('auth_token');
         const response = await fetch(`${API_Base}/learners`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
             },
+            credentials: 'include', // Important: send HttpOnly cookies
             body: JSON.stringify(learnerData)
         });
 
