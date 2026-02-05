@@ -94,6 +94,18 @@ export interface ChatMessage {
     timestamp: Date;
 }
 
+export interface Learner {
+    id: string;
+    orgId: string;
+    name: string;
+    dob: string;
+    parentUserIds: string[];
+    primaryBcbaId: string | null;
+    assignedRbtIds: string[];
+    status: 'active' | 'inactive' | 'discharged';
+    createdAt: string;
+}
+
 // Create the database
 class SessionCoPilotDB extends Dexie {
     sessions!: EntityTable<Session, 'id'>;

@@ -40,6 +40,12 @@ export default function UsersPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="sm:flex sm:items-center">
                 <div className="sm:flex-auto">
+                    <button
+                        onClick={() => navigate('/app')}
+                        className="mb-4 inline-flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                        ← Back to Session
+                    </button>
                     <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Users</h1>
                     <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
                         A list of all users in your organization including their name, role, and email.

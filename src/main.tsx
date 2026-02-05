@@ -7,6 +7,7 @@ import LandingPage from './pages/LandingPage.tsx'
 import OrgLogin from './pages/OrgLogin.tsx'
 import ParentLogin from './pages/ParentLogin.tsx'
 import UsersPage from './pages/UsersPage.tsx'
+import LearnersPage from './pages/LearnersPage.tsx'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/login/parent" element={<ParentLogin />} />
           <Route path="/app" element={<App />} />
           <Route path="/admin/users" element={<UsersPage />} />
+          <Route path="/admin/learners" element={<LearnersPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

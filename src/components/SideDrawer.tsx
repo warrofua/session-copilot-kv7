@@ -52,6 +52,11 @@ export function SideDrawer({
                                     User Management
                                 </button>
                             )}
+                            {(user?.role === 'manager' || user?.role === 'bcba') && (
+                                <button className="text-left px-3 py-2 rounded bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-200 text-sm font-medium hover:bg-green-100 dark:hover:bg-green-800" onClick={() => navigate('/admin/learners')}>
+                                    Caseload (Learners)
+                                </button>
+                            )}
                         </div>
                     </section>
                     {/* Behavior Events Section */}
