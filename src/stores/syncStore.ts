@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { db } from '../db/db';
-import { batchUpsert, isCosmosConfigured, type SyncableDocument } from '../services/cosmosService';
+import type { SyncableDocument, SyncResult } from '../types/sync';
+import { getToken } from '../services/authService';
 
 export type SyncStatus = 'offline' | 'syncing' | 'synced' | 'error' | 'not-configured';
 
@@ -59,11 +60,11 @@ export const useSyncStore = create<SyncState>((set, get) => ({
             return { success: 0, failed: 0 };
         }
 
-        // Check if Cosmos is configured
-        const configured = await isCosmosConfigured();
-        if (!configured) {
+        // Check if user is authenticated
+        const token = getToken();
+        if (!token) {
             set({ status: 'not-configured' });
-            console.warn('[SyncStore] Cosmos DB not configured');
+            console.warn('[SyncStore] Not authenticated - cannot sync');
             return { success: 0, failed: 0 };
         }
 
@@ -124,8 +125,21 @@ export const useSyncStore = create<SyncState>((set, get) => ({
                 return { success: 0, failed: 0 };
             }
 
-            // Batch upsert to Cosmos DB
-            const result = await batchUpsert(documents);
+            // Send to backend API for syncing
+            const response = await fetch('/api/sync/batch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ documents })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Sync API error: ${response.status} ${response.statusText}`);
+            }
+
+            const result: SyncResult = await response.json();
 
             // Mark successfully synced items in Dexie
             if (result.success > 0) {
