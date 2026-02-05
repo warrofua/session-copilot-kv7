@@ -1,28 +1,17 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { findUserById, findLearnersByIds, findLearnersByOrg, findOrganizationById, Learner, Organization } from '../services/cosmosDb.js';
-import { extractTokenFromHeader, verifyToken } from '../utils/auth.js';
+import { verifyRequestToken } from '../utils/auth.js';
 
 async function meHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log('Auth/me request');
 
     try {
-        // Extract token from Authorization header
-        const authHeader = request.headers.get('authorization');
-        const token = extractTokenFromHeader(authHeader || undefined);
-
-        if (!token) {
-            return {
-                status: 401,
-                jsonBody: { error: 'Authorization token required' }
-            };
-        }
-
-        // Verify token
-        const payload = verifyToken(token);
+        // Verify token from cookie or Authorization header
+        const payload = verifyRequestToken(request);
         if (!payload) {
             return {
                 status: 401,
-                jsonBody: { error: 'Invalid or expired token' }
+                jsonBody: { error: 'Authentication required' }
             };
         }
 

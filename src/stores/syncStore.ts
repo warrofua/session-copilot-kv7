@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { db } from '../db/db';
 import type { SyncableDocument, SyncResult } from '../types/sync';
-import { getToken } from '../services/authService';
 
 export type SyncStatus = 'offline' | 'syncing' | 'synced' | 'error' | 'not-configured';
 
@@ -57,14 +56,6 @@ export const useSyncStore = create<SyncState>((set, get) => ({
         if (isSyncing) return { success: 0, failed: 0 };
         if (!isOnline) {
             set({ status: 'offline' });
-            return { success: 0, failed: 0 };
-        }
-
-        // Check if user is authenticated
-        const token = getToken();
-        if (!token) {
-            set({ status: 'not-configured' });
-            console.warn('[SyncStore] Not authenticated - cannot sync');
             return { success: 0, failed: 0 };
         }
 
@@ -129,9 +120,9 @@ export const useSyncStore = create<SyncState>((set, get) => ({
             const response = await fetch('/api/sync/batch', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include', // Important: send HttpOnly cookies
                 body: JSON.stringify({ documents })
             });
 

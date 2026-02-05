@@ -16,11 +16,8 @@ const API_Base = '/api';
 
 export const userService: UserService = {
     getUsers: async () => {
-        const token = localStorage.getItem('auth_token');
         const response = await fetch(`${API_Base}/users`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            credentials: 'include' // Important: send HttpOnly cookies
         });
 
         if (!response.ok) {
@@ -32,13 +29,12 @@ export const userService: UserService = {
     },
 
     createUser: async (userData: CreateUserRequest) => {
-        const token = localStorage.getItem('auth_token');
         const response = await fetch(`${API_Base}/users`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
             },
+            credentials: 'include', // Important: send HttpOnly cookies
             body: JSON.stringify(userData)
         });
 

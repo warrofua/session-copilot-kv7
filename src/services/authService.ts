@@ -33,7 +33,6 @@ export interface Organization {
 }
 
 export interface AuthResponse {
-    token: string;
     user: User;
 }
 
@@ -43,18 +42,26 @@ export interface MeResponse {
     learners: Learner[];
 }
 
-// Token management
+// Token management (DEPRECATED - tokens now in HttpOnly cookies)
+// These functions are kept for backward compatibility with sync service
+// but are no-ops since tokens are now managed server-side
 const TOKEN_KEY = 'auth_token';
 
 export function getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
+    // Tokens are now in HttpOnly cookies, not accessible to JavaScript
+    // This function kept for backward compatibility with sync service
+    // Return null to trigger "not authenticated" flow in sync
+    return null;
 }
 
-export function setToken(token: string): void {
-    localStorage.setItem(TOKEN_KEY, token);
+export function setToken(_token: string): void {
+    // No-op: tokens now set as HttpOnly cookies by backend
+    // Kept for backward compatibility
 }
 
 export function removeToken(): void {
+    // No-op: token cleared via logout endpoint
+    // Clean up any old tokens that might exist
     localStorage.removeItem(TOKEN_KEY);
 }
 
@@ -63,6 +70,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
     const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important: send/receive cookies
         body: JSON.stringify({ email, password })
     });
 
@@ -72,7 +80,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
     }
 
     const data = await response.json();
-    setToken(data.token);
+    // Token is now in HttpOnly cookie, not in response body
     return data;
 }
 
@@ -87,6 +95,7 @@ export async function register(data: {
     const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important: send/receive cookies
         body: JSON.stringify(data)
     });
 
@@ -97,25 +106,17 @@ export async function register(data: {
     }
 
     const result = await response.json();
-    setToken(result.token);
+    // Token is now in HttpOnly cookie, not in response body
     return result;
 }
 
 export async function getMe(): Promise<MeResponse> {
-    const token = getToken();
-    if (!token) {
-        throw new Error('Not authenticated');
-    }
-
     const response = await fetch(`${API_BASE}/auth/me`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include' // Important: send cookies
     });
 
     if (!response.ok) {
         if (response.status === 401) {
-            removeToken();
             throw new Error('Session expired');
         }
         const error = await response.json();
@@ -125,7 +126,19 @@ export async function getMe(): Promise<MeResponse> {
     return response.json();
 }
 
-export function logout(): void {
+export async function logout(): Promise<void> {
+    try {
+        // Call logout endpoint to clear HttpOnly cookie
+        await fetch(`${API_BASE}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include' // Important: send cookies
+        });
+    } catch (error) {
+        console.error('Logout error:', error);
+        // Continue with logout even if API call fails
+    }
+
+    // Clean up any old localStorage tokens
     removeToken();
 }
 

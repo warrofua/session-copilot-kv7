@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { verifyToken } from '../utils/auth.js';
+import { verifyRequestToken } from '../utils/auth.js';
 import { getContainer, CONTAINERS } from '../services/cosmosDb.js';
 
 export interface SyncableDocument {
@@ -16,20 +16,12 @@ async function batchSyncHandler(request: HttpRequest, context: InvocationContext
     context.log('Batch sync request');
 
     try {
-        // Verify authentication
-        const token = request.headers.get('authorization')?.replace('Bearer ', '');
-        if (!token) {
-            return {
-                status: 401,
-                jsonBody: { error: 'Unauthorized - token required' }
-            };
-        }
-
-        const payload = verifyToken(token);
+        // Verify authentication from cookie or header
+        const payload = verifyRequestToken(request);
         if (!payload) {
             return {
                 status: 401,
-                jsonBody: { error: 'Unauthorized - invalid token' }
+                jsonBody: { error: 'Authentication required' }
             };
         }
 

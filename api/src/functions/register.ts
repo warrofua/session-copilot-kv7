@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { findUserByEmail, createUser, createOrganization, logAuditEvent } from '../services/cosmosDb.js';
-import { hashPassword, generateToken, getPermissionsForRole } from '../utils/auth.js';
+import { hashPassword, generateToken, getPermissionsForRole, setAuthCookie } from '../utils/auth.js';
 
 interface RegisterRequest {
     email: string;
@@ -129,11 +129,17 @@ async function registerHandler(request: HttpRequest, context: InvocationContext)
         // Return user info (without password hash)
         const { passwordHash: _, ...safeUser } = user;
 
+        // Set HttpOnly cookie with token
+        const cookieHeader = setAuthCookie(token);
+
         return {
             status: 201,
+            headers: {
+                'Set-Cookie': cookieHeader
+            },
             jsonBody: {
-                token,
                 user: safeUser
+                // Note: token no longer returned in response body for security
             }
         };
     } catch (error) {

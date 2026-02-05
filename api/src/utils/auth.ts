@@ -1,10 +1,13 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { User } from '../services/cosmosDb.js';
+import type { HttpRequest } from '@azure/functions';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const JWT_EXPIRES_IN = '7d';
 const SALT_ROUNDS = 12;
+const COOKIE_NAME = 'session_token';
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
 
 export interface JWTPayload {
     userId: string;
@@ -46,6 +49,80 @@ export function extractTokenFromHeader(authHeader: string | undefined): string |
         return null;
     }
     return authHeader.slice(7);
+}
+
+// Cookie management functions
+export function setAuthCookie(token: string): string {
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    const cookieOptions = [
+        `${COOKIE_NAME}=${token}`,
+        'HttpOnly',                    // Not accessible to JavaScript (XSS protection)
+        'SameSite=Strict',             // CSRF protection
+        'Path=/',                      // Available across the entire site
+        `Max-Age=${COOKIE_MAX_AGE}`,   // 7 days
+    ];
+
+    // Only set Secure flag in production (requires HTTPS)
+    if (isProduction) {
+        cookieOptions.push('Secure');
+    }
+
+    return cookieOptions.join('; ');
+}
+
+export function clearAuthCookie(): string {
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    const cookieOptions = [
+        `${COOKIE_NAME}=`,
+        'HttpOnly',
+        'SameSite=Strict',
+        'Path=/',
+        'Max-Age=0',  // Expire immediately
+    ];
+
+    if (isProduction) {
+        cookieOptions.push('Secure');
+    }
+
+    return cookieOptions.join('; ');
+}
+
+export function getTokenFromCookie(request: HttpRequest): string | null {
+    const cookieHeader = request.headers.get('cookie');
+    if (!cookieHeader) {
+        return null;
+    }
+
+    // Parse cookies
+    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+        const [key, value] = cookie.trim().split('=');
+        acc[key] = value;
+        return acc;
+    }, {} as Record<string, string>);
+
+    return cookies[COOKIE_NAME] || null;
+}
+
+export function getTokenFromRequest(request: HttpRequest): string | null {
+    // Try cookie first (preferred method)
+    const cookieToken = getTokenFromCookie(request);
+    if (cookieToken) {
+        return cookieToken;
+    }
+
+    // Fall back to Authorization header (for API clients, mobile apps, etc.)
+    const authHeader = request.headers.get('authorization');
+    return extractTokenFromHeader(authHeader);
+}
+
+export function verifyRequestToken(request: HttpRequest): JWTPayload | null {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+        return null;
+    }
+    return verifyToken(token);
 }
 
 // Role-based permission checks
