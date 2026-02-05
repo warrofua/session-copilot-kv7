@@ -193,12 +193,15 @@ function mockParseInput(input: string): ParsedInput {
 
     behaviorPatterns.forEach(pattern => {
         if (pattern.keywords.some(k => lowerInput.includes(k))) {
+            console.log('[MockParse] Matched behavior pattern:', pattern.type);
             // Duration Check
             let duration = 0;
             const secMatch = input.match(/(\d+)\s*(sec|s\b|second)/i);
             const minMatch = input.match(/(\d+)\s*(min|m\b|minute)/i);
             if (secMatch) duration += parseInt(secMatch[1]);
             if (minMatch) duration += parseInt(minMatch[1]) * 60;
+
+            console.log('[MockParse] Extracted duration:', duration);
 
             // Count Check
             const countMatch = input.match(/(\d+|once|twice|two|three|four|five)\s*times?/i);
@@ -209,12 +212,15 @@ function mockParseInput(input: string): ParsedInput {
                 count: duration > 0 ? undefined : count,
                 duration: duration > 0 ? duration : undefined
             });
+            console.log('[MockParse] Ensure push:', JSON.stringify(behaviors));
         }
     });
 
     // --- Skill Trial Detection ---
+    console.log('[MockParse] Input:', input);
     const skillKeywords = ['trial', 'skill', 'target', 'dtt', 'matching', 'imitation', 'labeling', 'mand', 'tact'];
     if (skillKeywords.some(k => lowerInput.includes(k))) {
+        console.log('[MockParse] Skill keyword detected');
         let skill = 'Unknown Skill';
         let target = 'Current Target'; // Default to generic
         let response = 'Incorrect'; // Default to incorrect (conservative)
@@ -250,6 +256,7 @@ function mockParseInput(input: string): ParsedInput {
             target = targetMatch[1];
         }
 
+        console.log('[MockParse] Pushing skill trial:', { skill, target, response });
         skillTrials.push({ skill, target, response });
     }
 

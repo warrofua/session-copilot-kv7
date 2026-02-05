@@ -49,6 +49,7 @@ jobs:
           ###### End of Repository/Build Configurations ######
         env:
           VITE_GITHUB_TOKEN: ${{ secrets.VITE_GITHUB_TOKEN }}
+          VITE_COSMOS_CONNECTION_STRING: ${{ secrets.VITE_COSMOS_CONNECTION_STRING }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
