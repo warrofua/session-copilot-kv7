@@ -71,6 +71,7 @@ export function UserModal({ isOpen, onClose, onUserAdded }: UserModalProps) {
                                     type="text"
                                     name="name"
                                     id="name"
+                                    autoComplete="name"
                                     required
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
                                     value={name}
@@ -83,6 +84,7 @@ export function UserModal({ isOpen, onClose, onUserAdded }: UserModalProps) {
                                     type="email"
                                     name="email"
                                     id="email"
+                                    autoComplete="email"
                                     required
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
                                     value={email}
@@ -109,6 +111,7 @@ export function UserModal({ isOpen, onClose, onUserAdded }: UserModalProps) {
                                     type="password"
                                     name="password"
                                     id="password"
+                                    autoComplete="new-password"
                                     required
                                     minLength={6}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"

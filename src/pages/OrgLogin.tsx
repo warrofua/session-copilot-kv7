@@ -78,6 +78,7 @@ export default function OrgLogin() {
                                     <input
                                         id="name"
                                         type="text"
+                                        autoComplete="name"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         required
@@ -89,6 +90,7 @@ export default function OrgLogin() {
                                     <input
                                         id="orgName"
                                         type="text"
+                                        autoComplete="organization"
                                         value={formData.orgName}
                                         onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
                                         required
@@ -115,6 +117,7 @@ export default function OrgLogin() {
                             <input
                                 id="email"
                                 type="email"
+                                autoComplete="username"
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                 required
@@ -127,6 +130,7 @@ export default function OrgLogin() {
                             <input
                                 id="password"
                                 type="password"
+                                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                 required
