@@ -6,19 +6,22 @@ import './AdminPages.css';
 
 export default function AuditLogsPage() {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, isLoading: isAuthLoading } = useAuth();
     const [logs, setLogs] = useState<AuditLogEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (isAuthLoading) {
+            return;
+        }
         if (!user || (user.role !== 'manager' && user.role !== 'bcba')) {
             navigate('/app');
             return;
         }
 
         void loadLogs();
-    }, [user, navigate]);
+    }, [user, isAuthLoading, navigate]);
 
     async function loadLogs() {
         try {
@@ -53,7 +56,7 @@ export default function AuditLogsPage() {
                 </div>
 
                 <div className="admin-content">
-                    {isLoading && <p className="admin-empty">Loading audit logs...</p>}
+                    {(isAuthLoading || isLoading) && <p className="admin-empty">Loading audit logs...</p>}
                     {error && (
                         <div className="admin-error">
                             {error}
