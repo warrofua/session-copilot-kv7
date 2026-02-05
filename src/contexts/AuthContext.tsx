@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { User, Learner, Organization } from '../services/authService';
 export type { User };
 import {
@@ -48,18 +49,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const data = await getMe();
             if (!useEncryptionStore.getState().isReady) {
-                await apiLogout();
-                clearEncryption();
-                setUser(null);
-                setLearners([]);
-                setOrganization(null);
-                setError('Please sign in again to unlock encrypted local data.');
-                return;
+                setError('Local encrypted data is locked for this browser session. Sign in again to unlock offline records.');
             }
             setUser(data.user);
             setLearners(data.learners);
             setOrganization(data.organization);
-            setError(null);
+            if (useEncryptionStore.getState().isReady) {
+                setError(null);
+            }
         } catch (err) {
             console.error('Failed to refresh user:', err);
             clearEncryption();
@@ -186,12 +183,13 @@ export function useAuth(): AuthContextValue {
 // Hook for protected routes
 export function useRequireAuth(redirectTo = '/login') {
     const { isAuthenticated, isLoading } = useAuth();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (!isLoading && !isAuthenticated) {
-            window.location.href = redirectTo;
+            navigate(redirectTo);
         }
-    }, [isAuthenticated, isLoading, redirectTo]);
+    }, [isAuthenticated, isLoading, redirectTo, navigate]);
 
     return { isAuthenticated, isLoading };
 }

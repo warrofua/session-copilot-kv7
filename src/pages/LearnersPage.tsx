@@ -14,8 +14,9 @@ export default function LearnersPage() {
     const [showAddModal, setShowAddModal] = useState(false);
 
     useEffect(() => {
-        if (!currentUser) {
-            navigate('/login');
+        const canAccessLearners = currentUser?.role === 'manager' || currentUser?.role === 'bcba';
+        if (!canAccessLearners) {
+            navigate('/app');
             return;
         }
         loadLearners();

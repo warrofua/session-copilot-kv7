@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Header } from './components/Header';
 import { ChatArea, MessageInput, type ChatMessageData } from './components/ChatArea';
@@ -15,6 +16,7 @@ import { useEncryptionStore } from './stores/encryptionStore';
 
 function App() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -259,6 +261,18 @@ function App() {
     addMessage('assistant', 'What reinforcement was delivered? (e.g., verbal praise, token, preferred item)');
   }, [addMessage]);
 
+  const goToUsers = useCallback(() => {
+    navigate('/admin/users');
+  }, [navigate]);
+
+  const goToLearners = useCallback(() => {
+    navigate('/admin/learners');
+  }, [navigate]);
+
+  const goToAuditLogs = useCallback(() => {
+    navigate('/admin/audit');
+  }, [navigate]);
+
   const handleIncidentSubmit = useCallback(async (data: {
     incidentType: Incident['incidentType'];
     description: string;
@@ -310,7 +324,7 @@ function App() {
         }}>
           {user.role === 'manager' && (
             <button
-              onClick={() => window.location.href = '/admin/users'}
+              onClick={goToUsers}
               style={{
                 flex: '1',
                 padding: '8px 12px',
@@ -327,7 +341,7 @@ function App() {
             </button>
           )}
           <button
-            onClick={() => window.location.href = '/admin/learners'}
+            onClick={goToLearners}
             style={{
               flex: '1',
               padding: '8px 12px',
@@ -343,7 +357,7 @@ function App() {
             👶 Caseload
           </button>
           <button
-            onClick={() => window.location.href = '/admin/audit'}
+            onClick={goToAuditLogs}
             style={{
               flex: '1',
               padding: '8px 12px',
