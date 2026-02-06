@@ -88,10 +88,7 @@ export function SessionSummaryContent({
                                 <span className="event-icon">▸</span>
                                 <div className="event-details">
                                     <span className="event-label">
-                                        {event.count && event.count > 1 ? `${event.count} ` : ''}
-                                        {event.behaviorType}
-                                        {event.duration ? `: ${event.duration}s` : ''}
-                                        {event.count && event.count > 1 ? ` (${formatDurations(event)})` : ''}
+                                        {formatBehaviorSummary(event)}
                                     </span>
                                     {event.antecedent && (
                                         <div className="event-value">
@@ -191,11 +188,14 @@ function capitalize(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function formatDurations(event: BehaviorEvent): string {
+function formatBehaviorSummary(event: BehaviorEvent): string {
     if (event.duration) {
-        return `${event.duration}s`;
+        return `${event.behaviorType}: ${event.duration}s`;
     }
-    return '';
+    if (event.count && event.count > 1) {
+        return `${event.count}x ${event.behaviorType}`;
+    }
+    return event.behaviorType;
 }
 
 function formatNoteDraft(draft: string): string {

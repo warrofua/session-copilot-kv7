@@ -53,8 +53,22 @@ describe('LLM Service - Offline Regex Parsing', () => {
         const result = await parseUserInput(input);
 
         expect(result.reinforcement).toEqual({
-            type: 'Reinforcement',
-            delivered: true
+            type: 'Token',
+            delivered: true,
+            details: input
+        });
+    });
+
+    it('should parse skill prompt level from natural language', async () => {
+        const input = "matching trial blue incorrect after verbal prompt";
+        const result = await parseUserInput(input);
+
+        expect(result.skillTrials).toHaveLength(1);
+        expect(result.skillTrials?.[0]).toMatchObject({
+            skill: 'Matching',
+            target: 'blue',
+            response: 'Incorrect',
+            promptLevel: 'verbal'
         });
     });
 

@@ -397,6 +397,29 @@ export async function getSkillTrialsBySession(sessionId: number, limit = 500): P
     return decrypted;
 }
 
+export async function getSessionNotesBySession(sessionId: number, limit = 500): Promise<SessionNote[]> {
+    requireEncryptionReadiness();
+    const rows = await db.sessionNotes.where('sessionId').equals(sessionId).reverse().limit(limit).toArray();
+
+    const decrypted = await Promise.all(rows.map(async (row) => {
+        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+        if (!isValid) {
+            throw new Error(`Data integrity check failed for session note ${row.id ?? 'unknown'}`);
+        }
+        const sensitive = await decryptEntity<SessionNoteSensitive>(row.encryptedData);
+        return {
+            id: row.id,
+            sessionId: row.sessionId,
+            createdAt: row.createdAt,
+            updatedAt: row.timestamp,
+            synced: row.synced,
+            ...sensitive
+        } satisfies SessionNote;
+    }));
+
+    return decrypted;
+}
+
 export async function getUnsyncedBehaviorEvents(): Promise<BehaviorEvent[]> {
     requireEncryptionReadiness();
     const rows = await db.behaviorEvents.filter((item) => !item.synced).toArray();

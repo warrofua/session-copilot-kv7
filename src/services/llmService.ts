@@ -29,6 +29,7 @@ export interface ParsedInput {
     reinforcement?: {
         type: string;
         delivered: boolean;
+        details?: string;
     };
     incident?: boolean;
     note?: boolean;
@@ -129,7 +130,8 @@ export async function parseUserInput(userMessage: string): Promise<ParsedInput> 
 export async function generateNoteDraft(
     behaviors: { type: string; count?: number; duration?: number; antecedent?: string; function?: string; intervention?: string }[],
     skillTrials: { skill: string; target: string; response: string }[],
-    clientName: string
+    clientName: string,
+    reinforcements: string[] = []
 ): Promise<string> {
     const token = getApiToken();
 
@@ -153,7 +155,7 @@ export async function generateNoteDraft(
                     },
                     {
                         role: 'user',
-                        content: `Write a brief session note for ${clientName}:\n\nBehaviors: ${JSON.stringify(behaviors)}\n\nSkill Trials: ${JSON.stringify(skillTrials)}`
+                        content: `Write a brief session note for ${clientName}:\n\nBehaviors: ${JSON.stringify(behaviors)}\n\nSkill Trials: ${JSON.stringify(skillTrials)}\n\nReinforcement: ${JSON.stringify(reinforcements)}`
                     }
                 ],
                 temperature: 0.5,
@@ -162,14 +164,14 @@ export async function generateNoteDraft(
         });
 
         if (!response.ok) {
-            return mockGenerateNote(behaviors, skillTrials, clientName);
+            return mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
         }
 
         const data = await response.json();
-        return data.choices[0]?.message?.content || mockGenerateNote(behaviors, skillTrials, clientName);
+        return data.choices[0]?.message?.content || mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
     } catch (error) {
         console.error('Error generating note:', error);
-        return mockGenerateNote(behaviors, skillTrials, clientName);
+        return mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
     }
 }
 
@@ -224,6 +226,7 @@ function mockParseInput(input: string): ParsedInput {
         let skill = 'Unknown Skill';
         let target = 'Current Target'; // Default to generic
         let response = 'Incorrect'; // Default to incorrect (conservative)
+        let promptLevel: string | undefined;
 
         // 1. Extract Skill Name
         // First try to find a known keyword that isn't generic
@@ -244,6 +247,22 @@ function mockParseInput(input: string): ParsedInput {
             response = 'Correct';
         } else if (lowerInput.includes('prompt') || lowerInput.includes('help') || lowerInput.includes('assisted')) {
             response = 'Prompted';
+        }
+
+        if (lowerInput.includes('full physical') || lowerInput.includes('full-physical')) {
+            promptLevel = 'full-physical';
+        } else if (lowerInput.includes('partial physical') || lowerInput.includes('partial-physical')) {
+            promptLevel = 'partial-physical';
+        } else if (lowerInput.includes('gestural')) {
+            promptLevel = 'gestural';
+        } else if (lowerInput.includes('model')) {
+            promptLevel = 'model';
+        } else if (lowerInput.includes('verbal')) {
+            promptLevel = 'verbal';
+        } else if (lowerInput.includes('prompt')) {
+            promptLevel = 'verbal';
+        } else if (lowerInput.includes('independent') || lowerInput.includes('ind')) {
+            promptLevel = 'independent';
         }
 
         // 3. Extract Target (Heuristic: "target was X", "target X", quotes, or inline trial phrases)
@@ -271,17 +290,25 @@ function mockParseInput(input: string): ParsedInput {
             target = extractedTarget;
         }
 
-        console.log('[MockParse] Pushing skill trial:', { skill, target, response });
-        skillTrials.push({ skill, target, response });
+        console.log('[MockParse] Pushing skill trial:', { skill, target, response, promptLevel });
+        skillTrials.push({ skill, target, response, promptLevel });
     }
 
     // --- Reinforcement Detection ---
     const reinforcementVerbPattern = /\b(gave|give|delivered|deliver|provided|provide|earned|reinforced|rewarded)\b/i;
     const reinforcementItemPattern = /\b(token|praise|sticker|candy|reward|reinforcement|preferred item|ipad|break)\b/i;
     if (reinforcementVerbPattern.test(input) && reinforcementItemPattern.test(input)) {
+        const reinforcementTypes: string[] = [];
+        if (/\btoken\b/i.test(input)) reinforcementTypes.push('Token');
+        if (/\bpraise\b/i.test(input)) reinforcementTypes.push('Praise');
+        if (/\bsticker\b/i.test(input)) reinforcementTypes.push('Sticker');
+        if (/\bcandy\b/i.test(input)) reinforcementTypes.push('Candy');
+        if (/\bipad\b/i.test(input)) reinforcementTypes.push('iPad');
+        if (/\bbreak\b/i.test(input)) reinforcementTypes.push('Break');
         reinforcement = {
-            type: 'Reinforcement',
-            delivered: true
+            type: reinforcementTypes.length > 0 ? reinforcementTypes.join(' + ') : 'Reinforcement',
+            delivered: true,
+            details: input.trim()
         };
     }
 
@@ -353,7 +380,8 @@ function generateNarrativeFragment(
 function mockGenerateNote(
     behaviors: { type: string; count?: number; duration?: number; antecedent?: string; function?: string; intervention?: string }[],
     skillTrials: { skill: string; target: string; response: string }[],
-    clientName: string
+    clientName: string,
+    reinforcements: string[] = []
 ): string {
     const parts: string[] = [];
 
@@ -382,6 +410,10 @@ function mockGenerateNote(
             `${t.skill} (${t.target}): ${t.response}`
         ).join('; ');
         parts.push(`Skill trials: ${trialSummary}.`);
+    }
+
+    if (reinforcements.length > 0) {
+        parts.push(`Reinforcement delivered: ${reinforcements.join('; ')}.`);
     }
 
     return parts.join(' ') || 'Session data pending.';

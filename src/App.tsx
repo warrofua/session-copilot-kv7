@@ -8,7 +8,7 @@ import { SessionSummaryContent, SideDrawer } from './components/SideDrawer';
 import { IncidentButton } from './components/IncidentButton';
 import { useSessionStore } from './stores/sessionStore';
 import { useSyncStore } from './stores/syncStore';
-import { addBehaviorEvent, addIncident, addSessionNote, addSkillTrial, getBehaviorEventsBySession, getSkillTrialsBySession, updateBehaviorEventIntervention, type BehaviorEvent, type Incident, type SessionNote, type SkillTrial } from './db/db';
+import { addBehaviorEvent, addIncident, addSessionNote, addSkillTrial, getBehaviorEventsBySession, getSessionNotesBySession, getSkillTrialsBySession, updateBehaviorEventIntervention, type BehaviorEvent, type Incident, type SessionNote, type SkillTrial } from './db/db';
 import { parseUserInput, generateConfirmation, generateNoteDraft, type ParsedInput } from './services/llmService';
 import { TermsModal } from './components/TermsModal';
 import { useEncryptionStore } from './stores/encryptionStore';
@@ -66,6 +66,13 @@ function App() {
     },
     [isEncryptionReady]
   ) || [];
+  const sessionNotes = useLiveQuery(
+    async () => {
+      if (!isEncryptionReady) return [];
+      return getSessionNotesBySession(1, 500);
+    },
+    [isEncryptionReady]
+  ) || [];
 
   const {
     noteDraft,
@@ -111,9 +118,31 @@ function App() {
         target: t.target,
         response: t.response
       }));
-      generateNoteDraft(behaviors, trials, clientName).then(setNoteDraft);
+      const reinforcements = sessionNotes
+        .filter((note) => note.section === 'reinforcement')
+        .map((note) => note.content);
+      generateNoteDraft(behaviors, trials, clientName, reinforcements).then(setNoteDraft);
     }
-  }, [behaviorEvents, skillTrials, setNoteDraft]);
+  }, [behaviorEvents, skillTrials, sessionNotes, setNoteDraft]);
+
+  const normalizePromptLevel = (value?: string): SkillTrial['promptLevel'] => {
+    const normalized = (value || '').toLowerCase();
+    if (normalized === 'verbal') return 'verbal';
+    if (normalized === 'gestural') return 'gestural';
+    if (normalized === 'model') return 'model';
+    if (normalized === 'partial-physical') return 'partial-physical';
+    if (normalized === 'full-physical') return 'full-physical';
+    return 'independent';
+  };
+
+  const normalizeResponse = (value?: string): SkillTrial['response'] => {
+    const normalized = (value || '').toLowerCase();
+    if (normalized === 'correct') return 'correct';
+    if (normalized === 'incorrect') return 'incorrect';
+    if (normalized === 'prompted') return 'prompted';
+    if (normalized === 'no-response') return 'no-response';
+    return 'correct';
+  };
 
   const addMessage = useCallback((
     role: ChatMessageData['role'],
@@ -142,6 +171,7 @@ function App() {
     try {
       // Parse the input using LLM or mock
       const parsed = await parseUserInput(userMessage);
+      setSelectedFunction(null);
 
       // If no data extracted, ask for clarification
       if (parsed.behaviors.length === 0 && (!parsed.skillTrials || parsed.skillTrials.length === 0) && !parsed.incident && !parsed.note && !parsed.reinforcement) {
@@ -195,8 +225,23 @@ function App() {
     }
 
     if (action === 'confirm' && value === 'yes' && pendingData) {
+      if (pendingData.behaviors.length > 0 && !selectedFunction && !pendingData.functionGuess) {
+        addMessage('assistant', 'Please select the likely function before confirming this behavior.');
+        addMessage('system', 'What was the likely function?', {
+          functionButtons: [
+            { label: 'Escape', value: 'escape' },
+            { label: 'Tangible', value: 'tangible' },
+            { label: 'Attention', value: 'attention' },
+            { label: 'Automatic', value: 'automatic' },
+            { label: 'Unsure', value: 'unsure' }
+          ]
+        });
+        return;
+      }
+
       // Save the behavior events
       const createdBehaviorIds: number[] = [];
+      const functionGuess = selectedFunction as BehaviorEvent['functionGuess'] || pendingData.functionGuess;
       for (const behavior of pendingData.behaviors) {
         const event: BehaviorEvent = {
           sessionId: 1, // Demo session
@@ -204,7 +249,7 @@ function App() {
           count: behavior.count,
           duration: behavior.duration,
           antecedent: pendingData.antecedent,
-          functionGuess: selectedFunction as BehaviorEvent['functionGuess'] || pendingData.functionGuess,
+          functionGuess,
           timestamp: new Date(),
           createdAt: new Date(),
           synced: false
@@ -222,8 +267,8 @@ function App() {
             sessionId: 1, // Demo session
             skillName: trial.skill,
             target: trial.target,
-            promptLevel: (trial.promptLevel as SkillTrial['promptLevel']) || 'independent',
-            response: (trial.response as SkillTrial['response']) || 'correct',
+            promptLevel: normalizePromptLevel(trial.promptLevel),
+            response: normalizeResponse(trial.response),
             reinforcementDelivered: false,
             timestamp: new Date(),
             createdAt: new Date(),
@@ -240,7 +285,9 @@ function App() {
         const note: Omit<SessionNote, 'id'> = {
           sessionId: 1,
           section: 'reinforcement',
-          content: `${pendingData.reinforcement.type} delivered.`,
+          content: pendingData.reinforcement.details
+            ? `${pendingData.reinforcement.type} delivered: ${pendingData.reinforcement.details}`
+            : `${pendingData.reinforcement.type} delivered.`,
           isAutoGenerated: false,
           editHistory: [],
           createdAt: new Date(),
@@ -315,9 +362,12 @@ function App() {
   }, [initializeEncryption, unlockPassword, user?.encryptionSalt]);
 
   const handleFunctionSelect = useCallback((func: string) => {
+    if (!pendingData) {
+      return;
+    }
     setSelectedFunction(func);
     // Update the most recent behavior event with this function
-    if (pendingData && pendingData.behaviors.length > 0) {
+    if (pendingData.behaviors.length > 0) {
       setPendingData({
         ...pendingData,
         functionGuess: func as ParsedInput['functionGuess']
