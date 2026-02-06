@@ -5,6 +5,7 @@ export interface CreateUserRequest {
     name: string;
     role: 'manager' | 'bcba' | 'rbt';
     password: string;
+    assignedLearnerIds?: string[];
 }
 
 export interface UserService {
@@ -18,6 +19,7 @@ export interface UpdateUserRequest {
     name?: string;
     role?: 'manager' | 'bcba' | 'rbt';
     isActive?: boolean;
+    assignedLearnerIds?: string[];
 }
 
 const API_Base = '/api';

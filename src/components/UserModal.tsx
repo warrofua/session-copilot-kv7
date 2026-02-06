@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { userService } from '../services/userService';
+import { learnerService } from '../services/learnerService';
 import type { User } from '../contexts/AuthContext';
+import type { Learner } from '../db/db';
 
 interface UserModalProps {
     isOpen: boolean;
@@ -15,9 +17,19 @@ export function UserModal({ isOpen, onClose, onUserSaved, editingUser }: UserMod
     const [role, setRole] = useState<'bcba' | 'rbt' | 'manager'>('rbt');
     const [password, setPassword] = useState('');
     const [isActive, setIsActive] = useState(true);
+    const [assignedLearnerIds, setAssignedLearnerIds] = useState<string[]>([]);
+
+    // Data state
+    const [learners, setLearners] = useState<Learner[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const isEditMode = Boolean(editingUser);
+
+    useEffect(() => {
+        if (isOpen) {
+            loadLearners();
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen) {
@@ -29,6 +41,8 @@ export function UserModal({ isOpen, onClose, onUserSaved, editingUser }: UserMod
             setName(editingUser.name);
             setRole(editingUser.role === 'manager' || editingUser.role === 'bcba' || editingUser.role === 'rbt' ? editingUser.role : 'rbt');
             setIsActive(editingUser.isActive);
+            // Ensure we use the array from the user object, defaulting to empty
+            setAssignedLearnerIds(editingUser.assignedLearnerIds || []);
             setPassword('');
             return;
         }
@@ -37,7 +51,18 @@ export function UserModal({ isOpen, onClose, onUserSaved, editingUser }: UserMod
         setRole('rbt');
         setPassword('');
         setIsActive(true);
+        setAssignedLearnerIds([]);
     }, [editingUser, isOpen]);
+
+    async function loadLearners() {
+        try {
+            const data = await learnerService.getLearners();
+            setLearners(data);
+        } catch (err) {
+            console.error('Failed to load learners:', err);
+            // Don't block the modal, just show generic error if needed or empty list
+        }
+    }
 
     if (!isOpen) return null;
 
@@ -52,14 +77,16 @@ export function UserModal({ isOpen, onClose, onUserSaved, editingUser }: UserMod
                     id: editingUser.id,
                     name: name.trim(),
                     role,
-                    isActive
+                    isActive,
+                    assignedLearnerIds
                 });
             } else {
                 await userService.createUser({
                     email: email.trim(),
                     name: name.trim(),
                     role,
-                    password
+                    password,
+                    assignedLearnerIds
                 });
             }
             onUserSaved();
@@ -69,6 +96,14 @@ export function UserModal({ isOpen, onClose, onUserSaved, editingUser }: UserMod
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleLearnerToggle = (learnerId: string) => {
+        setAssignedLearnerIds(prev =>
+            prev.includes(learnerId)
+                ? prev.filter(id => id !== learnerId)
+                : [...prev, learnerId]
+        );
     };
 
     return (
@@ -158,6 +193,32 @@ export function UserModal({ isOpen, onClose, onUserSaved, editingUser }: UserMod
                                 </div>
                             )}
                         </div>
+
+                        <div className="form-group" style={{ marginTop: '1rem' }}>
+                            <label className="form-label">Assigned Learners</label>
+                            <div className="learner-checklist">
+                                {learners.length === 0 ? (
+                                    <div style={{ padding: '0.5rem', color: '#64748b', fontSize: '0.875rem' }}>
+                                        No learners found.
+                                    </div>
+                                ) : (
+                                    learners.filter(l => l.status === 'active').map(learner => (
+                                        <label key={learner.id} className="learner-checklist-item">
+                                            <input
+                                                type="checkbox"
+                                                checked={assignedLearnerIds.includes(learner.id)}
+                                                onChange={() => handleLearnerToggle(learner.id)}
+                                            />
+                                            {learner.name}
+                                        </label>
+                                    ))
+                                )}
+                            </div>
+                            <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                                Selected learners will be visible to this user.
+                            </p>
+                        </div>
+
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={onClose}>

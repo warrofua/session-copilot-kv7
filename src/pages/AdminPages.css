@@ -228,3 +228,28 @@
         padding: 0.8rem;
     }
 }
+
+.learner-checklist {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.5rem;
+    max-height: 150px;
+    overflow-y: auto;
+    background: #f8fafc;
+}
+
+.learner-checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+    color: #334155;
+}
+
+.learner-checklist-item input[type="checkbox"] {
+    accent-color: #3b82f6;
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+}

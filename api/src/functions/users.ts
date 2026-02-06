@@ -7,6 +7,7 @@ interface CreateUserRequest {
     password: string;
     name: string;
     role: 'manager' | 'bcba' | 'rbt';
+    assignedLearnerIds?: string[];
 }
 
 interface UpdateUserRequest {
@@ -14,6 +15,7 @@ interface UpdateUserRequest {
     role?: 'manager' | 'bcba' | 'rbt';
     isActive?: boolean;
     name?: string;
+    assignedLearnerIds?: string[];
 }
 
 async function usersHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -68,7 +70,7 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
             }
 
             const body = await request.json() as CreateUserRequest;
-            const { email, password, name, role } = body;
+            const { email, password, name, role, assignedLearnerIds } = body;
 
             if (!email || !password || !name || !role) {
                 return { status: 400, jsonBody: { error: 'Missing required fields' } };
@@ -89,7 +91,7 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
                 orgId: requester.orgId,
                 role,
                 name,
-                assignedLearnerIds: [],
+                assignedLearnerIds: assignedLearnerIds || [],
                 permissions,
                 createdAt: new Date().toISOString(),
                 lastLogin: null,
@@ -119,7 +121,7 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
             }
 
             const body = await request.json() as UpdateUserRequest;
-            const { id, role, isActive, name } = body;
+            const { id, role, isActive, name, assignedLearnerIds } = body;
 
             if (!id) {
                 return { status: 400, jsonBody: { error: 'User id is required' } };
@@ -144,12 +146,16 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
             if (typeof name !== 'undefined' && name.trim()) {
                 updates.name = name.trim();
             }
+            if (typeof assignedLearnerIds !== 'undefined') {
+                updates.assignedLearnerIds = assignedLearnerIds;
+            }
 
             const permissions = updates.role ? getPermissionsForRole(updates.role, 'org') : undefined;
             const updatedUser = await updateUser(id, {
                 ...(typeof updates.role !== 'undefined' ? { role: updates.role, permissions } : {}),
                 ...(typeof updates.isActive !== 'undefined' ? { isActive: updates.isActive } : {}),
-                ...(typeof updates.name !== 'undefined' ? { name: updates.name } : {})
+                ...(typeof updates.name !== 'undefined' ? { name: updates.name } : {}),
+                ...(typeof updates.assignedLearnerIds !== 'undefined' ? { assignedLearnerIds: updates.assignedLearnerIds } : {})
             });
 
             if (!updatedUser) {
