@@ -9,6 +9,7 @@ import {
   getUnsyncedIncidents,
   getUnsyncedSessionNotes,
   getUnsyncedSkillTrials,
+  updateBehaviorEventIntervention,
 } from './db';
 import { useEncryptionStore } from '../stores/encryptionStore';
 
@@ -112,5 +113,23 @@ describe('db encrypted flow', () => {
     expect(rawSkill?.encryptedData.ciphertext).toBeTypeOf('string');
     expect(rawNote?.encryptedData.ciphertext).toBeTypeOf('string');
     expect(rawIncident?.encryptedData.ciphertext).toBeTypeOf('string');
+  });
+
+  it('updates intervention on encrypted behavior events', async () => {
+    const now = new Date();
+    const behaviorId = await addBehaviorEvent({
+      sessionId: 1,
+      behaviorType: 'tantrum',
+      duration: 30,
+      timestamp: now,
+      createdAt: now,
+      synced: false,
+    });
+
+    await updateBehaviorEventIntervention(behaviorId, 'Redirect');
+    const behaviors = await getUnsyncedBehaviorEvents();
+
+    expect(behaviors).toHaveLength(1);
+    expect(behaviors[0].intervention).toBe('Redirect');
   });
 });

@@ -81,4 +81,16 @@ describe('LLM Service - Offline Regex Parsing', () => {
             target: 'Current Target' // Default if not found
         });
     });
+
+    it('should extract inline trial targets from terse RBT shorthand', async () => {
+        const input = "matching trial blue incorrect";
+        const result = await parseUserInput(input);
+
+        expect(result.skillTrials).toHaveLength(1);
+        expect(result.skillTrials?.[0]).toMatchObject({
+            skill: 'Matching',
+            target: 'blue',
+            response: 'Incorrect'
+        });
+    });
 });

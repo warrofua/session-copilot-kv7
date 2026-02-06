@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const data = await getMe();
             if (!useEncryptionStore.getState().isReady) {
-                setError('Local encrypted data is locked for this browser session. Sign in again to unlock offline records.');
+                setError('Local encrypted data is locked. Sign out and sign in again to unlock offline records.');
             }
             setUser(data.user);
             setLearners(data.learners);

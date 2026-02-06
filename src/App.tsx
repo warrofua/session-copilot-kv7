@@ -7,12 +7,14 @@ import { SessionSummaryContent, SideDrawer } from './components/SideDrawer';
 import { IncidentButton } from './components/IncidentButton';
 import { useSessionStore } from './stores/sessionStore';
 import { useSyncStore } from './stores/syncStore';
-import { addBehaviorEvent, addIncident, addSkillTrial, getBehaviorEventsBySession, getSkillTrialsBySession, type BehaviorEvent, type Incident, type SkillTrial } from './db/db';
+import { addBehaviorEvent, addIncident, addSkillTrial, getBehaviorEventsBySession, getSkillTrialsBySession, updateBehaviorEventIntervention, type BehaviorEvent, type Incident, type SkillTrial } from './db/db';
 import { parseUserInput, generateConfirmation, generateNoteDraft, type ParsedInput } from './services/llmService';
 import { TermsModal } from './components/TermsModal';
 import { useEncryptionStore } from './stores/encryptionStore';
+import { useAuth } from './contexts/AuthContext';
 
 function App() {
+  const { user, logout } = useAuth();
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -20,7 +22,12 @@ function App() {
   const [selectedFunction, setSelectedFunction] = useState<string | null>(null);
   const [sessionTime, setSessionTime] = useState('00:00:00');
   const [incidentModalOpen, setIncidentModalOpen] = useState(false);
+  const [pendingInterventionBehaviorIds, setPendingInterventionBehaviorIds] = useState<number[]>([]);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [isUnlocking, setIsUnlocking] = useState(false);
   const isEncryptionReady = useEncryptionStore((state) => state.isReady);
+  const initializeEncryption = useEncryptionStore((state) => state.initializeWithPassword);
 
   // Live Queries (Reactive, Single Source of Truth)
   // Limit to 500 most recent items to avoid performance issues with large datasets
@@ -159,12 +166,13 @@ function App() {
 
   const handleButtonClick = useCallback(async (action: string, value: string) => {
     if (!isEncryptionReady) {
-      addMessage('assistant', 'Your local encryption key is not unlocked. Please sign out and sign in again to access session data.');
+      addMessage('assistant', 'Your local encryption key is not unlocked. [Sign out](/login) and sign in again to access session data.');
       return;
     }
 
     if (action === 'confirm' && value === 'yes' && pendingData) {
       // Save the behavior events
+      const createdBehaviorIds: number[] = [];
       for (const behavior of pendingData.behaviors) {
         const event: BehaviorEvent = {
           sessionId: 1, // Demo session
@@ -178,7 +186,8 @@ function App() {
           synced: false
         };
 
-        await addBehaviorEvent(event);
+        const id = await addBehaviorEvent(event);
+        createdBehaviorIds.push(id);
         incrementUnsyncedCount();
       }
 
@@ -206,14 +215,15 @@ function App() {
       addMessage('assistant', '✓ Data logged successfully!');
 
       // Ask for intervention if not specified
-      if (!pendingData.intervention) {
+      if (createdBehaviorIds.length > 0 && !pendingData.intervention) {
+        setPendingInterventionBehaviorIds(createdBehaviorIds);
         setTimeout(() => {
           addMessage('system', 'Intervention used?', {
-            functionButtons: [
-              { label: 'Block', value: 'Block' },
-              { label: 'Redirect', value: 'Redirect' },
-              { label: 'FCR', value: 'FCR' },
-              { label: 'Extinction', value: 'Extinction' }
+            buttons: [
+              { label: 'Block', action: 'intervention', value: 'Block', variant: 'secondary' },
+              { label: 'Redirect', action: 'intervention', value: 'Redirect', variant: 'secondary' },
+              { label: 'FCR', action: 'intervention', value: 'FCR', variant: 'secondary' },
+              { label: 'Extinction', action: 'intervention', value: 'Extinction', variant: 'secondary' }
             ]
           });
         }, 300);
@@ -224,12 +234,46 @@ function App() {
     } else if (action === 'confirm' && value === 'no') {
       addMessage('assistant', 'No problem! What would you like to log instead?');
       setPendingData(null);
+      setPendingInterventionBehaviorIds([]);
     } else if (action === 'logBehavior') {
       addMessage('assistant', 'What behavior did you observe?');
     } else if (action === 'logSkillTrial') {
       addMessage('assistant', 'What skill trial would you like to log? Include the skill name, target, and result.');
+    } else if (action === 'intervention') {
+      if (pendingInterventionBehaviorIds.length === 0) {
+        addMessage('assistant', 'No recent behavior event found to attach that intervention.');
+        return;
+      }
+      for (const behaviorId of pendingInterventionBehaviorIds) {
+        await updateBehaviorEventIntervention(behaviorId, value);
+      }
+      incrementUnsyncedCount();
+      addMessage('assistant', `Intervention saved: ${value}.`);
+      setPendingInterventionBehaviorIds([]);
     }
-  }, [pendingData, selectedFunction, incrementUnsyncedCount, addMessage, isEncryptionReady]);
+  }, [pendingData, selectedFunction, incrementUnsyncedCount, addMessage, isEncryptionReady, pendingInterventionBehaviorIds]);
+
+  const handleUnlock = useCallback(async () => {
+    if (!user?.encryptionSalt) {
+      setUnlockError('Your account is missing encryption configuration.');
+      return;
+    }
+    if (!unlockPassword) {
+      setUnlockError('Enter your password to unlock local data.');
+      return;
+    }
+    setIsUnlocking(true);
+    setUnlockError(null);
+    try {
+      await initializeEncryption(unlockPassword, user.encryptionSalt);
+      setUnlockPassword('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to unlock local data';
+      setUnlockError(message);
+    } finally {
+      setIsUnlocking(false);
+    }
+  }, [initializeEncryption, unlockPassword, user?.encryptionSalt]);
 
   const handleFunctionSelect = useCallback((func: string) => {
     setSelectedFunction(func);
@@ -268,7 +312,7 @@ function App() {
     supervisorNotified: boolean;
   }) => {
     if (!isEncryptionReady) {
-      addMessage('assistant', 'Your local encryption key is not unlocked. Please sign out and sign in again to access incident logging.');
+      addMessage('assistant', 'Your local encryption key is not unlocked. [Sign out](/login) and sign in again to access incident logging.');
       return;
     }
 
@@ -304,7 +348,24 @@ function App() {
 
           {!isEncryptionReady && (
             <div className="encryption-warning">
-              Local encrypted data is currently locked. Sign out and sign in again to log session entries.
+              Local encrypted data is currently locked. <a href="/login" onClick={(e) => { e.preventDefault(); logout(); }}>Sign out and sign in again</a> to log session entries.
+              <div className="unlock-row">
+                <input
+                  type="password"
+                  className="unlock-input"
+                  placeholder="Enter password to unlock"
+                  value={unlockPassword}
+                  onChange={(event) => setUnlockPassword(event.target.value)}
+                />
+                <button
+                  className="unlock-btn"
+                  onClick={() => void handleUnlock()}
+                  disabled={isUnlocking}
+                >
+                  {isUnlocking ? 'Unlocking...' : 'Unlock'}
+                </button>
+              </div>
+              {unlockError && <div className="unlock-error">{unlockError}</div>}
             </div>
           )}
 

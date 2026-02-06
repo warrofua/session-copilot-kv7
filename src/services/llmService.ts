@@ -246,14 +246,29 @@ function mockParseInput(input: string): ParsedInput {
             response = 'Prompted';
         }
 
-        // 3. Extract Target (Heuristic: "target was X", "target X", or quotes)
+        // 3. Extract Target (Heuristic: "target was X", "target X", quotes, or inline trial phrases)
         const quoteMatch = input.match(/"([^"]+)"/);
         const targetMatch = input.match(/target\s+(?:was\s+)?(\w+)/i);
+        const inlineTrialTargetMatch = input.match(
+            /\b(?:matching|imitation|labeling|mand|tact|trial)\s+(?:trial\s+)?([a-z0-9-]+)\s+(?:correct|incorrect|prompted|independent|error|wrong)\b/i
+        );
+        const withTargetMatch = input.match(/\b(?:with|for)\s+([a-z0-9-]+)\s+(?:target|trial)?\b/i);
 
-        if (quoteMatch) {
-            target = quoteMatch[1];
-        } else if (targetMatch) {
-            target = targetMatch[1];
+        const nonTargetTokens = new Set(['correct', 'incorrect', 'prompted', 'independent', 'error', 'wrong']);
+        const pickTarget = (candidate?: string): string | null => {
+            if (!candidate) return null;
+            const normalized = candidate.trim().toLowerCase();
+            return nonTargetTokens.has(normalized) ? null : candidate.trim();
+        };
+
+        const extractedTarget =
+            pickTarget(quoteMatch?.[1]) ??
+            pickTarget(targetMatch?.[1]) ??
+            pickTarget(inlineTrialTargetMatch?.[1]) ??
+            pickTarget(withTargetMatch?.[1]);
+
+        if (extractedTarget) {
+            target = extractedTarget;
         }
 
         console.log('[MockParse] Pushing skill trial:', { skill, target, response });

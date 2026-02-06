@@ -249,6 +249,29 @@ export async function addBehaviorEvent(event: Omit<BehaviorEvent, 'id'>): Promis
     return id;
 }
 
+export async function updateBehaviorEventIntervention(id: number, intervention: string): Promise<void> {
+    requireEncryptionReadiness();
+    const row = await db.behaviorEvents.get(id);
+    if (!row) {
+        throw new Error(`Behavior event ${id} not found`);
+    }
+
+    const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+    if (!isValid) {
+        throw new Error(`Data integrity check failed for behavior event ${id}`);
+    }
+
+    const sensitive = await decryptEntity<BehaviorSensitive>(row.encryptedData);
+    const updatedSensitive: BehaviorSensitive = {
+        ...sensitive,
+        intervention
+    };
+
+    const encryptedData = await encryptEntity(updatedSensitive);
+    const signature = await signEncryptedData(encryptedData);
+    await db.behaviorEvents.update(id, { encryptedData, signature });
+}
+
 export async function addSkillTrial(trial: Omit<SkillTrial, 'id'>): Promise<number> {
     const sensitive: SkillTrialSensitive = {
         skillName: trial.skillName,
