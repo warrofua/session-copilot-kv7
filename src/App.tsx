@@ -4,7 +4,8 @@ import { useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { ChatArea, MessageInput, type ChatMessageData } from './components/ChatArea';
 import { ActionButtons } from './components/ActionButtons';
-import { SessionSummaryContent, SideDrawer } from './components/SideDrawer';
+import { SessionSummaryContent } from './components/SessionSummary';
+import { SideDrawer } from './components/SideDrawer';
 import { IncidentButton } from './components/IncidentButton';
 import { useSessionStore } from './stores/sessionStore';
 import { useSyncStore } from './stores/syncStore';
@@ -513,9 +514,7 @@ function App() {
       <SideDrawer
         isOpen={isDrawerOpen}
         onClose={() => setDrawerOpen(false)}
-        behaviorEvents={behaviorEvents}
-        skillTrials={skillTrials}
-        noteDraft={noteDraft}
+        currentSessionId={1} // MVP: Default to session 1 for now
       />
 
       <IncidentButton

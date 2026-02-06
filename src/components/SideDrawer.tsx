@@ -1,162 +1,74 @@
-import type { BehaviorEvent, SkillTrial } from '../db/db';
+import { useState, useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, type Session } from '../db/db';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 
 interface SideDrawerProps {
     isOpen: boolean;
     onClose: () => void;
-    behaviorEvents: BehaviorEvent[];
-    skillTrials: SkillTrial[];
-    noteDraft: string;
+    currentSessionId?: number; // Highlight active session
 }
 
-interface SessionSummaryContentProps {
-    behaviorEvents: BehaviorEvent[];
-    skillTrials: SkillTrial[];
-    noteDraft: string;
-    onNavigateComplete?: () => void;
-}
+// Helper to format session time range
+const formatSessionRange = (start: Date, end?: Date) => {
+    const dateStr = format(start, 'MMM d');
+    const timeStart = format(start, 'h:mm a');
+    const timeEnd = end ? format(end, 'h:mm a') : 'Now';
+    return `${dateStr}, ${timeStart} - ${timeEnd}`;
+};
 
-export function SessionSummaryContent({
-    behaviorEvents,
-    skillTrials,
-    noteDraft,
-    onNavigateComplete
-}: SessionSummaryContentProps) {
-    const { user } = useAuth();
+export function SideDrawer({ isOpen, onClose, currentSessionId }: SideDrawerProps) {
+    const { user, learners } = useAuth();
     const navigate = useNavigate();
+
+    // -- State --
+    const [expandedLearnerIds, setExpandedLearnerIds] = useState<Set<string>>(new Set());
+    const [selectedSessionId, setSelectedSessionId] = useState<number | undefined>(currentSessionId);
+
+    // -- Data Fetching --
+    // Fetch all sessions (optimized: could limit to recent 500 later)
+    const allSessions = useLiveQuery(() => db.sessions.reverse().toArray(), []);
+
+    // -- Derived Data --
+    const sessionsByLearner = useMemo(() => {
+        if (!allSessions) return {};
+        const groups: Record<string, Session[]> = {};
+        allSessions.forEach(session => {
+            if (!groups[session.clientId]) {
+                groups[session.clientId] = [];
+            }
+            groups[session.clientId].push(session);
+        });
+        return groups;
+    }, [allSessions]);
+
+    // -- Handlers --
+    const toggleLearner = (learnerId: string) => {
+        const newSet = new Set(expandedLearnerIds);
+        if (newSet.has(learnerId)) {
+            newSet.delete(learnerId);
+        } else {
+            newSet.add(learnerId);
+        }
+        setExpandedLearnerIds(newSet);
+    };
+
+    const handleSessionClick = (sessionId: number) => {
+        setSelectedSessionId(sessionId);
+        // TODO: In future, load this session's data properly.
+        // For MVP, checking if it's the current session to enable "Resume" or viewing log
+    };
 
     const navigateTo = (path: string) => {
         navigate(path);
-        onNavigateComplete?.();
+        onClose();
     };
 
-    return (
-        <div className="drawer-content">
-            <section className="drawer-section">
-                <h3 className="drawer-section-title">Navigation</h3>
-                <div className="drawer-nav-list">
-                    <button
-                        className="drawer-nav-btn"
-                        onClick={() => navigateTo('/app')}
-                    >
-                        Dashboard
-                    </button>
-                    {user?.role === 'manager' && (
-                        <button
-                            className="drawer-nav-btn users"
-                            onClick={() => navigateTo('/admin/users')}
-                        >
-                            User Management
-                        </button>
-                    )}
-                    {(user?.role === 'manager' || user?.role === 'bcba') && (
-                        <button
-                            className="drawer-nav-btn learners"
-                            onClick={() => navigateTo('/admin/learners')}
-                        >
-                            Caseload (Learners)
-                        </button>
-                    )}
-                    {(user?.role === 'manager' || user?.role === 'bcba') && (
-                        <button
-                            className="drawer-nav-btn audit"
-                            onClick={() => navigateTo('/admin/audit')}
-                        >
-                            Audit Log
-                        </button>
-                    )}
-                    {user?.role === 'manager' && (
-                        <button
-                            className="drawer-nav-btn billing"
-                            onClick={() => navigateTo('/admin/billing')}
-                        >
-                            Billing & Plans
-                        </button>
-                    )}
-                </div>
-            </section>
+    // If still loading Auth or DB
+    if (!user) return null;
 
-            <section className="drawer-section">
-                <h3 className="drawer-section-title">Behavior Events</h3>
-                {behaviorEvents.length === 0 ? (
-                    <p className="drawer-empty">No behaviors logged yet</p>
-                ) : (
-                    <div className="event-list">
-                        {behaviorEvents.map((event, idx) => (
-                            <div key={event.id || idx} className="event-item">
-                                <span className="event-icon">▸</span>
-                                <div className="event-details">
-                                    <span className="event-label">
-                                        {formatBehaviorSummary(event)}
-                                    </span>
-                                    {event.antecedent && (
-                                        <div className="event-value">
-                                            <strong>Antecedent:</strong> {event.antecedent}
-                                        </div>
-                                    )}
-                                    {event.functionGuess && (
-                                        <div className="event-value">
-                                            <strong>Likely Function:</strong> {capitalize(event.functionGuess)}
-                                        </div>
-                                    )}
-                                    {event.intervention && (
-                                        <div className="event-value">
-                                            <strong>Intervention:</strong> {event.intervention}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </section>
-
-            <section className="drawer-section">
-                <h3 className="drawer-section-title">Skill Trials</h3>
-                {skillTrials.length === 0 ? (
-                    <p className="drawer-empty">No skill trials logged yet</p>
-                ) : (
-                    <div className="event-list">
-                        {skillTrials.map((trial, idx) => (
-                            <div key={trial.id || idx} className="event-item">
-                                <span className="event-icon">▸</span>
-                                <div className="event-details">
-                                    <span className="event-label">{trial.skillName}: {trial.target}</span>
-                                    <div className="event-value">
-                                        <strong>Response:</strong> {capitalize(trial.response)}
-                                        {trial.promptLevel !== 'independent' && ` (${trial.promptLevel})`}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </section>
-
-            <section className="drawer-section">
-                <h3 className="drawer-section-title">Session Notes Draft</h3>
-                <div className="notes-draft">
-                    {noteDraft ? (
-                        <div dangerouslySetInnerHTML={{ __html: formatNoteDraft(noteDraft) }} />
-                    ) : (
-                        <p className="drawer-empty italic">
-                            Notes will be generated as you log session data...
-                        </p>
-                    )}
-                </div>
-            </section>
-        </div>
-    );
-}
-
-export function SideDrawer({
-    isOpen,
-    onClose,
-    behaviorEvents,
-    skillTrials,
-    noteDraft
-}: SideDrawerProps) {
     return (
         <>
             <div
@@ -166,44 +78,105 @@ export function SideDrawer({
 
             <aside className={`side-drawer ${isOpen ? 'open' : ''}`}>
                 <div className="drawer-header">
-                    <h2 className="drawer-title">Session Summary</h2>
+                    <h2 className="drawer-title">Caseload Navigator</h2>
                     <button className="drawer-close" onClick={onClose} aria-label="Close">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
-                <SessionSummaryContent
-                    behaviorEvents={behaviorEvents}
-                    skillTrials={skillTrials}
-                    noteDraft={noteDraft}
-                    onNavigateComplete={onClose}
-                />
+
+                <div className="drawer-content">
+                    {/* Admin Navigation Section */}
+                    <section className="drawer-section">
+                        <h3 className="drawer-section-title">Menu</h3>
+                        <div className="drawer-nav-list">
+                            <button className="drawer-nav-btn" onClick={() => navigateTo('/app')}>
+                                Dashboard
+                            </button>
+                            {(user.role === 'manager' || user.role === 'bcba') && (
+                                <>
+                                    <button className="drawer-nav-btn learners" onClick={() => navigateTo('/admin/learners')}>
+                                        Caseload (Learners)
+                                    </button>
+                                    <button className="drawer-nav-btn audit" onClick={() => navigateTo('/admin/audit')}>
+                                        Audit Log
+                                    </button>
+                                </>
+                            )}
+                            {user.role === 'manager' && (
+                                <button className="drawer-nav-btn billing" onClick={() => navigateTo('/admin/billing')}>
+                                    Billing & Plans
+                                </button>
+                            )}
+                            {user.role === 'manager' && (
+                                <button className="drawer-nav-btn users" onClick={() => navigateTo('/admin/users')}>
+                                    User Management
+                                </button>
+                            )}
+                        </div>
+                    </section>
+
+                    {/* Learner Tree Section */}
+                    <section className="drawer-section">
+                        <h3 className="drawer-section-title">History by Learner</h3>
+                        <div className="learner-tree">
+                            {learners.map(learner => {
+                                const sessions = sessionsByLearner[learner.id] || [];
+                                const isExpanded = expandedLearnerIds.has(learner.id);
+                                const hasSessions = sessions.length > 0;
+
+                                return (
+                                    <div key={learner.id} className="tree-node-learner">
+                                        <button
+                                            className={`tree-learner-btn ${isExpanded ? 'expanded' : ''}`}
+                                            onClick={() => toggleLearner(learner.id)}
+                                        >
+                                            <span className="tree-chevron">▸</span>
+                                            <span className="tree-learner-name">{learner.name}</span>
+                                            <span className="tree-count-badge">{sessions.length}</span>
+                                        </button>
+
+                                        {isExpanded && (
+                                            <div className="tree-children">
+                                                {!hasSessions ? (
+                                                    <div className="tree-empty">No recorded sessions</div>
+                                                ) : (
+                                                    sessions.map(session => (
+                                                        <button
+                                                            key={session.id}
+                                                            className={`tree-session-item ${selectedSessionId === session.id ? 'selected' : ''} ${currentSessionId === session.id ? 'active-now' : ''}`}
+                                                            onClick={() => session.id && handleSessionClick(session.id)}
+                                                        >
+                                                            <span className="tree-session-icon">📄</span>
+                                                            <div className="tree-session-info">
+                                                                <span className="tree-session-time">
+                                                                    {formatSessionRange(session.startTime, session.endTime)}
+                                                                </span>
+                                                                {session.status === 'in-progress' && (
+                                                                    <span className="status-indicator">In Progress</span>
+                                                                )}
+                                                            </div>
+                                                        </button>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+
+                            {learners.length === 0 && (
+                                <div className="drawer-empty">No learners assigned.</div>
+                            )}
+                        </div>
+                    </section>
+                </div>
             </aside >
         </>
     );
 }
 
-function capitalize(str: string): string {
-    return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-function formatBehaviorSummary(event: BehaviorEvent): string {
-    if (event.duration) {
-        return `${event.behaviorType}: ${event.duration}s`;
-    }
-    if (event.count && event.count > 1) {
-        return `${event.count}x ${event.behaviorType}`;
-    }
-    return event.behaviorType;
-}
-
-function formatNoteDraft(draft: string): string {
-    // Bold key terms
-    return draft
-        .replace(/Client/g, '<strong>Client</strong>')
-        .replace(/Staff/g, '<strong>Staff</strong>');
-}
 
 // Definition Guardrail Component
 interface GuardrailPopupProps {
