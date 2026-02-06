@@ -101,3 +101,21 @@ We use a **Fallback Strategy** for AI:
 3.  **Confirm:** UI shows "Logging: Elopement (300s). Correct?".
 4.  **Persist:** On "Yes" -> Write to DexieDB -> Update Zustand -> Update UI.
 5.  **Sync:** Background sync to Cosmos DB when online (via SyncQueue).
+
+## Secrets Management
+
+| Secret | Location | Purpose |
+|--------|----------|---------|
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | GitHub Secrets | Deployment authentication |
+| `VITE_GITHUB_TOKEN` | GitHub Secrets | Frontend build-time (AI API) |
+| `COSMOS_CONNECTION_STRING` | Azure App Settings | Runtime API database |
+| `JWT_SECRET` | Azure App Settings | Runtime API auth tokens |
+| `STRIPE_SECRET_KEY` | Azure App Settings | Runtime API payments |
+| `STRIPE_WEBHOOK_SECRET` | Azure App Settings | Runtime API webhook verification |
+| `STRIPE_PRICE_*` | Azure App Settings | Runtime API price IDs |
+
+**Pattern:**
+- **GitHub Secrets** → Build/deploy-time (CI/CD workflow)
+- **Azure App Settings** → Runtime (API environment variables)
+
+Configure Azure App Settings via: `az staticwebapp appsettings set --name <app> --resource-group <rg> --setting-names KEY=value`
