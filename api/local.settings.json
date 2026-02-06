@@ -4,6 +4,15 @@
         "FUNCTIONS_WORKER_RUNTIME": "node",
         "AzureWebJobsStorage": "",
         "COSMOS_CONNECTION_STRING": "",
-        "JWT_SECRET": "dev-secret-change-in-production"
+        "JWT_SECRET": "dev-secret-change-in-production",
+        "STRIPE_SECRET_KEY": "",
+        "STRIPE_WEBHOOK_SECRET": "",
+        "FRONTEND_URL": "http://localhost:5173",
+        "STRIPE_PRICE_STARTER_MONTHLY": "price_1SxcQvFQxOlXRNLAk5UdMGAq",
+        "STRIPE_PRICE_STARTER_ANNUAL": "price_1SxcQxFQxOlXRNLAKUfhcYIo",
+        "STRIPE_PRICE_GROWTH_MONTHLY": "price_1SxcQzFQxOlXRNLAySzOfl3c",
+        "STRIPE_PRICE_GROWTH_ANNUAL": "price_1SxcR0FQxOlXRNLA1rfeegrE",
+        "STRIPE_PRICE_SCALE_MONTHLY": "price_1SxcR2FQxOlXRNLAJRIxJp2A",
+        "STRIPE_PRICE_SCALE_ANNUAL": "price_1SxcR3FQxOlXRNLAvfZiO3q7"
     }
 }

@@ -16,18 +16,18 @@ const PLANS = [
         name: 'Starter',
         description: 'For small practices',
         learnerLimit: 10,
-        features: ['Up to 10 active learners', 'Basic session notes', 'Email support'],
-        monthlyPrice: 49,
-        annualPrice: 470 // ~20% off
+        features: ['Up to 10 active learners', 'Unlimited staff seats', 'All features included', 'Email support'],
+        monthlyPrice: 99,
+        annualPrice: 990 // Save 17%
     },
     {
         id: 'growth',
         name: 'Growth',
         description: 'For growing practices',
         learnerLimit: 50,
-        features: ['Up to 50 active learners', 'Advanced analytics', 'Priority support', 'Custom templates'],
-        monthlyPrice: 149,
-        annualPrice: 1430,
+        features: ['Up to 50 active learners', 'Unlimited staff seats', 'Priority email & phone support', 'Custom templates'],
+        monthlyPrice: 299,
+        annualPrice: 2990, // Save 17%
         popular: true
     },
     {
@@ -35,9 +35,9 @@ const PLANS = [
         name: 'Scale',
         description: 'For large organizations',
         learnerLimit: 200,
-        features: ['Up to 200 active learners', 'SSO integration', 'Dedicated support', 'API access'],
-        monthlyPrice: 399,
-        annualPrice: 3830
+        features: ['Up to 200 active learners', 'Dedicated onboarding', 'Priority support', 'Quarterly business reviews'],
+        monthlyPrice: 799,
+        annualPrice: 7990 // Save 17%
     }
 ];
 
@@ -216,7 +216,7 @@ export default function BillingPage() {
                             className={billingPeriod === 'annual' ? 'active' : ''}
                             onClick={() => setBillingPeriod('annual')}
                         >
-                            Annual <span className="billing-discount">Save 20%</span>
+                            Annual <span className="billing-discount">Save 17%</span>
                         </button>
                     </div>
 
