@@ -276,7 +276,9 @@ function mockParseInput(input: string): ParsedInput {
     }
 
     // --- Reinforcement Detection ---
-    if (lowerInput.includes('token') || lowerInput.includes('praise') || lowerInput.includes('candy') || lowerInput.includes('ipad')) {
+    const reinforcementVerbPattern = /\b(gave|give|delivered|deliver|provided|provide|earned|reinforced|rewarded)\b/i;
+    const reinforcementItemPattern = /\b(token|praise|sticker|candy|reward|reinforcement|preferred item|ipad|break)\b/i;
+    if (reinforcementVerbPattern.test(input) && reinforcementItemPattern.test(input)) {
         reinforcement = {
             type: 'Reinforcement',
             delivered: true

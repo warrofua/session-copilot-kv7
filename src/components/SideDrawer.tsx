@@ -66,6 +66,14 @@ export function SessionSummaryContent({
                             Audit Log
                         </button>
                     )}
+                    {user?.role === 'manager' && (
+                        <button
+                            className="drawer-nav-btn billing"
+                            onClick={() => navigateTo('/admin/billing')}
+                        >
+                            Billing & Plans
+                        </button>
+                    )}
                 </div>
             </section>
 

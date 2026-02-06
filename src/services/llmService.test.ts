@@ -58,6 +58,18 @@ describe('LLM Service - Offline Regex Parsing', () => {
         });
     });
 
+    it('should not misclassify denied ipad antecedent as reinforcement', async () => {
+        const input = "Antecedent denied ipad, behavior tantrum 2 min, consequence redirect to table";
+        const result = await parseUserInput(input);
+
+        expect(result.behaviors).toHaveLength(1);
+        expect(result.behaviors[0]).toMatchObject({
+            type: 'tantrum',
+            duration: 120
+        });
+        expect(result.reinforcement).toBeUndefined();
+    });
+
     // Regression Tests (User Reported)
     it('should parse "Log tantrum for 5 mins"', async () => {
         const input = "Log tantrum for 5 mins";
