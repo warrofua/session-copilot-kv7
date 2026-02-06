@@ -1,6 +1,4 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useAuth } from './contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Header } from './components/Header';
 import { ChatArea, MessageInput, type ChatMessageData } from './components/ChatArea';
@@ -15,8 +13,6 @@ import { TermsModal } from './components/TermsModal';
 import { useEncryptionStore } from './stores/encryptionStore';
 
 function App() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -262,18 +258,6 @@ function App() {
     addMessage('assistant', 'What reinforcement was delivered? (e.g., verbal praise, token, preferred item)');
   }, [addMessage]);
 
-  const goToUsers = useCallback(() => {
-    navigate('/admin/users');
-  }, [navigate]);
-
-  const goToLearners = useCallback(() => {
-    navigate('/admin/learners');
-  }, [navigate]);
-
-  const goToAuditLogs = useCallback(() => {
-    navigate('/admin/audit');
-  }, [navigate]);
-
   const handleIncidentSubmit = useCallback(async (data: {
     incidentType: Incident['incidentType'];
     description: string;
@@ -321,25 +305,6 @@ function App() {
           {!isEncryptionReady && (
             <div className="encryption-warning">
               Local encrypted data is currently locked. Sign out and sign in again to log session entries.
-            </div>
-          )}
-
-          {(user?.role === 'manager' || user?.role === 'bcba') && (
-            <div className="admin-quick-access">
-              {user.role === 'manager' && (
-                <button className="admin-chip users" onClick={goToUsers}>
-                  <span>👥</span>
-                  Manage Users
-                </button>
-              )}
-              <button className="admin-chip learners" onClick={goToLearners}>
-                <span>👶</span>
-                Caseload
-              </button>
-              <button className="admin-chip audit" onClick={goToAuditLogs}>
-                <span>🧾</span>
-                Audit Log
-              </button>
             </div>
           )}
 

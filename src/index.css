@@ -660,6 +660,12 @@ body::before {
   border-color: #bbf7d0;
 }
 
+.drawer-nav-btn.audit {
+  background: #fef3c7;
+  color: #8d560b;
+  border-color: #fde68a;
+}
+
 .drawer-empty {
   font-size: 0.82rem;
   color: var(--text-muted);

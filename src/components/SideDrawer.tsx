@@ -58,6 +58,14 @@ export function SessionSummaryContent({
                             Caseload (Learners)
                         </button>
                     )}
+                    {(user?.role === 'manager' || user?.role === 'bcba') && (
+                        <button
+                            className="drawer-nav-btn audit"
+                            onClick={() => navigateTo('/admin/audit')}
+                        >
+                            Audit Log
+                        </button>
+                    )}
                 </div>
             </section>
 
