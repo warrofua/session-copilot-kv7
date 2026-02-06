@@ -236,11 +236,11 @@ body::before {
   background: white;
   border: 1px solid var(--border-soft);
   border-radius: 12px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 10%);
   padding: 6px;
   min-width: 220px;
   z-index: 50;
-  animation: slideDown 0.15s ease-out;
+  animation: slide-down 0.15s ease-out;
 }
 
 .learner-option {
@@ -284,11 +284,11 @@ body::before {
 }
 
 .learner-option.selected .learner-option-avatar {
-  background: rgba(66, 153, 225, 0.2);
+  background: rgb(66 153 225 / 20%);
   color: var(--brand-blue-600);
 }
 
-@keyframes slideDown {
+@keyframes slide-down {
   from {
     opacity: 0;
     transform: translateY(-5px);
