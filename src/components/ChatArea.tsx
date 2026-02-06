@@ -25,6 +25,22 @@ export function ChatArea({ messages, onButtonClick, onFunctionSelect, selectedFu
 
     return (
         <div className="chat-area">
+            {messages.length === 0 && (
+                <div className="chat-empty-state" aria-label="Session guidance">
+                    <h3 className="chat-empty-title">Ready To Log Session Data</h3>
+                    <p className="chat-empty-copy">
+                        Use the quick actions below or type natural-language notes like:
+                        <strong> "tantrum for 3 minutes"</strong> or
+                        <strong> "matching trial blue correct"</strong>.
+                    </p>
+                    <div className="chat-empty-hints">
+                        <span>Behavior + duration</span>
+                        <span>Skill + response</span>
+                        <span>ABC notes</span>
+                        <span>Incident details</span>
+                    </div>
+                </div>
+            )}
             {messages.map((msg) => (
                 <div key={msg.id} className={`message ${msg.role}`}>
                     <div className="message-content">{msg.content}</div>
