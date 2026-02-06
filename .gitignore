@@ -29,3 +29,6 @@ coverage
 junit.xml
 test-results
 regex_test.js
+
+# Azure Functions (contains secrets)
+api/local.settings.json
