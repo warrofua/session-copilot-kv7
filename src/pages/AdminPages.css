@@ -49,6 +49,10 @@
     cursor: pointer;
 }
 
+.admin-back-btn:hover {
+    background: #f8fafc;
+}
+
 .admin-primary-btn {
     border: none;
     border-radius: 10px;
@@ -58,6 +62,10 @@
     font-size: 0.84rem;
     font-weight: 800;
     cursor: pointer;
+}
+
+.admin-primary-btn:hover {
+    filter: brightness(0.96);
 }
 
 .admin-content {
@@ -150,6 +158,11 @@
     cursor: pointer;
 }
 
+.admin-link-btn:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
 .admin-loading {
     min-height: 40vh;
     display: grid;
@@ -161,6 +174,7 @@
 
 .admin-modal {
     width: min(560px, 100%);
+    background: #fff;
 }
 
 .admin-modal-title {
@@ -170,6 +184,33 @@
 .admin-form-grid {
     display: grid;
     gap: 0.5rem;
+}
+
+.admin-modal .form-label {
+    color: #111827;
+}
+
+.admin-modal .form-input,
+.admin-modal .form-select {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.admin-modal .form-input[disabled] {
+    background: #eef2f7;
+    color: #475569;
+}
+
+.admin-modal .form-input::placeholder {
+    color: #64748b;
+}
+
+@media (min-width: 760px) {
+    .admin-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem;
+    }
 }
 
 @media (max-width: 700px) {

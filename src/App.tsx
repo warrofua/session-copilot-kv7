@@ -23,6 +23,7 @@ function App() {
   const [pendingData, setPendingData] = useState<ParsedInput | null>(null);
   const [selectedFunction, setSelectedFunction] = useState<string | null>(null);
   const [sessionTime, setSessionTime] = useState('00:00:00');
+  const [incidentModalOpen, setIncidentModalOpen] = useState(false);
   const isEncryptionReady = useEncryptionStore((state) => state.isReady);
 
   // Live Queries (Reactive, Single Source of Truth)
@@ -354,7 +355,7 @@ function App() {
             onLogSkillTrial={handleLogSkillTrial}
             onLogABC={handleLogABC}
             onDeliverReinforcement={handleDeliverReinforcement}
-            onIncidentReport={() => { }}
+            onIncidentReport={() => setIncidentModalOpen(true)}
           />
 
           <MessageInput
@@ -387,7 +388,11 @@ function App() {
         noteDraft={noteDraft}
       />
 
-      <IncidentButton onSubmit={handleIncidentSubmit} />
+      <IncidentButton
+        onSubmit={handleIncidentSubmit}
+        isOpen={incidentModalOpen}
+        onOpenChange={setIncidentModalOpen}
+      />
       <TermsModal />
     </div>
   );

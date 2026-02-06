@@ -12,10 +12,19 @@ interface IncidentFormData {
 
 interface IncidentButtonProps {
     onSubmit: (data: IncidentFormData) => void;
+    isOpen?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function IncidentButton({ onSubmit }: IncidentButtonProps) {
-    const [isOpen, setIsOpen] = useState(false);
+export function IncidentButton({ onSubmit, isOpen: controlledOpen, onOpenChange }: IncidentButtonProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
+    const isOpen = typeof controlledOpen === 'boolean' ? controlledOpen : internalOpen;
+    const setIsOpen = (open: boolean) => {
+        if (typeof controlledOpen !== 'boolean') {
+            setInternalOpen(open);
+        }
+        onOpenChange?.(open);
+    };
     const [formData, setFormData] = useState<IncidentFormData>({
         incidentType: 'injury',
         description: '',
@@ -63,7 +72,7 @@ export function IncidentButton({ onSubmit }: IncidentButtonProps) {
 
             {/* Modal */}
             <div className={`modal-overlay ${isOpen ? 'open' : ''}`}>
-                <div className="modal">
+                <div className="modal incident-modal">
                     <div className="modal-header">
                         <h2 className="modal-title">⚠️ Incident Report</h2>
                         <button className="drawer-close" onClick={() => setIsOpen(false)}>
