@@ -3,6 +3,37 @@
 
 const API_BASE = '/api';
 
+async function parseApiJson<T>(response: Response): Promise<T | null> {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        return null;
+    }
+
+    const text = await response.text();
+    if (!text) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(text) as T;
+    } catch {
+        return null;
+    }
+}
+
+async function getApiErrorMessage(response: Response, fallback: string): Promise<string> {
+    const body = await parseApiJson<{ error?: string; details?: string }>(response);
+    if (!body) {
+        return `${fallback} (status ${response.status})`;
+    }
+
+    if (body.details) {
+        return `${body.error || fallback}: ${body.details}`;
+    }
+
+    return body.error || fallback;
+}
+
 export interface User {
     id: string;
     email: string;
@@ -53,14 +84,18 @@ export async function login(email: string, password: string): Promise<AuthRespon
     });
 
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Login failed');
+        throw new Error(await getApiErrorMessage(response, 'Login failed'));
     }
 
-    return response.json();
+    const data = await parseApiJson<AuthResponse>(response);
+    if (!data) {
+        throw new Error('Login failed: server returned an invalid response');
+    }
+
+    return data;
 }
 
-export async function register(data: {
+export async function register(registerData: {
     email: string;
     password: string;
     name: string;
@@ -72,16 +107,19 @@ export async function register(data: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Important: send/receive cookies
-        body: JSON.stringify(data)
+        body: JSON.stringify(registerData)
     });
 
     if (!response.ok) {
-        const error = await response.json();
-        const errorMessage = error.details ? `${error.error}: ${error.details}` : (error.error || 'Registration failed');
-        throw new Error(errorMessage);
+        throw new Error(await getApiErrorMessage(response, 'Registration failed'));
     }
 
-    return response.json();
+    const authResponse = await parseApiJson<AuthResponse>(response);
+    if (!authResponse) {
+        throw new Error('Registration failed: server returned an invalid response');
+    }
+
+    return authResponse;
 }
 
 export async function getMe(): Promise<MeResponse> {
@@ -93,11 +131,15 @@ export async function getMe(): Promise<MeResponse> {
         if (response.status === 401) {
             throw new Error('Session expired');
         }
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to get user info');
+        throw new Error(await getApiErrorMessage(response, 'Failed to get user info'));
     }
 
-    return response.json();
+    const data = await parseApiJson<MeResponse>(response);
+    if (!data) {
+        throw new Error('Failed to get user info: server returned an invalid response');
+    }
+
+    return data;
 }
 
 export async function logout(): Promise<void> {
