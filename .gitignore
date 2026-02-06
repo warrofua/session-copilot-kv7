@@ -32,3 +32,9 @@ regex_test.js
 
 # Azure Functions (contains secrets)
 api/local.settings.json
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
