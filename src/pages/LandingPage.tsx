@@ -235,18 +235,18 @@ export default function LandingPage() {
                     <span className="landing-section-tag">Pricing</span>
                     <h2>Simple, Transparent Pricing</h2>
                     <p>
-                        One plan with everything you need. No hidden fees.
+                        Plans that scale with your practice. Start with a 14-day free trial.
                     </p>
                 </div>
 
                 <div className="landing-pricing-card">
-                    <div className="landing-pricing-badge">Professional</div>
+                    <div className="landing-pricing-badge">Starting at</div>
                     <div className="landing-pricing-price">
                         <span className="landing-pricing-currency">$</span>
-                        <span className="landing-pricing-amount">9.99</span>
-                        <span className="landing-pricing-period">/user/mo</span>
+                        <span className="landing-pricing-amount">99</span>
+                        <span className="landing-pricing-period">/month</span>
                     </div>
-                    <p className="landing-pricing-subtitle">Billed monthly. Cancel anytime.</p>
+                    <p className="landing-pricing-subtitle">Up to 10 active learners. Cancel anytime.</p>
 
                     <div className="landing-pricing-features">
                         <div className="landing-pricing-feature">
@@ -275,12 +275,12 @@ export default function LandingPage() {
                         </div>
                         <div className="landing-pricing-feature">
                             {icons.check}
-                            <span>Priority email support</span>
+                            <span>Growth & Scale plans available</span>
                         </div>
                     </div>
 
                     <Link to="/login" className="landing-pricing-cta">
-                        Get Started
+                        Start Free Trial
                     </Link>
                 </div>
             </section>

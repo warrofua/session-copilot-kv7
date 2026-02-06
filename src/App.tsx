@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { ChatArea, MessageInput, type ChatMessageData } from './components/ChatArea';
 import { ActionButtons } from './components/ActionButtons';
@@ -15,6 +16,8 @@ import { useAuth } from './contexts/AuthContext';
 
 function App() {
   const { user, logout } = useAuth();
+  const location = useLocation();
+  const isDemoRoute = location.pathname === '/demo';
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -28,6 +31,23 @@ function App() {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const isEncryptionReady = useEncryptionStore((state) => state.isReady);
   const initializeEncryption = useEncryptionStore((state) => state.initializeWithPassword);
+
+  useEffect(() => {
+    if (!isDemoRoute || isEncryptionReady) {
+      return;
+    }
+
+    let cancelled = false;
+    void initializeEncryption('__demo_offline_password__', 'MDEyMzQ1Njc4OWFiY2RlZg==').catch(() => {
+      if (!cancelled) {
+        setUnlockError('Demo encryption failed to initialize.');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initializeEncryption, isDemoRoute, isEncryptionReady]);
 
   // Live Queries (Reactive, Single Source of Truth)
   // Limit to 500 most recent items to avoid performance issues with large datasets
@@ -166,6 +186,10 @@ function App() {
 
   const handleButtonClick = useCallback(async (action: string, value: string) => {
     if (!isEncryptionReady) {
+      if (isDemoRoute) {
+        addMessage('assistant', 'Preparing secure local storage... try again in a moment.');
+        return;
+      }
       addMessage('assistant', 'Your local encryption key is not unlocked. [Sign out](/login) and sign in again to access session data.');
       return;
     }
@@ -251,7 +275,7 @@ function App() {
       addMessage('assistant', `Intervention saved: ${value}.`);
       setPendingInterventionBehaviorIds([]);
     }
-  }, [pendingData, selectedFunction, incrementUnsyncedCount, addMessage, isEncryptionReady, pendingInterventionBehaviorIds]);
+  }, [pendingData, selectedFunction, incrementUnsyncedCount, addMessage, isDemoRoute, isEncryptionReady, pendingInterventionBehaviorIds]);
 
   const handleUnlock = useCallback(async () => {
     if (!user?.encryptionSalt) {
@@ -312,6 +336,10 @@ function App() {
     supervisorNotified: boolean;
   }) => {
     if (!isEncryptionReady) {
+      if (isDemoRoute) {
+        addMessage('assistant', 'Preparing secure local storage... try submitting the incident again.');
+        return;
+      }
       addMessage('assistant', 'Your local encryption key is not unlocked. [Sign out](/login) and sign in again to access incident logging.');
       return;
     }
@@ -334,7 +362,7 @@ function App() {
     incrementUnsyncedCount();
 
     addMessage('system', `⚠️ Incident report filed: ${data.incidentType}. ${data.parentNotified ? 'Parent notified.' : ''} ${data.supervisorNotified ? 'Supervisor notified.' : ''}`);
-  }, [incrementUnsyncedCount, addMessage, isEncryptionReady]);
+  }, [incrementUnsyncedCount, addMessage, isDemoRoute, isEncryptionReady]);
 
   return (
     <div className="app-shell">
@@ -346,7 +374,7 @@ function App() {
             onMenuClick={toggleDrawer}
           />
 
-          {!isEncryptionReady && (
+          {!isEncryptionReady && !isDemoRoute && (
             <div className="encryption-warning">
               Local encrypted data is currently locked. <a href="/login" onClick={(e) => { e.preventDefault(); logout(); }}>Sign out and sign in again</a> to log session entries.
               <div className="unlock-row">
