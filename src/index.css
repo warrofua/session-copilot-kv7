@@ -173,6 +173,8 @@ body::before {
   padding: 10px 16px;
   background: linear-gradient(90deg, rgb(66 153 225 / 8%), rgb(72 187 120 / 6%));
   border-bottom: 1px solid var(--border-soft);
+  position: relative;
+  z-index: 20;
 }
 
 .client-avatar {
@@ -189,12 +191,113 @@ body::before {
 
 .client-details {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.client-name {
+.client-name-btn {
   font-size: 1rem;
   font-weight: 800;
   color: var(--brand-slate-900);
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: default;
+  text-align: left;
+}
+
+.client-name-btn.clickable {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.client-name-btn.clickable:hover {
+  color: var(--brand-blue-600);
+}
+
+.dropdown-chevron {
+  color: var(--brand-slate-400);
+  transition: transform 0.2s;
+}
+
+.dropdown-chevron.open {
+  transform: rotate(180deg);
+}
+
+.learner-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 16px;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 6px;
+  min-width: 220px;
+  z-index: 50;
+  animation: slideDown 0.15s ease-out;
+}
+
+.learner-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--brand-slate-600);
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+}
+
+.learner-option:hover {
+  background: var(--bg-soft);
+  color: var(--brand-slate-900);
+}
+
+.learner-option.selected {
+  background: rgb(66 153 225 / 10%);
+  color: var(--brand-blue-600);
+}
+
+.learner-option-avatar {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-soft);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-slate-500);
+}
+
+.learner-option.selected .learner-option-avatar {
+  background: rgba(66, 153, 225, 0.2);
+  color: var(--brand-blue-600);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .session-timer {
@@ -1062,6 +1165,7 @@ body::before {
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     opacity: 1;

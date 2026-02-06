@@ -85,7 +85,16 @@ function App() {
   const { incrementUnsyncedCount } = useSyncStore();
 
   // Demo client name
-  const clientName = 'Alex B.';
+  const { learners } = useAuth();
+  const [selectedLearner, setSelectedLearner] = useState(learners[0] || { id: 'demo', name: 'Alex B.' });
+
+  useEffect(() => {
+    if (learners.length > 0 && selectedLearner.id === 'demo') {
+      setSelectedLearner(learners[0]);
+    }
+  }, [learners, selectedLearner.id]);
+
+  const clientName = selectedLearner.name;
 
   // Session timer
   useEffect(() => {
@@ -437,6 +446,8 @@ function App() {
             clientName={clientName}
             sessionTime={sessionTime}
             onMenuClick={toggleDrawer}
+            learners={learners}
+            onLearnerChange={setSelectedLearner}
           />
 
           {!isEncryptionReady && !isDemoRoute && (
