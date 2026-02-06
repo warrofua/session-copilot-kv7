@@ -109,13 +109,15 @@ body::before {
 }
 
 .desktop-summary-header h2 {
-  font-size: 1.1rem;
+  font-size: 1.16rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--brand-slate-900);
 }
 
 .desktop-summary-header p {
   margin-top: 4px;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   color: var(--text-muted);
 }
 
@@ -155,9 +157,9 @@ body::before {
 }
 
 .header-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .header-title.no-back {
@@ -190,13 +192,13 @@ body::before {
 }
 
 .client-name {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 800;
   color: var(--brand-slate-900);
 }
 
 .session-timer {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
 }
 
@@ -204,8 +206,8 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.73rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 800;
   border-radius: 999px;
   padding: 4px 9px;
 }
@@ -248,8 +250,8 @@ body::before {
   color: #8f4f1f;
   border: 1px solid rgb(237 137 54 / 34%);
   border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .admin-quick-access {
@@ -267,7 +269,7 @@ body::before {
   border: 1px solid transparent;
   border-radius: 999px;
   padding: 8px 12px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -321,7 +323,7 @@ body::before {
 }
 
 .chat-empty-title {
-  font-size: 0.98rem;
+  font-size: 1.08rem;
   color: #0f172a;
   font-weight: 800;
 }
@@ -329,7 +331,7 @@ body::before {
 .chat-empty-copy {
   margin-top: 6px;
   color: #334155;
-  font-size: 0.84rem;
+  font-size: 0.91rem;
   line-height: 1.45;
 }
 
@@ -350,7 +352,7 @@ body::before {
   border: 1px solid rgb(148 163 184 / 45%);
   background: rgb(255 255 255 / 88%);
   color: #1e293b;
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 700;
   padding: 5px 9px;
 }
@@ -358,8 +360,8 @@ body::before {
 .message {
   max-width: 82%;
   border-radius: 18px;
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font-size: 0.92rem;
+  line-height: 1.5;
   padding: 10px 12px;
   box-shadow: var(--shadow-sm);
 }
@@ -402,7 +404,7 @@ body::before {
 .btn {
   border: none;
   border-radius: 10px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 700;
   padding: 7px 11px;
   cursor: pointer;
@@ -461,8 +463,8 @@ body::before {
   background: white;
   color: var(--text-soft);
   padding: 6px 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 800;
   cursor: pointer;
   transition: transform 0.2s ease, filter 0.2s ease;
 }
@@ -510,7 +512,7 @@ body::before {
 .form-select {
   width: 100%;
   font-family: var(--font-family);
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   border: 1px solid var(--border-strong);
   background: white;
   color: var(--text-main);
@@ -587,7 +589,7 @@ body::before {
 }
 
 .drawer-title {
-  font-size: 1rem;
+  font-size: 1.06rem;
   font-weight: 800;
   color: var(--brand-slate-900);
 }
@@ -621,7 +623,7 @@ body::before {
 }
 
 .drawer-section-title {
-  font-size: 0.73rem;
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 800;
@@ -640,7 +642,7 @@ body::before {
   background: white;
   color: var(--text-main);
   border-radius: 10px;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 700;
   padding: 9px 10px;
   cursor: pointer;
@@ -687,14 +689,14 @@ body::before {
 }
 
 .event-label {
-  font-size: 0.8rem;
+  font-size: 0.83rem;
   font-weight: 700;
   color: var(--text-main);
 }
 
 .event-value {
   margin-top: 4px;
-  font-size: 0.77rem;
+  font-size: 0.79rem;
   color: var(--text-soft);
 }
 
@@ -703,7 +705,7 @@ body::before {
   border: 1px solid var(--border-soft);
   padding: 11px;
   background: white;
-  font-size: 0.83rem;
+  font-size: 0.85rem;
   line-height: 1.5;
   color: var(--text-soft);
 }
@@ -774,7 +776,7 @@ body::before {
 }
 
 .terms-title {
-  font-size: 1.35rem;
+  font-size: 1.42rem;
   font-weight: 800;
   color: var(--brand-slate-900);
 }
@@ -782,7 +784,7 @@ body::before {
 .terms-content {
   margin-top: 12px;
   color: var(--text-soft);
-  font-size: 0.9rem;
+  font-size: 0.93rem;
   line-height: 1.55;
 }
 
@@ -871,8 +873,9 @@ body::before {
 }
 
 .modal-title {
-  font-size: 1rem;
+  font-size: 1.08rem;
   font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--brand-red-600);
 }
 
@@ -890,7 +893,7 @@ body::before {
 .form-label {
   display: block;
   margin-bottom: 5px;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 700;
   color: #1f2937;
 }
@@ -912,7 +915,7 @@ body::before {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   color: #1f2937;
   font-weight: 500;
 }
@@ -960,7 +963,7 @@ body::before {
 
 .incident-modal .checkbox-label {
   color: #1f2937;
-  font-size: 0.83rem;
+  font-size: 0.85rem;
 }
 
 .incident-modal .form-input,

@@ -27,14 +27,15 @@
 .admin-page-title {
     margin: 0.5rem 0 0.35rem;
     color: #1a202c;
-    font-size: 1.45rem;
+    font-size: 1.5rem;
     font-weight: 800;
+    letter-spacing: -0.01em;
 }
 
 .admin-page-subtitle {
     margin: 0;
     color: #4a5568;
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     line-height: 1.45;
 }
 
@@ -44,7 +45,7 @@
     background: #fff;
     color: #2d3748;
     padding: 0.45rem 0.7rem;
-    font-size: 0.82rem;
+    font-size: 0.84rem;
     font-weight: 700;
     cursor: pointer;
 }
@@ -59,7 +60,7 @@
     background: linear-gradient(135deg, #4299e1, #3182ce);
     color: #fff;
     padding: 0.6rem 0.95rem;
-    font-size: 0.84rem;
+    font-size: 0.86rem;
     font-weight: 800;
     cursor: pointer;
 }
@@ -97,7 +98,7 @@
 
 .admin-table th {
     text-align: left;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #2d3748;
@@ -107,7 +108,7 @@
 }
 
 .admin-table td {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     color: #374151;
     padding: 0.72rem 0.8rem;
     border-bottom: 1px solid #f1f5f9;
@@ -153,7 +154,7 @@
     border: none;
     background: transparent;
     color: #2563eb;
-    font-size: 0.82rem;
+    font-size: 0.84rem;
     font-weight: 700;
     cursor: pointer;
 }
@@ -188,6 +189,7 @@
 
 .admin-modal .form-label {
     color: #111827;
+    font-size: 0.85rem;
 }
 
 .admin-modal .form-input,
