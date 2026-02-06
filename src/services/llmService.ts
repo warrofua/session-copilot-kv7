@@ -8,7 +8,8 @@ const MODEL_NAME = 'gpt-4o-mini';
 function getApiToken(): string {
     // In production, this would come from secure backend
     // For demo, we use localStorage or env variable
-    return localStorage.getItem('github_token') || import.meta.env.VITE_GITHUB_TOKEN || '';
+    return ''; // Force offline demo mode
+    // return localStorage.getItem('github_token') || import.meta.env.VITE_GITHUB_TOKEN || '';
 }
 
 export interface ParsedInput {
@@ -53,9 +54,9 @@ When the user describes what happened, extract:
 4. Antecedents (what happened before)
 5. Consequences/interventions used
 6. Likely behavioral function (escape, tangible, attention, automatic)
-7. SKILL TRIALS: If the user mentions a skill trial (e.g. "DTT", "matching", "naming"), extract:
+7. SKILL TRIALS: If the user mentions a skill trial, even implicitly (e.g. "DTT", "matching", "naming", "tried tying shoes", "practiced counting"), extract:
    - Skill name
-   - Target (e.g. "blue", "apple")
+   - Target (e.g. "blue", "apple", or implied target)
    - Response (correct/incorrect/prompted)
 
 Common ABA abbreviations:
@@ -66,6 +67,13 @@ Common ABA abbreviations:
 
 Always respond in valid JSON format matching the ParsedInput interface.`;
 
+/**
+ * Parses raw user input into structured ABA data using an LLM.
+ * Falls back to regex-based mock parsing if no API token is configured.
+ * 
+ * @param userMessage - The raw text input from the user (e.g., "Client hit peer 3 times").
+ * @returns Structured data matching ParsedInput interface.
+ */
 export async function parseUserInput(userMessage: string): Promise<ParsedInput> {
     const token = getApiToken();
 
@@ -127,6 +135,15 @@ export async function parseUserInput(userMessage: string): Promise<ParsedInput> 
     return mockParseInput(userMessage);
 }
 
+/**
+ * Generates a professional clinical session note draft based on collected data.
+ * 
+ * @param behaviors - Array of logged behaviors.
+ * @param skillTrials - Array of skill trials conducted.
+ * @param clientName - Name of the learner.
+ * @param reinforcements - List of reinforcements delivered.
+ * @returns A string containing the drafted narrative note.
+ */
 export async function generateNoteDraft(
     behaviors: { type: string; count?: number; duration?: number; antecedent?: string; function?: string; intervention?: string }[],
     skillTrials: { skill: string; target: string; response: string }[],
@@ -195,15 +212,12 @@ function mockParseInput(input: string): ParsedInput {
 
     behaviorPatterns.forEach(pattern => {
         if (pattern.keywords.some(k => lowerInput.includes(k))) {
-            console.log('[MockParse] Matched behavior pattern:', pattern.type);
             // Duration Check
             let duration = 0;
             const secMatch = input.match(/(\d+)\s*(sec|s\b|second)/i);
             const minMatch = input.match(/(\d+)\s*(min|m\b|minute)/i);
             if (secMatch) duration += parseInt(secMatch[1]);
             if (minMatch) duration += parseInt(minMatch[1]) * 60;
-
-            console.log('[MockParse] Extracted duration:', duration);
 
             // Count Check
             const countMatch = input.match(/(\d+|once|twice|two|three|four|five)\s*times?/i);
@@ -214,15 +228,15 @@ function mockParseInput(input: string): ParsedInput {
                 count: duration > 0 ? undefined : count,
                 duration: duration > 0 ? duration : undefined
             });
-            console.log('[MockParse] Ensure push:', JSON.stringify(behaviors));
         }
     });
 
     // --- Skill Trial Detection ---
-    console.log('[MockParse] Input:', input);
-    const skillKeywords = ['trial', 'skill', 'target', 'dtt', 'matching', 'imitation', 'labeling', 'mand', 'tact'];
-    if (skillKeywords.some(k => lowerInput.includes(k))) {
-        console.log('[MockParse] Skill keyword detected');
+    // Add "tried", "practiced", "worked on" to keywords
+    const skillKeywords = ['trial', 'skill', 'target', 'dtt', 'matching', 'imitation', 'labeling', 'mand', 'tact', 'tried', 'practiced', 'worked on'];
+    const hasSkillKeyword = skillKeywords.some(k => lowerInput.includes(k));
+
+    if (hasSkillKeyword) {
         let skill = 'Unknown Skill';
         let target = 'Current Target'; // Default to generic
         let response = 'Incorrect'; // Default to incorrect (conservative)
@@ -231,22 +245,47 @@ function mockParseInput(input: string): ParsedInput {
         // 1. Extract Skill Name
         // First try to find a known keyword that isn't generic
         const specificSkill = skillKeywords.find(k =>
-            lowerInput.includes(k) && !['trial', 'skill', 'target'].includes(k)
+            lowerInput.includes(k) && !['trial', 'skill', 'target', 'tried', 'practiced', 'worked on'].includes(k)
         );
 
         if (specificSkill) {
             skill = specificSkill.charAt(0).toUpperCase() + specificSkill.slice(1);
-        } else if (lowerInput.includes('trial')) {
+        } else if (lowerInput.includes('trial') && !lowerInput.includes('tried')) {
             skill = 'Generic Trial';
+        } else {
+            // Heuristic for "tried X" or "practiced X"
+            // Capture everything until a comma, stop word, or end of string
+            const actionMatch = input.match(/\b(tried|practiced|worked on)\s+([^,]+)/i);
+            if (actionMatch) {
+                let extracted = actionMatch[2].trim();
+                // Clean up trailing words if they made it in
+                const stopWords = [' with', ' using', ' but', ' and', ' they', ' he', ' she', ' which', ' needed'];
+                for (const word of stopWords) {
+                    const idx = extracted.toLowerCase().indexOf(word);
+                    if (idx !== -1) extracted = extracted.substring(0, idx);
+                }
+
+                if (extracted.length > 0) {
+                    skill = extracted.trim();
+                    skill = skill.charAt(0).toUpperCase() + skill.slice(1);
+                } else {
+                    skill = 'Generic Trial';
+                }
+            } else {
+                skill = 'Generic Trial';
+            }
         }
+        skill = skill.charAt(0).toUpperCase() + skill.slice(1);
 
         // 2. Extract Response
+        // Priority: Incorrect/Error -> Prompted (treated as Incorrect) -> Correct
         if (lowerInput.includes('incorrect') || lowerInput.includes('-') || lowerInput.includes('error') || lowerInput.includes('wrong')) {
             response = 'Incorrect';
-        } else if (lowerInput.includes('correct') || lowerInput.includes('+') || lowerInput.includes('independent') || lowerInput.includes('ind')) {
+        } else if (lowerInput.includes('prompt') || lowerInput.includes('help') || lowerInput.includes('assisted') || lowerInput.includes('physical') || lowerInput.includes('gestural') || lowerInput.includes('model') || lowerInput.includes('verbal')) {
+            // Domain rule: Any urged/prompted trial is technically an incorrect independent response
+            response = 'Incorrect';
+        } else if (lowerInput.includes('correct') || lowerInput.includes('+') || lowerInput.includes('independent') || lowerInput.includes('ind') || lowerInput.includes('right')) {
             response = 'Correct';
-        } else if (lowerInput.includes('prompt') || lowerInput.includes('help') || lowerInput.includes('assisted')) {
-            response = 'Prompted';
         }
 
         if (lowerInput.includes('full physical') || lowerInput.includes('full-physical')) {
@@ -265,12 +304,9 @@ function mockParseInput(input: string): ParsedInput {
             promptLevel = 'independent';
         }
 
-        // 3. Extract Target (Heuristic: "target was X", "target X", quotes, or inline trial phrases)
+        // 3. Extract Target
         const quoteMatch = input.match(/"([^"]+)"/);
         const targetMatch = input.match(/target\s+(?:was\s+)?(\w+)/i);
-        const inlineTrialTargetMatch = input.match(
-            /\b(?:matching|imitation|labeling|mand|tact|trial)\s+(?:trial\s+)?([a-z0-9-]+)\s+(?:correct|incorrect|prompted|independent|error|wrong)\b/i
-        );
         const withTargetMatch = input.match(/\b(?:with|for)\s+([a-z0-9-]+)\s+(?:target|trial)?\b/i);
 
         const nonTargetTokens = new Set(['correct', 'incorrect', 'prompted', 'independent', 'error', 'wrong']);
@@ -283,14 +319,12 @@ function mockParseInput(input: string): ParsedInput {
         const extractedTarget =
             pickTarget(quoteMatch?.[1]) ??
             pickTarget(targetMatch?.[1]) ??
-            pickTarget(inlineTrialTargetMatch?.[1]) ??
             pickTarget(withTargetMatch?.[1]);
 
         if (extractedTarget) {
             target = extractedTarget;
         }
 
-        console.log('[MockParse] Pushing skill trial:', { skill, target, response, promptLevel });
         skillTrials.push({ skill, target, response, promptLevel });
     }
 
@@ -333,7 +367,7 @@ function mockParseInput(input: string): ParsedInput {
     // Narrative generation
     const narrativeFragment = generateNarrativeFragment(behaviors, antecedent);
 
-    return {
+    const result = {
         behaviors,
         skillTrials,
         reinforcement,
@@ -341,9 +375,11 @@ function mockParseInput(input: string): ParsedInput {
         functionGuess,
         intervention: undefined,
         needsClarification: behaviors.length === 0 && skillTrials.length === 0 && !reinforcement,
-        clarificationQuestion: behaviors.length === 0 ? 'I detected an event but wasn\'t sure how to categorize it. Can you specify the behavior?' : undefined,
+        clarificationQuestion: (behaviors.length === 0 && skillTrials.length === 0 && !reinforcement) ? 'I detected an event but wasn\'t sure how to categorize it. Can you specify the behavior?' : undefined,
         narrativeFragment
     };
+    console.log('[UNIQUE_ID_999] Final Result:', JSON.stringify(result, null, 2));
+    return result;
 }
 
 function parseCount(str: string): number {

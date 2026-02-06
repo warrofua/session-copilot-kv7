@@ -1,10 +1,11 @@
-import type { User } from '../contexts/AuthContext';
+import type { User } from './authService';
 
 export interface CreateUserRequest {
     email: string;
     name: string;
     role: 'manager' | 'bcba' | 'rbt';
     password: string;
+    /** Optional list of learner IDs to assign to this user */
     assignedLearnerIds?: string[];
 }
 
@@ -22,11 +23,16 @@ export interface UpdateUserRequest {
     assignedLearnerIds?: string[];
 }
 
-const API_Base = '/api';
+const API_BASE = '/api';
 
+
+
+/**
+ * Service for managing users (Organization Admins/Managers only).
+ */
 export const userService: UserService = {
     getUsers: async () => {
-        const response = await fetch(`${API_Base}/users`, {
+        const response = await fetch(`${API_BASE}/users`, {
             credentials: 'include' // Important: send HttpOnly cookies
         });
 
@@ -39,7 +45,7 @@ export const userService: UserService = {
     },
 
     createUser: async (userData: CreateUserRequest) => {
-        const response = await fetch(`${API_Base}/users`, {
+        const response = await fetch(`${API_BASE}/users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -58,7 +64,7 @@ export const userService: UserService = {
     },
 
     updateUser: async (userData: UpdateUserRequest) => {
-        const response = await fetch(`${API_Base}/users`, {
+        const response = await fetch(`${API_BASE}/users`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'

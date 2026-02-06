@@ -18,10 +18,29 @@ function base64ToBytes(base64: string): Uint8Array {
     return bytes;
 }
 
+/**
+ * Simple canonicalization by stringifying with sorted keys.
+ * Recursively sorts object keys to ensure deterministic output.
+ */
 function canonicalize(value: unknown): string {
-    return JSON.stringify(value);
+    const sortKeys = (obj: any): any => {
+        if (Array.isArray(obj)) {
+            return obj.map(sortKeys);
+        }
+        if (typeof obj === 'object' && obj !== null) {
+            return Object.keys(obj).sort().reduce((acc, key) => {
+                acc[key] = sortKeys(obj[key]);
+                return acc;
+            }, {} as any);
+        }
+        return obj;
+    };
+    return JSON.stringify(sortKeys(value));
 }
 
+/**
+ * Derives a cryptographic signing key from a password and salt using PBKDF2.
+ */
 export async function deriveSigningKey(password: string, saltBase64: string): Promise<CryptoKey> {
     const keyMaterial = await crypto.subtle.importKey(
         'raw',
@@ -45,6 +64,10 @@ export async function deriveSigningKey(password: string, saltBase64: string): Pr
     );
 }
 
+/**
+ * Signs data using HMAC-SHA256 with the derived key.
+ * @returns Base64 encoded signature.
+ */
 export async function signData(data: unknown, key: CryptoKey): Promise<string> {
     const signature = await crypto.subtle.sign(
         'HMAC',
@@ -54,6 +77,9 @@ export async function signData(data: unknown, key: CryptoKey): Promise<string> {
     return bytesToBase64(new Uint8Array(signature));
 }
 
+/**
+ * Verifies that the signature matches the data using the provided key.
+ */
 export async function verifySignature(data: unknown, signatureBase64: string, key: CryptoKey): Promise<boolean> {
     const signature = base64ToBytes(signatureBase64);
     return crypto.subtle.verify(

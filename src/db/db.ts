@@ -130,6 +130,10 @@ type SessionNoteSensitive = Omit<SessionNote, 'id' | 'sessionId' | 'createdAt' |
 type IncidentSensitive = Omit<Incident, 'id' | 'sessionId' | 'timestamp' | 'createdAt' | 'synced'>;
 
 // Create the database
+/**
+ * IndexedDB database for offline-first storage using Dexie.js.
+ * Implements field-level encryption for PHI compliance.
+ */
 class SessionCoPilotDB extends Dexie {
     sessions!: EntityTable<Session, 'id'>;
     behaviorEvents!: EntityTable<EncryptedEntityRow, 'id'>;
@@ -684,6 +688,10 @@ async function migrateIncidentRow(row: Record<string, unknown>): Promise<Encrypt
     };
 }
 
+/**
+ * Migration utility to convert legacy plaintext data to encrypted format.
+ * Runs inside a transaction to ensure atomicity.
+ */
 export async function migrateLegacyPlaintextData(): Promise<void> {
     requireEncryptionReadiness();
 

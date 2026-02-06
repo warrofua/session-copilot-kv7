@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import type { Session } from '../db/db';
 
+/**
+ * Global UI state for the active session and drawer visibility.
+ */
 interface SessionState {
     currentSession: Session | null;
     noteDraft: string;

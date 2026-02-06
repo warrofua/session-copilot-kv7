@@ -30,14 +30,14 @@ function base64ToBytes(base64: string): Uint8Array {
     return bytes;
 }
 
-function dateReplacer(_key: string, value: unknown): unknown {
+export function dateReplacer(_key: string, value: unknown): unknown {
     if (value instanceof Date) {
         return { __type: 'date', value: value.toISOString() };
     }
     return value;
 }
 
-function dateReviver(_key: string, value: unknown): unknown {
+export function dateReviver(_key: string, value: unknown): unknown {
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(value)) {
         return new Date(value);
     }
@@ -54,6 +54,9 @@ function dateReviver(_key: string, value: unknown): unknown {
     return value;
 }
 
+/**
+ * Derives a cryptographic encryption key (AES-GCM) from a password and salt using PBKDF2.
+ */
 export async function deriveEncryptionKey(password: string, saltBase64: string): Promise<CryptoKey> {
     const keyMaterial = await crypto.subtle.importKey(
         'raw',
@@ -77,6 +80,10 @@ export async function deriveEncryptionKey(password: string, saltBase64: string):
     );
 }
 
+/**
+ * Encrypts a value (object/string/etc) to JSON using AES-GCM.
+ * Handles Date objects automatically via custom replacer.
+ */
 export async function encryptJson<T>(value: T, key: CryptoKey): Promise<EncryptedData> {
     const iv = crypto.getRandomValues(new Uint8Array(AES_GCM_IV_LENGTH));
     const plaintext = utf8ToBytes(JSON.stringify(value, dateReplacer));
@@ -94,6 +101,10 @@ export async function encryptJson<T>(value: T, key: CryptoKey): Promise<Encrypte
     };
 }
 
+/**
+ * Decrypts encrypted data back to its original JS object/value.
+ * Restores Date objects via custom reviver.
+ */
 export async function decryptJson<T>(value: EncryptedData, key: CryptoKey): Promise<T> {
     const plaintextBuffer = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: base64ToBytes(value.iv) as unknown as BufferSource },

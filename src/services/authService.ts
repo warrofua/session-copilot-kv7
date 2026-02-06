@@ -3,6 +3,12 @@
 
 const API_BASE = '/api';
 
+
+
+/**
+ * Helper to safely parse JSON from a response.
+ * Returns null if content-type is not JSON or parsing fails.
+ */
 async function parseApiJson<T>(response: Response): Promise<T | null> {
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
@@ -21,6 +27,9 @@ async function parseApiJson<T>(response: Response): Promise<T | null> {
     }
 }
 
+/**
+ * Extracts a user-friendly error message from an API response.
+ */
 async function getApiErrorMessage(response: Response, fallback: string): Promise<string> {
     const body = await parseApiJson<{ error?: string; details?: string }>(response);
     if (!body) {
@@ -75,6 +84,15 @@ export interface MeResponse {
 }
 
 // API calls
+// API calls
+
+/**
+ * Logs in a user.
+ * 
+ * @param email - User email
+ * @param password - User password
+ * @returns Authentication response (user details)
+ */
 export async function login(email: string, password: string): Promise<AuthResponse> {
     const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -95,6 +113,11 @@ export async function login(email: string, password: string): Promise<AuthRespon
     return data;
 }
 
+
+
+/**
+ * Registers a new organization or parent user.
+ */
 export async function register(registerData: {
     email: string;
     password: string;
@@ -122,6 +145,11 @@ export async function register(registerData: {
     return authResponse;
 }
 
+
+
+/**
+ * Fetches the current authenticated user's session data.
+ */
 export async function getMe(): Promise<MeResponse> {
     const response = await fetch(`${API_BASE}/auth/me`, {
         credentials: 'include' // Important: send cookies
@@ -142,6 +170,11 @@ export async function getMe(): Promise<MeResponse> {
     return data;
 }
 
+
+
+/**
+ * Logs out the current user by clearing the HttpOnly cookie.
+ */
 export async function logout(): Promise<void> {
     try {
         // Call logout endpoint to clear HttpOnly cookie
@@ -158,6 +191,11 @@ export async function logout(): Promise<void> {
 }
 
 // Permission checks
+// Permission checks
+
+/**
+ * Checks if a user has a specific permission.
+ */
 export function hasPermission(user: User | null, permission: string): boolean {
     if (!user) return false;
     return user.permissions.includes(permission);

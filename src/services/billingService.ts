@@ -39,7 +39,8 @@ export interface PortalResponse {
 }
 
 /**
- * Get current subscription status
+ * Get current subscription status from Stripe.
+ * @returns Promise resolving to subscription and billing details.
  */
 export async function getSubscriptionStatus(): Promise<SubscriptionResponse> {
     const response = await fetch(`${API_BASE}/stripe/subscription`, {
@@ -56,7 +57,11 @@ export async function getSubscriptionStatus(): Promise<SubscriptionResponse> {
 }
 
 /**
- * Create a Stripe Checkout session for subscription
+ * Create a Stripe Checkout session for subscription.
+ * 
+ * @param plan - The tier plan ('starter', 'growth', 'scale')
+ * @param period - Billing frequency ('monthly', 'annual')
+ * @returns Object containing the checkout URL and session ID.
  */
 export async function createCheckoutSession(
     plan: 'starter' | 'growth' | 'scale',
@@ -78,7 +83,7 @@ export async function createCheckoutSession(
 }
 
 /**
- * Create a Stripe Customer Portal session for managing billing
+ * Create a Stripe Customer Portal session for managing billing and payment methods.
  */
 export async function createPortalSession(): Promise<PortalResponse> {
     const response = await fetch(`${API_BASE}/stripe/create-portal-session`, {

@@ -21,11 +21,11 @@ export interface UpdateLearnerRequest {
     status?: 'active' | 'inactive' | 'discharged';
 }
 
-const API_Base = '/api';
+const API_BASE = '/api';
 
 export const learnerService: LearnerService = {
     getLearners: async () => {
-        const response = await fetch(`${API_Base}/learners`, {
+        const response = await fetch(`${API_BASE}/learners`, {
             credentials: 'include' // Important: send HttpOnly cookies
         });
 
@@ -37,7 +37,7 @@ export const learnerService: LearnerService = {
     },
 
     createLearner: async (learnerData: CreateLearnerRequest) => {
-        const response = await fetch(`${API_Base}/learners`, {
+        const response = await fetch(`${API_BASE}/learners`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -55,7 +55,7 @@ export const learnerService: LearnerService = {
     },
 
     updateLearner: async (learnerData: UpdateLearnerRequest) => {
-        const response = await fetch(`${API_Base}/learners`, {
+        const response = await fetch(`${API_BASE}/learners`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'

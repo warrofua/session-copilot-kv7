@@ -2,12 +2,17 @@ import { create } from 'zustand';
 import { decryptJson, deriveEncryptionKey, encryptJson, type EncryptedData } from '../services/encryptionService';
 import { deriveSigningKey, signData, verifySignature } from '../services/integrityService';
 
+/**
+ * State manager for client-side encryption keys.
+ * Handles key derivation (PBKDF2) and crypto operations (AES-GCM, HMAC).
+ */
 interface EncryptionState {
     key: CryptoKey | null;
     signingKey: CryptoKey | null;
     salt: string | null;
     isReady: boolean;
     error: string | null;
+    /** Derives keys from password and salt. */
     initializeWithPassword: (password: string, salt: string) => Promise<void>;
     initialize: (password: string, salt: string) => Promise<void>;
     clear: () => void;

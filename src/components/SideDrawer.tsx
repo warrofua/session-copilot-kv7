@@ -3,12 +3,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Session } from '../db/db';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useSessionStore } from '../stores/sessionStore';
 import { format } from 'date-fns';
 
 interface SideDrawerProps {
     isOpen: boolean;
     onClose: () => void;
-    currentSessionId?: number; // Highlight active session
+    /** ID of the currently active session to highlight in the tree */
+    currentSessionId?: number;
 }
 
 // Helper to format session time range
@@ -19,6 +21,10 @@ const formatSessionRange = (start: Date, end?: Date) => {
     return `${dateStr}, ${timeStart} - ${timeEnd}`;
 };
 
+/**
+ * Navigation drawer displaying the caseload tree (Learners -> Sessions) and admin menu.
+ * Uses `useLiveQuery` to reactively fetch session data from Dexie.
+ */
 export function SideDrawer({ isOpen, onClose, currentSessionId }: SideDrawerProps) {
     const { user, learners } = useAuth();
     const navigate = useNavigate();
@@ -28,8 +34,8 @@ export function SideDrawer({ isOpen, onClose, currentSessionId }: SideDrawerProp
     const [selectedSessionId, setSelectedSessionId] = useState<number | undefined>(currentSessionId);
 
     // -- Data Fetching --
-    // Fetch all sessions (optimized: could limit to recent 500 later)
-    const allSessions = useLiveQuery(() => db.sessions.reverse().toArray(), []);
+    // Fetch recent sessions only (limit 200) to avoid performance degradation
+    const allSessions = useLiveQuery(() => db.sessions.orderBy('startTime').reverse().limit(200).toArray(), []);
 
     // -- Derived Data --
     const sessionsByLearner = useMemo(() => {
@@ -55,10 +61,12 @@ export function SideDrawer({ isOpen, onClose, currentSessionId }: SideDrawerProp
         setExpandedLearnerIds(newSet);
     };
 
-    const handleSessionClick = (sessionId: number) => {
-        setSelectedSessionId(sessionId);
-        // TODO: In future, load this session's data properly.
-        // For MVP, checking if it's the current session to enable "Resume" or viewing log
+    const { setCurrentSession } = useSessionStore();
+
+    const handleSessionClick = (session: Session) => {
+        setSelectedSessionId(session.id);
+        setCurrentSession(session);
+        onClose(); // Close drawer to view session
     };
 
     const navigateTo = (path: string) => {
@@ -146,7 +154,7 @@ export function SideDrawer({ isOpen, onClose, currentSessionId }: SideDrawerProp
                                                         <button
                                                             key={session.id}
                                                             className={`tree-session-item ${selectedSessionId === session.id ? 'selected' : ''} ${currentSessionId === session.id ? 'active-now' : ''}`}
-                                                            onClick={() => session.id && handleSessionClick(session.id)}
+                                                            onClick={() => session.id && handleSessionClick(session)}
                                                         >
                                                             <span className="tree-session-icon">📄</span>
                                                             <div className="tree-session-info">

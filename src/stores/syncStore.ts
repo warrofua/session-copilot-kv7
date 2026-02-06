@@ -12,9 +12,14 @@ import {
 } from '../db/db';
 import type { SyncableDocument, SyncResult } from '../types/sync';
 import { useEncryptionStore } from './encryptionStore';
+import { dateReplacer } from '../services/encryptionService';
 
 export type SyncStatus = 'offline' | 'syncing' | 'synced' | 'error' | 'not-configured';
 
+/**
+ * Manages synchronization status between local IndexedDB and the cloud backend.
+ * Handles online/offline detection and batch syncing.
+ */
 interface SyncState {
     status: SyncStatus;
     unsyncedCount: number;
@@ -29,6 +34,7 @@ interface SyncState {
     decrementUnsyncedCount: () => void;
     setOnline: (online: boolean) => void;
     setLastSyncTime: (time: Date) => void;
+    /** Pushes all unsynced local data to the cloud. */
     syncToCloud: () => Promise<{ success: number; failed: number }>;
     refreshUnsyncedCount: () => Promise<void>;
 }
@@ -139,7 +145,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
                     'Content-Type': 'application/json'
                 },
                 credentials: 'include', // Important: send HttpOnly cookies
-                body: JSON.stringify({ documents })
+                body: JSON.stringify({ documents }, dateReplacer)
             });
 
             if (!response.ok) {

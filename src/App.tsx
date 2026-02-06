@@ -15,10 +15,28 @@ import { TermsModal } from './components/TermsModal';
 import { useEncryptionStore } from './stores/encryptionStore';
 import { useAuth } from './contexts/AuthContext';
 
+/**
+ * Main application orchestration component.
+ * Handles chat interactions, data state, and session timing.
+ * 
+ * @note Currently hardcoded to use Session ID 1 for demo purposes.
+ */
 function App() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const isDemoRoute = location.pathname === '/demo';
+
+  const {
+    currentSession,
+    noteDraft,
+    isDrawerOpen,
+    setNoteDraft,
+    toggleDrawer,
+    setDrawerOpen
+  } = useSessionStore();
+
+  const activeSessionId = currentSession?.id || 1;
+
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -54,34 +72,26 @@ function App() {
   // Limit to 500 most recent items to avoid performance issues with large datasets
   const behaviorEvents = useLiveQuery(
     async () => {
-      if (!isEncryptionReady) return [];
-      return getBehaviorEventsBySession(1, 500);
+      if (!isEncryptionReady) return activeSessionId ? [] : []; // Avoid error if not ready
+      return getBehaviorEventsBySession(activeSessionId, 500);
     },
-    [isEncryptionReady]
+    [isEncryptionReady, activeSessionId]
   ) || [];
 
   const skillTrials = useLiveQuery(
     async () => {
       if (!isEncryptionReady) return [];
-      return getSkillTrialsBySession(1, 500);
+      return getSkillTrialsBySession(activeSessionId, 500);
     },
-    [isEncryptionReady]
+    [isEncryptionReady, activeSessionId]
   ) || [];
   const sessionNotes = useLiveQuery(
     async () => {
       if (!isEncryptionReady) return [];
-      return getSessionNotesBySession(1, 500);
+      return getSessionNotesBySession(activeSessionId, 500);
     },
-    [isEncryptionReady]
+    [isEncryptionReady, activeSessionId]
   ) || [];
-
-  const {
-    noteDraft,
-    isDrawerOpen,
-    setNoteDraft,
-    toggleDrawer,
-    setDrawerOpen
-  } = useSessionStore();
 
   const { incrementUnsyncedCount } = useSyncStore();
 
@@ -114,26 +124,31 @@ function App() {
 
   // Generate note draft when events change
   useEffect(() => {
-    if (behaviorEvents.length > 0 || skillTrials.length > 0) {
-      const behaviors = behaviorEvents.map(e => ({
-        type: e.behaviorType,
-        count: e.count,
-        duration: e.duration,
-        antecedent: e.antecedent,
-        function: e.functionGuess,
-        intervention: e.intervention
-      }));
-      const trials = skillTrials.map(t => ({
-        skill: t.skillName,
-        target: t.target,
-        response: t.response
-      }));
-      const reinforcements = sessionNotes
-        .filter((note) => note.section === 'reinforcement')
-        .map((note) => note.content);
-      generateNoteDraft(behaviors, trials, clientName, reinforcements).then(setNoteDraft);
-    }
-  }, [behaviorEvents, skillTrials, sessionNotes, setNoteDraft]);
+    // Debounce note generation to avoid hitting LLM API too frequently
+    const timer = setTimeout(() => {
+      if (behaviorEvents.length > 0 || skillTrials.length > 0) {
+        const behaviors = behaviorEvents.map(e => ({
+          type: e.behaviorType,
+          count: e.count,
+          duration: e.duration,
+          antecedent: e.antecedent,
+          function: e.functionGuess,
+          intervention: e.intervention
+        }));
+        const trials = skillTrials.map(t => ({
+          skill: t.skillName,
+          target: t.target,
+          response: t.response
+        }));
+        const reinforcements = sessionNotes
+          .filter((note) => note.section === 'reinforcement')
+          .map((note) => note.content);
+        generateNoteDraft(behaviors, trials, clientName, reinforcements).then(setNoteDraft);
+      }
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timer);
+  }, [behaviorEvents, skillTrials, sessionNotes, setNoteDraft, clientName]);
 
   const normalizePromptLevel = (value?: string): SkillTrial['promptLevel'] => {
     const normalized = (value || '').toLowerCase();
@@ -254,7 +269,7 @@ function App() {
       const functionGuess = selectedFunction as BehaviorEvent['functionGuess'] || pendingData.functionGuess;
       for (const behavior of pendingData.behaviors) {
         const event: BehaviorEvent = {
-          sessionId: 1, // Demo session
+          sessionId: activeSessionId, // Demo session
           behaviorType: behavior.type,
           count: behavior.count,
           duration: behavior.duration,
@@ -274,7 +289,7 @@ function App() {
       if (pendingData.skillTrials && pendingData.skillTrials.length > 0) {
         for (const trial of pendingData.skillTrials) {
           const skillTrial: Omit<SkillTrial, 'id'> = {
-            sessionId: 1, // Demo session
+            sessionId: activeSessionId, // Demo session
             skillName: trial.skill,
             target: trial.target,
             promptLevel: normalizePromptLevel(trial.promptLevel),
@@ -293,7 +308,7 @@ function App() {
 
       if (pendingData.reinforcement) {
         const note: Omit<SessionNote, 'id'> = {
-          sessionId: 1,
+          sessionId: activeSessionId,
           section: 'reinforcement',
           content: pendingData.reinforcement.details
             ? `${pendingData.reinforcement.type} delivered: ${pendingData.reinforcement.details}`
@@ -514,7 +529,7 @@ function App() {
       <SideDrawer
         isOpen={isDrawerOpen}
         onClose={() => setDrawerOpen(false)}
-        currentSessionId={1} // MVP: Default to session 1 for now
+        currentSessionId={activeSessionId}
       />
 
       <IncidentButton

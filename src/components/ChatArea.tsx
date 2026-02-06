@@ -16,6 +16,10 @@ interface ChatAreaProps {
     selectedFunction?: string;
 }
 
+/**
+ * Renders the chat history and message bubbles.
+ * Handles auto-scrolling to the latest message.
+ */
 export function ChatArea({ messages, onButtonClick, onFunctionSelect, selectedFunction }: ChatAreaProps) {
     const endRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +92,9 @@ interface MessageInputProps {
     disabled?: boolean;
 }
 
+/**
+ * Input field for chat messages with voice support button.
+ */
 export function MessageInput({
     value,
     onChange,
