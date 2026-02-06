@@ -1,4 +1,5 @@
 import { CosmosClient, Database, Container } from '@azure/cosmos';
+import crypto from 'crypto';
 
 let client: CosmosClient | null = null;
 let database: Database | null = null;
