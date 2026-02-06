@@ -308,6 +308,7 @@ function mockParseInput(input: string): ParsedInput {
         const quoteMatch = input.match(/"([^"]+)"/);
         const targetMatch = input.match(/target\s+(?:was\s+)?(\w+)/i);
         const withTargetMatch = input.match(/\b(?:with|for)\s+([a-z0-9-]+)\s+(?:target|trial)?\b/i);
+        const trialTargetMatch = input.match(/trial\s+([a-z0-9-]+)/i);
 
         const nonTargetTokens = new Set(['correct', 'incorrect', 'prompted', 'independent', 'error', 'wrong']);
         const pickTarget = (candidate?: string): string | null => {
@@ -319,7 +320,8 @@ function mockParseInput(input: string): ParsedInput {
         const extractedTarget =
             pickTarget(quoteMatch?.[1]) ??
             pickTarget(targetMatch?.[1]) ??
-            pickTarget(withTargetMatch?.[1]);
+            pickTarget(withTargetMatch?.[1]) ??
+            pickTarget(trialTargetMatch?.[1]);
 
         if (extractedTarget) {
             target = extractedTarget;
