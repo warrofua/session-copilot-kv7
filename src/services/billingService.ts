@@ -26,6 +26,7 @@ export interface SubscriptionResponse {
     subscription: SubscriptionStatus;
     billing: BillingInfo;
     planLimits: Record<string, number>;
+    planOverageRates: Record<string, number>;
 }
 
 export interface CheckoutResponse {

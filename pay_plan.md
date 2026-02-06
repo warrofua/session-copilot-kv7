@@ -11,11 +11,12 @@ Session Co-Pilot is priced based on the number of **active learners** in your or
 - **No Staffing Penalties**: Hire as many therapists as needed without increasing your bill
 - **Scalable Growth**: Pricing grows proportionally with your client base
 
-## Pricing Tiers
+## Pricing Tiers (No-Cliff Hybrid)
 
 ### Starter
-- **Up to 10 active learners**
-- **$99/month** (or $990/year, save 17%)
+- **10 included active learners**
+- **$99/month base**
+- **$15/month per additional learner**
 - Unlimited staff seats (Manager, BCBA, RBT)
 - Unlimited parent accounts
 - All features included
@@ -23,8 +24,9 @@ Session Co-Pilot is priced based on the number of **active learners** in your or
 - 14-day free trial
 
 ### Growth
-- **11-50 active learners**
-- **$299/month** (or $2,990/year, save 17%)
+- **50 included active learners**
+- **$399/month base**
+- **$10/month per additional learner**
 - Unlimited staff seats
 - Unlimited parent accounts
 - All features included
@@ -33,8 +35,9 @@ Session Co-Pilot is priced based on the number of **active learners** in your or
 - 14-day free trial
 
 ### Scale
-- **51-200 active learners**
-- **$799/month** (or $7,990/year, save 17%)
+- **150 included active learners**
+- **$1,299/month base**
+- **$8/month per additional learner**
 - Unlimited staff seats
 - Unlimited parent accounts
 - All features included
@@ -44,7 +47,7 @@ Session Co-Pilot is priced based on the number of **active learners** in your or
 - 14-day free trial
 
 ### Enterprise
-- **200+ active learners**
+- **Custom contracts and procurement workflows**
 - **Custom pricing**
 - Unlimited staff seats
 - Unlimited parent accounts
@@ -121,7 +124,7 @@ interface Organization {
     // Plan details
     plan: 'starter' | 'growth' | 'scale' | 'enterprise' | 'trial' | null;
     status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'paused';
-    billingPeriod: 'monthly' | 'annual';
+    billingPeriod: 'monthly' | null;
 
     // Dates
     currentPeriodStart: string; // ISO date
@@ -195,18 +198,17 @@ async function countActiveLearners(orgId: string) {
 
 ### Tier Migration Logic
 
-**Automatic Upgrades:**
-When active learner count exceeds current tier:
-1. Send email notification to billing contact
-2. Provide 7-day grace period
-3. After grace period, auto-upgrade to next tier
-4. Prorate the charge for current period
+**No-cliff overages:**
+When active learner count exceeds included learners:
+1. Continue service without blocking learner creation
+2. Bill overage by learner (plan-specific overage rate)
+3. Show clear in-product estimate for current month
+4. Suggest tier upgrade when it becomes more cost-effective
 
-**Downgrades:**
-When active learner count drops below current tier:
-1. Allow downgrade at next billing cycle (not immediate)
-2. Manager can request downgrade via billing portal
-3. Takes effect at period end to avoid mid-cycle refunds
+**Plan changes:**
+1. Manager can upgrade/downgrade anytime via billing portal
+2. Changes apply at the next billing cycle unless immediate upgrade is chosen
+3. Overage continues to apply based on the active plan
 
 ### Trial Period
 
@@ -303,15 +305,15 @@ export function SubscriptionGuard({ children }) {
 ```
 Product: Session Co-Pilot - Starter
 ├── Price: $99/month (price_starter_monthly)
-└── Price: $990/year (price_starter_annual)
+└── Overage: $15/learner/month (price_starter_overage)
 
 Product: Session Co-Pilot - Growth
-├── Price: $299/month (price_growth_monthly)
-└── Price: $990/year (price_growth_annual)
+├── Price: $399/month (price_growth_monthly)
+└── Overage: $10/learner/month (price_growth_overage)
 
 Product: Session Co-Pilot - Scale
-├── Price: $799/month (price_scale_monthly)
-└── Price: $7990/year (price_scale_annual)
+├── Price: $1,299/month (price_scale_monthly)
+└── Overage: $8/learner/month (price_scale_overage)
 
 Product: Session Co-Pilot - Enterprise
 └── Custom invoicing (managed manually)
@@ -339,7 +341,7 @@ Product: Session Co-Pilot - Enterprise
 
 ### Subscribe During Trial
 1. Manager clicks "Subscribe Now" button
-2. Select plan (Starter/Growth/Scale) and billing period (monthly/annual)
+2. Select plan (Starter/Growth/Scale)
 3. Redirect to Stripe Checkout (hosted page)
 4. Enter payment info
 5. Stripe processes payment and redirects back
@@ -347,16 +349,15 @@ Product: Session Co-Pilot - Enterprise
 7. Confirmation email sent
 8. Trial banner removed, replaced with "Active Subscription" badge
 
-### Add Learner (Approaching Limit)
-1. Manager adds 9th learner (limit is 10 for Starter)
-2. System shows warning: "You have 1 learner slot remaining. Upgrade to Growth for up to 50 learners."
-3. Provide "Upgrade Now" button inline
+### Add Learner (Approaching Included Count)
+1. Manager adds 9th learner (10 included in Starter)
+2. System shows: "1 included learner remaining."
+3. Show estimated overage if they exceed included learners
 
-### Add Learner (Over Limit)
-1. Manager tries to add 11th learner (over Starter limit)
-2. System blocks: "You've reached your plan limit (10 active learners). Upgrade to continue."
-3. Show upgrade modal with next tier pricing
-4. One-click upgrade flow
+### Add Learner (Beyond Included Count)
+1. Manager adds 11th learner (over Starter included count)
+2. System allows creation and shows: "Current estimate: +$15/mo overage."
+3. Show recommendation when Growth becomes cheaper than Starter + overage
 
 ### Manage Billing
 1. Manager goes to Settings → Billing
@@ -395,13 +396,13 @@ Product: Session Co-Pilot - Enterprise
 ## FAQ & Edge Cases
 
 ### What if my learner count fluctuates?
-Your plan is based on the **peak** active learner count for the billing period. If you temporarily have 12 learners (over Starter limit), we'll notify you and provide a grace period to either upgrade or reduce active learners.
+Billing reflects active learner usage with plan-specific overage rates. If learner count rises temporarily, service continues and overage is charged for the period.
 
 ### What happens to parent accounts if we cancel?
 Parent accounts retain access to their child's historical data for 90 days after cancellation. After 90 days, all data is archived but not deleted (HIPAA compliance).
 
-### Can we switch from monthly to annual?
-Yes, via the Stripe Customer Portal. The switch takes effect at your next billing date.
+### Can we change plans later?
+Yes. Managers can upgrade or downgrade via the Stripe Customer Portal. Changes apply on the next billing cycle unless immediate upgrade is chosen.
 
 ### What if we're enterprise and need custom terms?
 Contact us directly. Enterprise plans can include custom contracts, payment terms (net-30), purchase orders, and custom SLAs.

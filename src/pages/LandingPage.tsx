@@ -250,9 +250,9 @@ export default function LandingPage() {
                             <span className="landing-pricing-period">/mo</span>
                         </div>
                         <div className="landing-pricing-features">
-                            <div className="landing-pricing-feature">{icons.check}<span>Up to 10 active learners</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>10 learners included</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>$15 per additional learner</span></div>
                             <div className="landing-pricing-feature">{icons.check}<span>Unlimited staff seats</span></div>
-                            <div className="landing-pricing-feature">{icons.check}<span>All features included</span></div>
                             <div className="landing-pricing-feature">{icons.check}<span>Email support</span></div>
                         </div>
                         <Link to="/login" className="landing-pricing-cta">Start Free Trial</Link>
@@ -265,14 +265,14 @@ export default function LandingPage() {
                         <p className="landing-pricing-desc">For growing practices</p>
                         <div className="landing-pricing-price">
                             <span className="landing-pricing-currency">$</span>
-                            <span className="landing-pricing-amount">299</span>
+                            <span className="landing-pricing-amount">399</span>
                             <span className="landing-pricing-period">/mo</span>
                         </div>
                         <div className="landing-pricing-features">
-                            <div className="landing-pricing-feature">{icons.check}<span>Up to 50 active learners</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>50 learners included</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>$10 per additional learner</span></div>
                             <div className="landing-pricing-feature">{icons.check}<span>Unlimited staff seats</span></div>
                             <div className="landing-pricing-feature">{icons.check}<span>Priority email & phone support</span></div>
-                            <div className="landing-pricing-feature">{icons.check}<span>Custom templates</span></div>
                         </div>
                         <Link to="/login" className="landing-pricing-cta">Start Free Trial</Link>
                     </div>
@@ -283,14 +283,14 @@ export default function LandingPage() {
                         <p className="landing-pricing-desc">For large organizations</p>
                         <div className="landing-pricing-price">
                             <span className="landing-pricing-currency">$</span>
-                            <span className="landing-pricing-amount">799</span>
+                            <span className="landing-pricing-amount">1,299</span>
                             <span className="landing-pricing-period">/mo</span>
                         </div>
                         <div className="landing-pricing-features">
-                            <div className="landing-pricing-feature">{icons.check}<span>Up to 200 active learners</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>150 learners included</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>$8 per additional learner</span></div>
                             <div className="landing-pricing-feature">{icons.check}<span>Dedicated onboarding</span></div>
                             <div className="landing-pricing-feature">{icons.check}<span>Priority support</span></div>
-                            <div className="landing-pricing-feature">{icons.check}<span>Quarterly business reviews</span></div>
                         </div>
                         <Link to="/login" className="landing-pricing-cta">Start Free Trial</Link>
                     </div>

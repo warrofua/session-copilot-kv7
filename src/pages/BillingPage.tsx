@@ -16,28 +16,28 @@ const PLANS = [
         name: 'Starter',
         description: 'For small practices',
         learnerLimit: 10,
-        features: ['Up to 10 active learners', 'Unlimited staff seats', 'All features included', 'Email support'],
+        overagePerLearner: 15,
+        features: ['10 active learners included', '$15 per additional learner', 'Unlimited staff seats', 'Email support'],
         monthlyPrice: 99,
-        annualPrice: 990 // Save 17%
     },
     {
         id: 'growth',
         name: 'Growth',
         description: 'For growing practices',
         learnerLimit: 50,
-        features: ['Up to 50 active learners', 'Unlimited staff seats', 'Priority email & phone support', 'Custom templates'],
-        monthlyPrice: 299,
-        annualPrice: 2990, // Save 17%
+        overagePerLearner: 10,
+        features: ['50 active learners included', '$10 per additional learner', 'Unlimited staff seats', 'Priority email & phone support'],
+        monthlyPrice: 399,
         popular: true
     },
     {
         id: 'scale',
         name: 'Scale',
         description: 'For large organizations',
-        learnerLimit: 200,
-        features: ['Up to 200 active learners', 'Dedicated onboarding', 'Priority support', 'Quarterly business reviews'],
-        monthlyPrice: 799,
-        annualPrice: 7990 // Save 17%
+        learnerLimit: 150,
+        overagePerLearner: 8,
+        features: ['150 active learners included', '$8 per additional learner', 'Dedicated onboarding', 'Priority support'],
+        monthlyPrice: 1299,
     }
 ];
 
@@ -48,7 +48,6 @@ export default function BillingPage() {
     const [subscription, setSubscription] = useState<SubscriptionResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
     const [isProcessing, setIsProcessing] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
@@ -83,7 +82,7 @@ export default function BillingPage() {
         try {
             setIsProcessing(true);
             setError('');
-            await redirectToCheckout(plan, billingPeriod);
+            await redirectToCheckout(plan, 'monthly');
         } catch (err) {
             setError('Failed to start checkout. Please try again.');
             console.error(err);
@@ -204,27 +203,13 @@ export default function BillingPage() {
                         )}
                     </div>
 
-                    {/* Pricing Toggle */}
-                    <div className="billing-period-toggle">
-                        <button
-                            className={billingPeriod === 'monthly' ? 'active' : ''}
-                            onClick={() => setBillingPeriod('monthly')}
-                        >
-                            Monthly
-                        </button>
-                        <button
-                            className={billingPeriod === 'annual' ? 'active' : ''}
-                            onClick={() => setBillingPeriod('annual')}
-                        >
-                            Annual <span className="billing-discount">Save 17%</span>
-                        </button>
-                    </div>
-
                     {/* Pricing Cards */}
                     <div className="billing-plans">
                         {PLANS.map((plan) => {
-                            const price = billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
+                            const price = plan.monthlyPrice;
                             const isCurrentPlan = sub?.plan === plan.id && hasActiveSubscription;
+                            const extraLearners = Math.max(0, (sub?.activeLearnerCount ?? 0) - plan.learnerLimit);
+                            const projectedMonthly = price + extraLearners * plan.overagePerLearner;
 
                             return (
                                 <div
@@ -236,10 +221,16 @@ export default function BillingPage() {
                                     <p className="billing-plan-desc">{plan.description}</p>
                                     <div className="billing-plan-price">
                                         <span className="billing-price-amount">${price}</span>
-                                        <span className="billing-price-period">
-                                            /{billingPeriod === 'monthly' ? 'mo' : 'yr'}
-                                        </span>
+                                        <span className="billing-price-period">/mo</span>
                                     </div>
+                                    <p className="billing-plan-overage">
+                                        Includes {plan.learnerLimit} learners, then ${plan.overagePerLearner}/learner.
+                                    </p>
+                                    {(sub?.activeLearnerCount ?? 0) > 0 && (
+                                        <p className="billing-plan-estimate">
+                                            At {sub?.activeLearnerCount} active learners: ${projectedMonthly.toLocaleString()}/mo
+                                        </p>
+                                    )}
                                     <ul className="billing-plan-features">
                                         {plan.features.map((feature, i) => (
                                             <li key={i}>✓ {feature}</li>
@@ -265,8 +256,8 @@ export default function BillingPage() {
 
                     {/* Enterprise callout */}
                     <div className="billing-enterprise">
-                        <h3>Need more than 200 learners?</h3>
-                        <p>Contact us for Enterprise pricing with unlimited learners, custom integrations, and dedicated support.</p>
+                        <h3>Need custom enterprise terms?</h3>
+                        <p>For very large organizations, custom SLAs, or procurement workflows, contact sales for enterprise pricing.</p>
                         <a href="mailto:sales@agentsofaba.com" className="billing-enterprise-btn">
                             Contact Sales
                         </a>

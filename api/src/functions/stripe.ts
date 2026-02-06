@@ -21,9 +21,17 @@ const PRICE_IDS = {
 const PLAN_LIMITS: Record<string, number> = {
     starter: 10,
     growth: 50,
-    scale: 200,
+    scale: 150,
     enterprise: Infinity,
     trial: 50 // Same as growth during trial
+};
+
+const PLAN_OVERAGE_RATES: Record<string, number> = {
+    starter: 15,
+    growth: 10,
+    scale: 8,
+    enterprise: 0,
+    trial: 10
 };
 
 function getStripe(): Stripe {
@@ -247,7 +255,8 @@ async function getSubscriptionHandler(request: HttpRequest, context: InvocationC
                     billingEmail: org.billing.billingEmail,
                     nextBillingDate: org.billing.nextBillingDate
                 },
-                planLimits: PLAN_LIMITS
+                planLimits: PLAN_LIMITS,
+                planOverageRates: PLAN_OVERAGE_RATES
             }
         };
     } catch (error) {

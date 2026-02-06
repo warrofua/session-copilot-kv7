@@ -264,6 +264,20 @@
     margin-bottom: 0.8rem;
 }
 
+.billing-plan-overage {
+    margin: 0 0 0.45rem;
+    color: #1e40af;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.billing-plan-estimate {
+    margin: 0 0 0.85rem;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
 .billing-price-amount {
     color: #0f172a;
     font-size: 2rem;
