@@ -409,6 +409,7 @@ export function generateConfirmation(parsed: ParsedInput): ConfirmationResponse 
     const summaryParts = [];
     if (behaviorSummary) summaryParts.push(behaviorSummary);
     if (skillSummary) summaryParts.push(skillSummary);
+    if (parsed.reinforcement?.delivered) summaryParts.push(`${parsed.reinforcement.type} delivered`);
 
     const combinedSummary = summaryParts.join(' + ');
 

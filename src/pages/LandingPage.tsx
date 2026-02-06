@@ -239,49 +239,61 @@ export default function LandingPage() {
                     </p>
                 </div>
 
-                <div className="landing-pricing-card">
-                    <div className="landing-pricing-badge">Starting at</div>
-                    <div className="landing-pricing-price">
-                        <span className="landing-pricing-currency">$</span>
-                        <span className="landing-pricing-amount">99</span>
-                        <span className="landing-pricing-period">/month</span>
-                    </div>
-                    <p className="landing-pricing-subtitle">Up to 10 active learners. Cancel anytime.</p>
-
-                    <div className="landing-pricing-features">
-                        <div className="landing-pricing-feature">
-                            {icons.check}
-                            <span>Unlimited session documentation</span>
+                <div className="landing-pricing-grid">
+                    {/* Starter Plan */}
+                    <div className="landing-pricing-card">
+                        <div className="landing-pricing-badge">Starter</div>
+                        <p className="landing-pricing-desc">For small practices</p>
+                        <div className="landing-pricing-price">
+                            <span className="landing-pricing-currency">$</span>
+                            <span className="landing-pricing-amount">99</span>
+                            <span className="landing-pricing-period">/mo</span>
                         </div>
-                        <div className="landing-pricing-feature">
-                            {icons.check}
-                            <span>AI-powered natural language parsing</span>
+                        <div className="landing-pricing-features">
+                            <div className="landing-pricing-feature">{icons.check}<span>Up to 10 active learners</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>Unlimited staff seats</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>All features included</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>Email support</span></div>
                         </div>
-                        <div className="landing-pricing-feature">
-                            {icons.check}
-                            <span>Offline-first with automatic sync</span>
-                        </div>
-                        <div className="landing-pricing-feature">
-                            {icons.check}
-                            <span>Secure cloud backup (Azure)</span>
-                        </div>
-                        <div className="landing-pricing-feature">
-                            {icons.check}
-                            <span>Auto-generated session notes</span>
-                        </div>
-                        <div className="landing-pricing-feature">
-                            {icons.check}
-                            <span>HIPAA-compliant infrastructure</span>
-                        </div>
-                        <div className="landing-pricing-feature">
-                            {icons.check}
-                            <span>Growth & Scale plans available</span>
-                        </div>
+                        <Link to="/login" className="landing-pricing-cta">Start Free Trial</Link>
                     </div>
 
-                    <Link to="/login" className="landing-pricing-cta">
-                        Start Free Trial
-                    </Link>
+                    {/* Growth Plan - Popular */}
+                    <div className="landing-pricing-card popular">
+                        <div className="landing-popular-badge">Most Popular</div>
+                        <div className="landing-pricing-badge">Growth</div>
+                        <p className="landing-pricing-desc">For growing practices</p>
+                        <div className="landing-pricing-price">
+                            <span className="landing-pricing-currency">$</span>
+                            <span className="landing-pricing-amount">299</span>
+                            <span className="landing-pricing-period">/mo</span>
+                        </div>
+                        <div className="landing-pricing-features">
+                            <div className="landing-pricing-feature">{icons.check}<span>Up to 50 active learners</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>Unlimited staff seats</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>Priority email & phone support</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>Custom templates</span></div>
+                        </div>
+                        <Link to="/login" className="landing-pricing-cta">Start Free Trial</Link>
+                    </div>
+
+                    {/* Scale Plan */}
+                    <div className="landing-pricing-card">
+                        <div className="landing-pricing-badge">Scale</div>
+                        <p className="landing-pricing-desc">For large organizations</p>
+                        <div className="landing-pricing-price">
+                            <span className="landing-pricing-currency">$</span>
+                            <span className="landing-pricing-amount">799</span>
+                            <span className="landing-pricing-period">/mo</span>
+                        </div>
+                        <div className="landing-pricing-features">
+                            <div className="landing-pricing-feature">{icons.check}<span>Up to 200 active learners</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>Dedicated onboarding</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>Priority support</span></div>
+                            <div className="landing-pricing-feature">{icons.check}<span>Quarterly business reviews</span></div>
+                        </div>
+                        <Link to="/login" className="landing-pricing-cta">Start Free Trial</Link>
+                    </div>
                 </div>
             </section>
 

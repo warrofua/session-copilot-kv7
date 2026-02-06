@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { parseUserInput } from './llmService';
+import { generateConfirmation, parseUserInput } from './llmService';
 
 describe('LLM Service - Offline Regex Parsing', () => {
     beforeEach(() => {
@@ -92,5 +92,17 @@ describe('LLM Service - Offline Regex Parsing', () => {
             target: 'blue',
             response: 'Incorrect'
         });
+    });
+
+    it('should generate a usable confirmation for reinforcement-only logs', () => {
+        const confirmation = generateConfirmation({
+            behaviors: [],
+            skillTrials: [],
+            reinforcement: { type: 'Reinforcement', delivered: true },
+            needsClarification: false,
+            narrativeFragment: ''
+        });
+
+        expect(confirmation.message).toContain('Reinforcement delivered');
     });
 });

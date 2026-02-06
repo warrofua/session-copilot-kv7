@@ -377,14 +377,54 @@
     background: rgb(26 32 44 / 50%);
 }
 
-.landing-pricing-card {
-    max-width: 420px;
+.landing-pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    max-width: 1100px;
     margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+    .landing-pricing-grid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+    }
+}
+
+.landing-pricing-card {
+    position: relative;
     background: rgb(255 255 255 / 5%);
     border: 1px solid rgb(66 153 225 / 30%);
     border-radius: 20px;
-    padding: 2.5rem;
+    padding: 2rem;
     text-align: center;
+}
+
+.landing-pricing-card.popular {
+    border-color: #4299e1;
+    background: rgb(66 153 225 / 10%);
+    transform: scale(1.02);
+}
+
+.landing-popular-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.375rem 1rem;
+    background: #4299e1;
+    border-radius: 100px;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.landing-pricing-desc {
+    color: #a0aec0;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
 }
 
 .landing-pricing-badge {
