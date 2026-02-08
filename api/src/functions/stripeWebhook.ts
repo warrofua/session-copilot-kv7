@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import Stripe from 'stripe';
-import { findOrganizationById, updateOrganization, logAuditEvent, getContainer, CONTAINERS } from '../services/cosmosDb.js';
+import { updateOrganization, logAuditEvent, getContainer, CONTAINERS } from '../services/cosmosDb.js';
 import type { Organization } from '../services/cosmosDb.js';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';

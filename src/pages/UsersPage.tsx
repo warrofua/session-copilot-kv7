@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { User } from '../contexts/AuthContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { userService } from '../services/userService';
 import { useNavigate } from 'react-router-dom';
 import { UserModal } from '../components/UserModal';

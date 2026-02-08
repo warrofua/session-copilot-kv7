@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import {
     getSubscriptionStatus,
     redirectToCheckout,
@@ -70,7 +70,7 @@ export default function BillingPage() {
             setIsLoading(true);
             const data = await getSubscriptionStatus();
             setSubscription(data);
-        } catch (err) {
+        } catch {
             console.warn('Billing API unavailable, falling back to Demo Mode');
             // Fallback to Demo Mode
             setSubscription({
@@ -82,7 +82,7 @@ export default function BillingPage() {
                     trialDaysRemaining: null,
                     usagePercent: 50
                 }
-            } as any);
+            } as unknown as SubscriptionResponse);
         } finally {
             setIsLoading(false);
         }

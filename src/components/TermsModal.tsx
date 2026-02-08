@@ -4,17 +4,17 @@ const TERMS_VERSION = '1.0';
 const STORAGE_KEY = 'agentic_aba_terms_accepted_version';
 
 export const TermsModal: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    useEffect(() => {
+    const [isOpen, setIsOpen] = useState(() => {
         try {
             const acceptedVersion = localStorage.getItem(STORAGE_KEY);
-            if (acceptedVersion !== TERMS_VERSION) {
-                setIsOpen(true);
-            }
+            return acceptedVersion !== TERMS_VERSION;
         } catch {
-            setIsOpen(true);
+            return true;
         }
+    });
+
+    useEffect(() => {
+        // No-op effect to satisfy mount logic if needed, but removed the setState calls
     }, []);
 
     useEffect(() => {

@@ -1,7 +1,6 @@
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 export function RoleToggle() {
-    // @ts-ignore - using hidden demo prop
     const { user, setDemoRole } = useAuth();
 
     if (!user) return null;

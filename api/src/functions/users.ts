@@ -60,7 +60,8 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
             });
 
             // Remove sensitive data
-            const safeUsers = users.map(({ passwordHash, ...u }) => u);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const safeUsers = users.map(({ passwordHash: _, ...u }) => u);
             return { status: 200, jsonBody: { users: safeUsers } };
 
         } else if (request.method === 'POST') {
@@ -112,7 +113,7 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
                 details: { role, name, createdUserEmail: newUser.email }
             });
 
-            const { passwordHash: _, ...safeUser } = newUser;
+            const { passwordHash: _, ...safeUser } = newUser; // eslint-disable-line @typescript-eslint/no-unused-vars
             return { status: 201, jsonBody: { user: safeUser } };
         } else if (request.method === 'PUT') {
             // UPDATE USER (Manager only)
@@ -180,7 +181,7 @@ async function usersHandler(request: HttpRequest, context: InvocationContext): P
                 }
             });
 
-            const { passwordHash: _, ...safeUser } = updatedUser;
+            const { passwordHash: _, ...safeUser } = updatedUser; // eslint-disable-line @typescript-eslint/no-unused-vars
             return { status: 200, jsonBody: { user: safeUser } };
         }
 

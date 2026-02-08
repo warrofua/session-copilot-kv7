@@ -53,7 +53,7 @@ test('Caseload Navigator displays learners and expands to show session history',
             await acceptBtn.click();
             await expect(termsOverlay).toBeHidden();
         }
-    } catch (e) {
+    } catch {
         // Overlay didn't appear, likely already accepted or race condition cleared it
         console.log('Terms overlay handling: Not visible or timed out');
     }

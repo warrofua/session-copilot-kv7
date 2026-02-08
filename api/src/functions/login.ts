@@ -104,7 +104,7 @@ async function loginHandler(request: HttpRequest, context: InvocationContext): P
         });
 
         // Return user info (without password hash)
-        const { passwordHash: _, ...safeUser } = userRecord;
+        const { passwordHash: _, ...safeUser } = userRecord; // eslint-disable-line @typescript-eslint/no-unused-vars
 
         // Set HttpOnly cookie with token
         const cookieHeader = setAuthCookie(token);

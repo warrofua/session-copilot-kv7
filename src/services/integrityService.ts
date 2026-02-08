@@ -23,15 +23,15 @@ function base64ToBytes(base64: string): Uint8Array {
  * Recursively sorts object keys to ensure deterministic output.
  */
 function canonicalize(value: unknown): string {
-    const sortKeys = (obj: any): any => {
+    const sortKeys = (obj: unknown): unknown => {
         if (Array.isArray(obj)) {
             return obj.map(sortKeys);
         }
         if (typeof obj === 'object' && obj !== null) {
-            return Object.keys(obj).sort().reduce((acc, key) => {
-                acc[key] = sortKeys(obj[key]);
+            return Object.keys(obj as Record<string, unknown>).sort().reduce((acc, key) => {
+                acc[key] = sortKeys((obj as Record<string, unknown>)[key]);
                 return acc;
-            }, {} as any);
+            }, {} as Record<string, unknown>);
         }
         return obj;
     };

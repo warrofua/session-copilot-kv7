@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
@@ -13,7 +13,7 @@ import { addBehaviorEvent, addIncident, addSessionNote, addSkillTrial, getBehavi
 import { parseUserInput, generateConfirmation, generateNoteDraft, type ParsedInput } from './services/llmService';
 import { TermsModal } from './components/TermsModal';
 import { useEncryptionStore } from './stores/encryptionStore';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
 import { RoleToggle } from './components/RoleToggle';
 
 /**
@@ -71,28 +71,32 @@ function App() {
 
   // Live Queries (Reactive, Single Source of Truth)
   // Limit to 500 most recent items to avoid performance issues with large datasets
-  const behaviorEvents = useLiveQuery(
+  const behaviorEventsRaw = useLiveQuery(
     async () => {
-      if (!isEncryptionReady) return activeSessionId ? [] : []; // Avoid error if not ready
+      if (!isEncryptionReady) return [];
       return getBehaviorEventsBySession(activeSessionId, 500);
     },
     [isEncryptionReady, activeSessionId]
-  ) || [];
+  );
+  const behaviorEvents = useMemo(() => behaviorEventsRaw || [], [behaviorEventsRaw]);
 
-  const skillTrials = useLiveQuery(
+  const skillTrialsRaw = useLiveQuery(
     async () => {
       if (!isEncryptionReady) return [];
       return getSkillTrialsBySession(activeSessionId, 500);
     },
     [isEncryptionReady, activeSessionId]
-  ) || [];
-  const sessionNotes = useLiveQuery(
+  );
+  const skillTrials = useMemo(() => skillTrialsRaw || [], [skillTrialsRaw]);
+
+  const sessionNotesRaw = useLiveQuery(
     async () => {
       if (!isEncryptionReady) return [];
       return getSessionNotesBySession(activeSessionId, 500);
     },
     [isEncryptionReady, activeSessionId]
-  ) || [];
+  );
+  const sessionNotes = useMemo(() => sessionNotesRaw || [], [sessionNotesRaw]);
 
   const { incrementUnsyncedCount } = useSyncStore();
 
@@ -128,7 +132,7 @@ function App() {
     // Debounce note generation to avoid hitting LLM API too frequently
     const timer = setTimeout(() => {
       if (behaviorEvents.length > 0 || skillTrials.length > 0) {
-        const behaviors = behaviorEvents.map(e => ({
+        const behaviors = behaviorEvents.map((e: BehaviorEvent) => ({
           type: e.behaviorType,
           count: e.count,
           duration: e.duration,
@@ -136,14 +140,14 @@ function App() {
           function: e.functionGuess,
           intervention: e.intervention
         }));
-        const trials = skillTrials.map(t => ({
+        const trials = skillTrials.map((t: SkillTrial) => ({
           skill: t.skillName,
           target: t.target,
           response: t.response
         }));
         const reinforcements = sessionNotes
-          .filter((note) => note.section === 'reinforcement')
-          .map((note) => note.content);
+          .filter((note: SessionNote) => note.section === 'reinforcement')
+          .map((note: SessionNote) => note.content);
         generateNoteDraft(behaviors, trials, clientName, reinforcements).then(setNoteDraft);
       }
     }, 2000); // 2 second debounce
@@ -363,7 +367,7 @@ function App() {
       addMessage('assistant', `Intervention saved: ${value}.`);
       setPendingInterventionBehaviorIds([]);
     }
-  }, [pendingData, selectedFunction, incrementUnsyncedCount, addMessage, isDemoRoute, isEncryptionReady, pendingInterventionBehaviorIds]);
+  }, [pendingData, selectedFunction, incrementUnsyncedCount, addMessage, isDemoRoute, isEncryptionReady, pendingInterventionBehaviorIds, activeSessionId]);
 
   const handleUnlock = useCallback(async () => {
     if (!user?.encryptionSalt) {

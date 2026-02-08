@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Session } from '../db/db';
-import { useAuth } from '../contexts/AuthContext';
+import type { Learner } from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../stores/sessionStore';
 import { format } from 'date-fns';
@@ -135,7 +136,7 @@ export function SideDrawer({ isOpen, onClose, currentSessionId }: SideDrawerProp
                     <section className="drawer-section">
                         <h3 className="drawer-section-title">History by Learner</h3>
                         <div className="learner-tree">
-                            {learners.map(learner => {
+                            {learners.map((learner: Learner) => {
                                 const sessions = sessionsByLearner[learner.id] || [];
                                 const isExpanded = expandedLearnerIds.has(learner.id);
                                 const hasSessions = sessions.length > 0;

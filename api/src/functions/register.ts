@@ -165,7 +165,7 @@ async function registerHandler(request: HttpRequest, context: InvocationContext)
         const token = generateToken(user);
 
         // Return user info (without password hash)
-        const { passwordHash: _, ...safeUser } = user;
+        const { passwordHash: _, ...safeUser } = user; // eslint-disable-line @typescript-eslint/no-unused-vars
 
         // Set HttpOnly cookie with token
         const cookieHeader = setAuthCookie(token);

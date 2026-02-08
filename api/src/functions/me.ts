@@ -81,7 +81,7 @@ async function meHandler(request: HttpRequest, context: InvocationContext): Prom
         });
 
         // Remove password hash from response
-        const { passwordHash: _, ...safeUser } = userRecord;
+        const { passwordHash: _, ...safeUser } = userRecord; // eslint-disable-line @typescript-eslint/no-unused-vars
 
         return {
             status: 200,

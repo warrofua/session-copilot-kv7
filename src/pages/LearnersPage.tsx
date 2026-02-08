@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Learner } from '../db/db';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { learnerService } from '../services/learnerService';
 import { useNavigate } from 'react-router-dom';
 import { LearnerModal } from '../components/LearnerModal';
@@ -32,8 +32,8 @@ export default function LearnersPage() {
             setIsLoading(true);
             const data = await learnerService.getLearners();
             setLearners(data);
-        } catch (err: any) {
-            setError(err.message || 'Failed to load learners');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to load learners');
         } finally {
             setIsLoading(false);
         }

@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { User, Learner, Organization } from '../services/authService';
 export type { User };
 import {
@@ -11,7 +10,7 @@ import {
 import { useEncryptionStore } from '../stores/encryptionStore';
 import { migrateLegacyPlaintextData } from '../db/db';
 
-interface AuthContextValue {
+export interface AuthContextValue {
     user: User | null;
     learners: Learner[];
     organization: Organization | null;
@@ -22,9 +21,10 @@ interface AuthContextValue {
     register: (data: RegisterData) => Promise<void>;
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
+    setDemoRole: (role: 'manager' | 'bcba' | 'rbt' | null) => void;
 }
 
-interface RegisterData {
+export interface RegisterData {
     email: string;
     password: string;
     name: string;
@@ -33,7 +33,7 @@ interface RegisterData {
     role?: 'manager' | 'bcba' | 'rbt';
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext } from './AuthContextInstance';
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -174,7 +174,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         refreshUser,
-        // @ts-ignore - appending invisible demo prop
         setDemoRole
     };
 
@@ -183,26 +182,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             {children}
         </AuthContext.Provider>
     );
-}
-
-export function useAuth(): AuthContextValue {
-    const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
-}
-
-// Hook for protected routes
-export function useRequireAuth(redirectTo = '/login') {
-    const { isAuthenticated, isLoading } = useAuth();
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
-            navigate(redirectTo);
-        }
-    }, [isAuthenticated, isLoading, redirectTo, navigate]);
-
-    return { isAuthenticated, isLoading };
 }
