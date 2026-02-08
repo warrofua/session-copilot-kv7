@@ -1165,7 +1165,6 @@ body::before {
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -1433,7 +1432,7 @@ body::before {
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 10%);
   z-index: 1000;
   animation: slide-up 0.3s ease-out;
 }
