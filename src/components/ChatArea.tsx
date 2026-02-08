@@ -31,17 +31,31 @@ export function ChatArea({ messages, onButtonClick, onFunctionSelect, selectedFu
         <div className="chat-area">
             {messages.length === 0 && (
                 <div className="chat-empty-state" aria-label="Session guidance">
-                    <h3 className="chat-empty-title">Ready To Log Session Data</h3>
+                    <h3 className="chat-empty-title">Session <span>Documentation</span></h3>
                     <p className="chat-empty-copy">
-                        Use the quick actions below or type natural-language notes like:
-                        <strong> "tantrum for 3 minutes"</strong> or
-                        <strong> "matching trial blue correct"</strong>.
+                        Use the actions below or type natural-language notes.
+                        The <strong>Agents of ABA</strong> engine will automatically parse your input.
                     </p>
                     <div className="chat-empty-hints">
-                        <span>Behavior + duration</span>
-                        <span>Skill + response</span>
-                        <span>ABC notes</span>
-                        <span>Incident details</span>
+                        <div className="hint-item">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                            </svg>
+                            <span>Behavior + duration</span>
+                        </div>
+                        <div className="hint-item">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <circle cx="12" cy="12" r="2" />
+                            </svg>
+                            <span>Skill + response</span>
+                        </div>
+                        <div className="hint-item">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 2v20M2 12h20" />
+                            </svg>
+                            <span>ABC notes</span>
+                        </div>
                     </div>
                 </div>
             )}

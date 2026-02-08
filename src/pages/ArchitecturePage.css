@@ -1,220 +1,281 @@
-/* Architecture Page Styles */
 .architecture-page {
-    padding: 2rem;
-    max-width: 1400px;
+    padding: 6rem 2rem 4rem;
     margin: 0 auto;
-    background-color: #f8fafc;
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 50%, #1a202c 100%);
     min-height: 100vh;
     font-family: Inter, system-ui, -apple-system, sans-serif;
+    color: #e2e8f0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Neural Network Pattern */
+.architecture-page::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(circle at 20% 30%, rgb(66 153 225 / 8%) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgb(72 187 120 / 6%) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgb(66 153 225 / 4%) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
 }
 
 .arch-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 3rem;
-    border-bottom: 2px solid #e2e8f0;
-    padding-bottom: 1.5rem;
+    align-items: flex-start;
+    margin-bottom: 4rem;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    z-index: 10;
 }
 
 .arch-title {
     font-size: 2.5rem;
     font-weight: 800;
-    color: #1e293b;
+    color: #fff;
     margin: 0;
-    letter-spacing: -0.05rem;
+    letter-spacing: -0.5px;
+}
+
+.arch-title span {
+    color: #4299e1;
 }
 
 .arch-subtitle {
+    color: #a0aec0;
     font-size: 1.1rem;
-    color: #64748b;
     margin-top: 0.5rem;
 }
 
 .arch-close-btn {
     padding: 0.75rem 1.5rem;
-    background-color: white;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
+    border-radius: 12px;
+    border: 1px solid rgb(255 255 255 / 20%);
+    background: rgb(255 255 255 / 5%);
+    color: #e2e8f0;
     font-weight: 600;
-    color: #475569;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+    backdrop-filter: blur(8px);
 }
 
 .arch-close-btn:hover {
-    background-color: #f1f5f9;
-    border-color: #94a3b8;
-    transform: translateY(-1px);
+    background: rgb(255 255 255 / 10%);
+    border-color: rgb(255 255 255 / 30%);
+    transform: translateY(-2px);
 }
 
 .arch-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 10;
 }
 
 .arch-section {
-    background: white;
+    background: rgb(255 255 255 / 3%);
+    border: 1px solid rgb(255 255 255 / 8%);
     padding: 2rem;
-    border-radius: 16px;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -1px rgb(0 0 0 / 6%);
-    border: 1px solid #f1f5f9;
-    transition: transform 0.2s;
+    border-radius: 20px;
+    transition: all 0.3s;
+    backdrop-filter: blur(12px);
 }
 
 .arch-section:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 10%), 0 4px 6px -2px rgb(0 0 0 / 5%);
+    background: rgb(255 255 255 / 5%);
+    border-color: rgb(66 153 225 / 20%);
+    box-shadow: 0 20px 40px -12px rgb(0 0 0 / 50%);
 }
 
 .section-title {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1rem;
     font-size: 1.5rem;
-    color: #0f172a;
+    font-weight: 700;
+    color: #fff;
     margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid #f8fafc;
 }
 
-.section-title .icon {
-    font-size: 1.5rem;
+.icon-box {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
 }
 
-/* Tech Stack Cards */
+.icon-box svg {
+    width: 20px;
+    height: 20px;
+}
+
+.icon-box.stack {
+    background: rgb(66 153 225 / 15%);
+    color: #4299e1;
+}
+
+.icon-box.flow {
+    background: rgb(72 187 120 / 15%);
+    color: #48bb78;
+}
+
+.icon-box.security {
+    background: rgb(237 137 54 / 15%);
+    color: #ed8936;
+}
+
+/* Tech Stack Styles */
 .card-stack {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
 }
 
 .tech-card {
-    background: #f8fafc;
     padding: 1.25rem;
+    background: rgb(255 255 255 / 4%);
     border-radius: 12px;
-    border-left: 4px solid #3b82f6;
+    border: 1px solid rgb(255 255 255 / 5%);
 }
 
 .tech-card h3 {
-    margin: 0 0 0.5rem;
-    font-size: 1.1rem;
-    color: #334155;
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    color: #fff;
+    font-weight: 600;
 }
 
 .tags {
     display: flex;
-    gap: 0.5rem;
     flex-wrap: wrap;
+    gap: 0.5rem;
     margin-bottom: 0.75rem;
 }
 
 .tag {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: 999px;
-    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .tag.react {
-    background: #e0f2fe;
-    color: #0369a1;
+    background: rgb(97 218 251 / 15%);
+    color: #61dafb;
 }
 
 .tag.vite {
-    background: #fdf4ff;
-    color: #a21caf;
+    background: rgb(100 108 255 / 15%);
+    color: #a8b1ff;
 }
 
 .tag.ts {
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: rgb(49 120 198 / 15%);
+    color: #3178c6;
 }
 
 .tag.zustand {
-    background: #f0fdf4;
-    color: #15803d;
+    background: rgb(255 165 0 / 15%);
+    color: #ffa500;
 }
 
 .tag.dexie {
-    background: #fefce8;
-    color: #a16207;
+    background: rgb(42 153 225 / 15%);
+    color: #3182ce;
 }
 
 .tag.pwa {
-    background: #fff1f2;
-    color: #be123c;
+    background: rgb(72 187 120 / 15%);
+    color: #48bb78;
 }
 
 .tag.llm {
-    background: #f5f3ff;
-    color: #6d28d9;
+    background: rgb(159 122 234 / 15%);
+    color: #b794f4;
 }
 
 .tag.regex {
-    background: #fffbeb;
-    color: #b45309;
+    background: rgb(229 62 62 / 15%);
+    color: #fc8181;
 }
 
 .tech-card p {
-    font-size: 0.9rem;
-    color: #64748b;
-    margin: 0;
+    font-size: 0.85rem;
+    color: #a0aec0;
     line-height: 1.5;
+    margin: 0;
 }
 
-/* Data Flow Diagram */
+/* Data Flow Styles */
 .flow-diagram {
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 0.5rem;
 }
 
 .flow-step {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 1rem;
-    width: 100%;
-    background: #fff;
     padding: 1rem;
+    background: rgb(255 255 255 / 4%);
     border-radius: 12px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid rgb(255 255 255 / 5%);
 }
 
 .step-number {
-    background: #0f172a;
-    color: white;
-    width: 2rem;
-    height: 2rem;
+    width: 24px;
+    height: 24px;
+    background: #4299e1;
+    color: #fff;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
+    font-size: 0.75rem;
+    font-weight: 800;
     flex-shrink: 0;
 }
 
 .step-content h4 {
     margin: 0 0 0.25rem;
-    color: #334155;
+    color: #fff;
+    font-size: 0.95rem;
 }
 
 .step-content p {
     margin: 0;
     font-size: 0.85rem;
-    color: #64748b;
+    color: #a0aec0;
+    line-height: 1.4;
 }
 
 .flow-arrow {
-    color: #cbd5e1;
-    font-size: 1.5rem;
-    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    color: rgb(255 255 255 / 20%);
+    padding: 0.25rem 0;
 }
 
-/* Security Features */
+.flow-arrow svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Security Styles */
 .feature-list {
     display: flex;
     flex-direction: column;
@@ -223,61 +284,54 @@
 
 .feature-item h4 {
     margin: 0 0 0.5rem;
-    color: #1e293b;
-    display: flex;
-    align-items: center;
-}
-
-.feature-item h4::before {
-    content: "✓";
-    color: #10b981;
-    margin-right: 0.5rem;
-    font-weight: bold;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
 }
 
 .feature-item p {
-    margin: 0;
-    color: #64748b;
-    font-size: 0.95rem;
-    padding-left: 1.5rem;
+    font-size: 0.85rem;
+    color: #a0aec0;
     line-height: 1.5;
+    margin: 0 0 0.75rem;
 }
 
 .rbac-preview {
-    margin-top: 0.75rem;
-    padding-left: 1.5rem;
     display: flex;
     gap: 0.5rem;
 }
 
 .role-chip {
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 8px;
     border-radius: 4px;
     text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.05em;
 }
 
 .role-chip.admin {
-    background: #1e293b;
-    color: white;
+    background: rgb(229 62 62 / 15%);
+    color: #fc8181;
 }
 
 .role-chip.bcba {
-    background: #3b82f6;
-    color: white;
+    background: rgb(49 130 206 / 15%);
+    color: #63b3ed;
 }
 
 .role-chip.rbt {
-    background: #64748b;
-    color: white;
+    background: rgb(56 161 105 / 15%);
+    color: #68d391;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
-    .arch-grid {
-        grid-template-columns: 1fr;
+    .architecture-page {
+        padding: 4rem 1.5rem;
+    }
+
+    .arch-header {
+        flex-direction: column;
+        gap: 1.5rem;
     }
 
     .arch-title {

@@ -77,7 +77,9 @@ export function SessionSummaryContent({
                     <div className="event-list">
                         {behaviorEvents.map((event, idx) => (
                             <div key={event.id || idx} className="event-item">
-                                <span className="event-icon">▸</span>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', color: 'var(--brand-blue-400)' }}>
+                                    <path d="m9 18 6-6-6-6" />
+                                </svg>
                                 <div className="event-details">
                                     <span className="event-label">
                                         {formatBehaviorSummary(event)}

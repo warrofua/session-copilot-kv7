@@ -61,6 +61,21 @@ To prevent CI/CD failures (like unused imports or type errors):
 - **Architectural Showcase Features:**
     - `src/pages/ArchitecturePage.tsx`: Detailed system architecture and data flow.
     - `src/components/RoleToggle.tsx`: Floating widget to switch roles (Admin/BCBA/RBT) for demonstration or testing.
++
++## Aesthetics & Styling Guidelines
++To maintain the "Agents of ABA" professional and premium clinical aesthetic:
++1.  **Theme Alignment:** Internal documentation (like Architecture) and public-facing pages must use the **Dark Mode** foundation:
++    - **Primary Background:** `linear-gradient(135deg, #1a202c 0%, #2d3748 50%, #1a202c 100%)`
++    - **Design Pattern:** Subtle radial gradients (blue/green) at corners to create depth.
++2.  **Glassmorphism:** Use low-opacity backgrounds with blurs for panels and cards:
++    - `background: rgb(255 255 255 / 3%);`
++    - `backdrop-filter: blur(12px);`
++    - `border: 1px solid rgb(255 255 255 / 8%);`
++3.  **Iconography:**
++    - **Never use emojis** in section headers or primary UI elements.
++    - **Preferred:** Pure SVG components with stroke-based styling (2px stroke width, rounded caps) or icons from a library like Lucide.
++    - **Accent Containers:** Place icons in 42px `icon-box` containers with low-opacity theme-color backgrounds (e.g., `rgb(66 153 225 / 15%)`).
++4.  **Typography:** Use **Inter** or **Manrope** for a modern healthcare feel. Ensure bold weights for section titles.
 
 ## Agent Verification & Playwright Guide
 Mandatory instructions for AI agents to ensure successful feature verification and E2E testing:
