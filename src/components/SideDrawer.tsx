@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Session } from '../db/db';
-import type { Learner } from '../services/authService';
+import type { Learner, User } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../stores/sessionStore';
@@ -12,6 +12,10 @@ interface SideDrawerProps {
     onClose: () => void;
     /** ID of the currently active session to highlight in the tree */
     currentSessionId?: number;
+    /** Override user for demo mode */
+    overrideUser?: User;
+    /** Override learners for demo mode */
+    overrideLearners?: Learner[];
 }
 
 // Helper to format session time range
@@ -26,9 +30,13 @@ const formatSessionRange = (start: Date, end?: Date) => {
  * Navigation drawer displaying the caseload tree (Learners -> Sessions) and admin menu.
  * Uses `useLiveQuery` to reactively fetch session data from Dexie.
  */
-export function SideDrawer({ isOpen, onClose, currentSessionId }: SideDrawerProps) {
-    const { user, learners } = useAuth();
+export function SideDrawer({ isOpen, onClose, currentSessionId, overrideUser, overrideLearners }: SideDrawerProps) {
+    const auth = useAuth();
     const navigate = useNavigate();
+
+    // Use overrides if provided (for Demo mode), otherwise use real auth
+    const user = overrideUser || auth.user;
+    const learners = overrideLearners || auth.learners;
 
     // -- State --
     const [expandedLearnerIds, setExpandedLearnerIds] = useState<Set<string>>(new Set());
@@ -36,7 +44,20 @@ export function SideDrawer({ isOpen, onClose, currentSessionId }: SideDrawerProp
 
     // -- Data Fetching --
     // Fetch recent sessions only (limit 200) to avoid performance degradation
-    const allSessions = useLiveQuery(() => db.sessions.orderBy('startTime').reverse().limit(200).toArray(), []);
+    const allSessions = useLiveQuery(async () => {
+        // If overriding learners (Demo), only get sessions for these learners
+        // Note: In a real app with proper backend isolation this wouldn't be needed,
+        // but for this local-first architecture we must filter manually to avoid leaks.
+        if (overrideLearners) {
+            const learnerIds = overrideLearners.map(l => l.id);
+            return db.sessions
+                .where('clientId').anyOf(learnerIds)
+                .reverse()
+                .limit(50)
+                .toArray();
+        }
+        return db.sessions.orderBy('startTime').reverse().limit(200).toArray();
+    }, [overrideLearners]);
 
     // -- Derived Data --
     const sessionsByLearner = useMemo(() => {

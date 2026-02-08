@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
+import type { Learner } from './services/authService';
 import { ChatArea, MessageInput, type ChatMessageData } from './components/ChatArea';
 import { ActionButtons } from './components/ActionButtons';
 import { SessionSummaryContent } from './components/SessionSummary';
@@ -16,6 +17,31 @@ import { useEncryptionStore } from './stores/encryptionStore';
 import { useAuth } from './hooks/useAuth';
 import { RoleToggle } from './components/RoleToggle';
 
+// Demo Data Constants
+// Demo Data Constants
+const DEMO_USER: import('./services/authService').User = {
+  id: 'demo-user',
+  name: 'Demo Admin',
+  email: 'demo@agentsofaba.com',
+  role: 'manager' as const,
+  encryptionSalt: 'demo-salt',
+  userType: 'org',
+  orgId: 'demo-org',
+  assignedLearnerIds: ['demo'],
+  permissions: ['manage_users', 'view_all_learners'],
+  isActive: true
+};
+
+const DEMO_LEARNERS: Learner[] = [
+  {
+    id: 'demo',
+    name: 'Alex B.',
+    orgId: 'demo-org',
+    dob: '2015-01-01',
+    status: 'active'
+  }
+];
+
 /**
  * Main application orchestration component.
  * Handles chat interactions, data state, and session timing.
@@ -23,9 +49,12 @@ import { RoleToggle } from './components/RoleToggle';
  * @note Currently hardcoded to use Session ID 1 for demo purposes.
  */
 function App() {
-  const { user, logout } = useAuth();
+  const { user, logout, learners: authLearners } = useAuth();
   const location = useLocation();
   const isDemoRoute = location.pathname === '/demo';
+
+  // Use Demo learners if in demo route
+  const learners = isDemoRoute ? DEMO_LEARNERS : authLearners;
 
   const {
     currentSession,
@@ -101,7 +130,7 @@ function App() {
   const { incrementUnsyncedCount } = useSyncStore();
 
   // Demo client name
-  const { learners } = useAuth();
+  // const { learners } = useAuth(); // Handled at top level now
   const [selectedLearner, setSelectedLearner] = useState(learners[0] || { id: 'demo', name: 'Alex B.' });
 
   useEffect(() => {
@@ -535,6 +564,8 @@ function App() {
         isOpen={isDrawerOpen}
         onClose={() => setDrawerOpen(false)}
         currentSessionId={activeSessionId}
+        overrideUser={isDemoRoute ? DEMO_USER : undefined}
+        overrideLearners={isDemoRoute ? DEMO_LEARNERS : undefined}
       />
 
       <IncidentButton

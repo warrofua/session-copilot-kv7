@@ -250,7 +250,8 @@ body::before {
   top: 100%;
   left: 16px;
   margin-top: 4px;
-  background: var(--surface-panel); backdrop-filter: blur(12px);
+  background: var(--surface-panel);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 10%);
@@ -851,15 +852,15 @@ body::before {
 }
 
 .drawer-nav-btn.learners {
-  background: #ecfdf3;
-  color: #1f7f43;
-  border-color: #bbf7d0;
+  background: rgb(72 187 120 / 10%);
+  color: #48bb78;
+  border-color: rgb(72 187 120 / 20%);
 }
 
 .drawer-nav-btn.audit {
-  background: #fef3c7;
-  color: #8d560b;
-  border-color: #fde68a;
+  background: rgb(237 137 54 / 10%);
+  color: #ed8936;
+  border-color: rgb(237 137 54 / 20%);
 }
 
 .drawer-empty {
@@ -915,7 +916,8 @@ body::before {
 }
 
 .guardrail-popup {
-  background: var(--surface-panel); backdrop-filter: blur(12px);
+  background: var(--surface-panel);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 10px;
@@ -1075,7 +1077,7 @@ body::before {
   justify-content: space-between;
   border-bottom: 1px solid var(--border-soft);
   padding: 13px 15px;
-  background: linear-gradient(180deg, rgb(248 250 252 / 95%), #fff);
+  background: transparent;
 }
 
 .modal-title {
@@ -1147,7 +1149,7 @@ body::before {
 }
 
 .incident-modal .modal-title {
-  color: #9b1c1c;
+  color: var(--brand-red-500);
 }
 
 .incident-modal .modal-body {
@@ -1156,19 +1158,19 @@ body::before {
 }
 
 .incident-modal .form-label {
-  color: #111827;
+  color: var(--text-main);
   font-weight: 800;
 }
 
 .incident-modal .checkbox-group {
-  border: 1px solid rgb(226 232 240 / 85%);
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
   background: var(--surface-muted);
   padding: 9px 10px;
 }
 
 .incident-modal .checkbox-label {
-  color: #1f2937;
+  color: var(--text-soft);
   font-size: 0.85rem;
 }
 
@@ -1223,6 +1225,7 @@ body::before {
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     opacity: 1;
