@@ -10,6 +10,13 @@ This is a **Session Co-Pilot** application for Applied Behavior Analysis (ABA) t
 3.  **Data Integrity:** All data persists to IndexedDB via Dexie.js (`src/db/db.ts`). Do not rely on `localStorage` for critical session data.
 4.  **Testing:** Always run `npm test` before pushing. Maintain 100% pass rate on the `llmService` logic tests.
 
+## Pre-Push Checklist (Mandatory for Agents)
+To prevent CI/CD failures (like unused imports or type errors):
+1.  **Local Build:** Run `npm run build` locally. If this fails, the CI/CD **will** fail.
+2.  **Linting:** Ensure no unused variables or imports exist (TypeScript strict mode is active).
+3.  **Tests:** Run `npm test` and ensure all suites pass.
+4.  **Formatting:** Run `npm run lint` if a linter is configured.
+
 ## Architecture
 -   **Frontend:** React 18 + Vite + React Router
 -   **State Management:** Zustand (`src/stores/`) + React Context (`src/contexts/AuthContext.tsx`).
