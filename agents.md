@@ -4,6 +4,10 @@
 This is a **Session Co-Pilot** application for Applied Behavior Analysis (ABA) therapy. 
 **Goal:** Allow therapists to log behavioral data via natural language chat or buttons, completely offline.
 
+## Test Credentials
+- **Email:** `demo2@agentsofaba.com`
+- **Password:** `Password123!`
+
 ## Core Directives
 1.  **Offline-First:** All features MUST work without internet. Do not add dependencies that require online CDN or API calls for core functionality (except the LLM which has a local fallback).
 2.  **Strict Types:** Use TypeScript strict mode. Define interfaces in `src/db/db.ts` or `src/services/llmService.ts`.

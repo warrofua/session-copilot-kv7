@@ -7,11 +7,12 @@
 .admin-page-shell {
     max-width: 1100px;
     margin: 0 auto;
-    background: rgb(248 250 252 / 96%);
-    border: 1px solid rgb(226 232 240 / 70%);
+    background: var(--surface-panel);
+    border: 1px solid var(--border-strong);
     border-radius: 18px;
-    box-shadow: 0 18px 35px rgb(15 23 42 / 20%);
+    box-shadow: var(--shadow-xl);
     overflow: hidden;
+    backdrop-filter: blur(25px);
 }
 
 .admin-page-header {
@@ -20,13 +21,13 @@
     justify-content: space-between;
     gap: 1rem;
     padding: 1.25rem 1.25rem 1rem;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border-strong);
     background: linear-gradient(120deg, rgb(66 153 225 / 10%), rgb(72 187 120 / 8%));
 }
 
 .admin-page-title {
     margin: 0.5rem 0 0.35rem;
-    color: #1a202c;
+    color: var(--text-main);
     font-size: 1.5rem;
     font-weight: 800;
     letter-spacing: -0.01em;
@@ -34,24 +35,25 @@
 
 .admin-page-subtitle {
     margin: 0;
-    color: #4a5568;
+    color: var(--text-muted);
     font-size: 0.95rem;
     line-height: 1.45;
 }
 
 .admin-back-btn {
-    border: 1px solid #cbd5e0;
+    border: 1px solid var(--border-strong);
     border-radius: 10px;
-    background: #fff;
-    color: #2d3748;
+    background: var(--surface-muted);
+    color: var(--text-main);
     padding: 0.45rem 0.7rem;
     font-size: 0.84rem;
     font-weight: 700;
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .admin-back-btn:hover {
-    background: #f8fafc;
+    background: var(--surface-glass);
 }
 
 .admin-primary-btn {
@@ -63,10 +65,12 @@
     font-size: 0.86rem;
     font-weight: 800;
     cursor: pointer;
+    box-shadow: var(--shadow-sm);
 }
 
 .admin-primary-btn:hover {
-    filter: brightness(0.96);
+    filter: brightness(1.1);
+    box-shadow: var(--shadow-md);
 }
 
 .admin-content {
@@ -74,9 +78,9 @@
 }
 
 .admin-error {
-    background: #fee2e2;
-    border: 1px solid #fecaca;
-    color: #991b1b;
+    background: rgb(254 226 226 / 10%);
+    border: 1px solid rgb(254 202 202 / 20%);
+    color: #fca5a5;
     border-radius: 10px;
     padding: 0.65rem 0.8rem;
     margin-bottom: 1rem;
@@ -85,9 +89,9 @@
 
 .admin-table-wrap {
     overflow-x: auto;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-strong);
     border-radius: 14px;
-    background: #fff;
+    background: var(--surface-card);
 }
 
 .admin-table {
@@ -101,17 +105,17 @@
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #2d3748;
-    background: #f8fafc;
+    color: var(--text-muted);
+    background: var(--surface-muted);
     padding: 0.75rem 0.8rem;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border-strong);
 }
 
 .admin-table td {
     font-size: 0.88rem;
-    color: #374151;
+    color: var(--text-main);
     padding: 0.72rem 0.8rem;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-subtle);
     vertical-align: top;
 }
 
@@ -129,38 +133,41 @@
 }
 
 .status-pill.active {
-    color: #166534;
-    background: #dcfce7;
+    color: #86efac;
+    background: rgb(22 101 52 / 30%);
+    border: 1px solid rgb(134 239 172 / 20%);
 }
 
 .status-pill.inactive {
-    color: #991b1b;
-    background: #fee2e2;
+    color: #fca5a5;
+    background: rgb(153 27 27 / 30%);
+    border: 1px solid rgb(252 165 165 / 20%);
 }
 
 .status-pill.discharged {
-    color: #92400e;
-    background: #fef3c7;
+    color: #fdba74;
+    background: rgb(146 64 14 / 30%);
+    border: 1px solid rgb(253 186 116 / 20%);
 }
 
 .admin-empty {
     text-align: center;
     padding: 1.1rem;
-    color: #64748b;
+    color: var(--text-muted);
     font-size: 0.88rem;
 }
 
 .admin-link-btn {
     border: none;
     background: transparent;
-    color: #2563eb;
+    color: #60a5fa;
     font-size: 0.84rem;
     font-weight: 700;
     cursor: pointer;
 }
 
 .admin-link-btn:hover {
-    color: #1d4ed8;
+    color: #93c5fd;
     text-decoration: underline;
 }
 
@@ -168,44 +175,50 @@
     min-height: 40vh;
     display: grid;
     place-items: center;
-    color: #e2e8f0;
+    color: var(--text-muted);
     font-size: 0.95rem;
     font-weight: 700;
 }
 
 .admin-modal {
     width: min(560px, 100%);
-    background: #fff;
+    background: var(--surface-panel);
+    border: 1px solid var(--border-strong);
 }
 
 .admin-modal-title {
-    color: #1a202c;
+    color: var(--text-main);
 }
 
 .admin-form-grid {
     display: grid;
     gap: 0.5rem;
+    margin-top: 1rem;
 }
 
 .admin-modal .form-label {
-    color: #111827;
+    color: var(--text-main);
     font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+    display: block;
 }
 
 .admin-modal .form-input,
 .admin-modal .form-select {
-    border-color: #cbd5e1;
-    background: #f8fafc;
-    color: #0f172a;
+    border-color: var(--border-strong);
+    background: var(--surface-muted);
+    color: var(--text-main);
 }
 
 .admin-modal .form-input[disabled] {
-    background: #eef2f7;
-    color: #475569;
+    background: rgb(15 23 42 / 50%);
+    color: var(--text-muted);
+    cursor: not-allowed;
 }
 
 .admin-modal .form-input::placeholder {
-    color: #64748b;
+    color: var(--text-muted);
+    opacity: 0.6;
 }
 
 @media (min-width: 760px) {
@@ -231,12 +244,12 @@
 
 
 .learner-checklist {
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-strong);
     border-radius: 8px;
     padding: 0.5rem;
     max-height: 150px;
     overflow-y: auto;
-    background: #f8fafc;
+    background: var(--surface-muted);
 }
 
 .learner-checklist-item {
@@ -245,14 +258,12 @@
     gap: 0.5rem;
     padding: 0.25rem 0;
     font-size: 0.9rem;
-    color: #0f172a;
-
-    /* Darker text color (slate-900) */
+    color: var(--text-main);
     font-weight: 500;
 }
 
 .learner-checklist-item:hover {
-    background: #f1f5f9;
+    background: var(--surface-glass);
 }
 
 .learner-checklist-item input[type="checkbox"] {
@@ -277,10 +288,12 @@
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
     transition: background 0.2s;
+    color: var(--text-muted);
 }
 
 .learner-search-toggle:hover {
-    background: #e2e8f0;
+    background: var(--surface-glass);
+    color: var(--text-main);
 }
 
 .learner-search-input {
@@ -288,4 +301,8 @@
     margin-bottom: 0.5rem;
     padding: 0.4rem 0.6rem;
     font-size: 0.85rem;
+    background: var(--surface-muted);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    color: var(--text-main);
 }
