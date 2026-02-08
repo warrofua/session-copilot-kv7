@@ -359,153 +359,203 @@ export async function getBehaviorEventsBySession(sessionId: number, limit = 500)
     requireEncryptionReadiness();
     const rows = await db.behaviorEvents.where('sessionId').equals(sessionId).reverse().limit(limit).toArray();
 
-    const decrypted = await Promise.all(rows.map(async (row) => {
-        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
-        if (!isValid) {
-            throw new Error(`Data integrity check failed for behavior event ${row.id ?? 'unknown'}`);
+    const results: BehaviorEvent[] = [];
+    for (const row of rows) {
+        try {
+            const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+            if (!isValid) {
+                console.warn(`Data integrity check failed for behavior event ${row.id ?? 'unknown'} - skipping`);
+                continue;
+            }
+            const sensitive = await decryptEntity<BehaviorSensitive>(row.encryptedData);
+            results.push({
+                id: row.id,
+                sessionId: row.sessionId,
+                timestamp: row.timestamp,
+                createdAt: row.createdAt,
+                synced: row.synced,
+                ...sensitive
+            } satisfies BehaviorEvent);
+        } catch (error) {
+            console.warn(`Failed to decrypt behavior event ${row.id ?? 'unknown'}: `, error);
         }
-        const sensitive = await decryptEntity<BehaviorSensitive>(row.encryptedData);
-        return {
-            id: row.id,
-            sessionId: row.sessionId,
-            timestamp: row.timestamp,
-            createdAt: row.createdAt,
-            synced: row.synced,
-            ...sensitive
-        } satisfies BehaviorEvent;
-    }));
+    }
 
-    return decrypted;
+    return results;
 }
 
 export async function getSkillTrialsBySession(sessionId: number, limit = 500): Promise<SkillTrial[]> {
     requireEncryptionReadiness();
     const rows = await db.skillTrials.where('sessionId').equals(sessionId).reverse().limit(limit).toArray();
 
-    const decrypted = await Promise.all(rows.map(async (row) => {
-        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
-        if (!isValid) {
-            throw new Error(`Data integrity check failed for skill trial ${row.id ?? 'unknown'}`);
+    const results: SkillTrial[] = [];
+    for (const row of rows) {
+        try {
+            const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+            if (!isValid) {
+                console.warn(`Data integrity check failed for skill trial ${row.id ?? 'unknown'} - skipping`);
+                continue;
+            }
+            const sensitive = await decryptEntity<SkillTrialSensitive>(row.encryptedData);
+            results.push({
+                id: row.id,
+                sessionId: row.sessionId,
+                timestamp: row.timestamp,
+                createdAt: row.createdAt,
+                synced: row.synced,
+                ...sensitive
+            } satisfies SkillTrial);
+        } catch (error) {
+            console.warn(`Failed to decrypt skill trial ${row.id ?? 'unknown'}: `, error);
         }
-        const sensitive = await decryptEntity<SkillTrialSensitive>(row.encryptedData);
-        return {
-            id: row.id,
-            sessionId: row.sessionId,
-            timestamp: row.timestamp,
-            createdAt: row.createdAt,
-            synced: row.synced,
-            ...sensitive
-        } satisfies SkillTrial;
-    }));
+    }
 
-    return decrypted;
+    return results;
 }
 
 export async function getSessionNotesBySession(sessionId: number, limit = 500): Promise<SessionNote[]> {
     requireEncryptionReadiness();
     const rows = await db.sessionNotes.where('sessionId').equals(sessionId).reverse().limit(limit).toArray();
 
-    const decrypted = await Promise.all(rows.map(async (row) => {
-        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
-        if (!isValid) {
-            throw new Error(`Data integrity check failed for session note ${row.id ?? 'unknown'}`);
+    const results: SessionNote[] = [];
+    for (const row of rows) {
+        try {
+            const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+            if (!isValid) {
+                console.warn(`Data integrity check failed for session note ${row.id ?? 'unknown'} - skipping`);
+                continue;
+            }
+            const sensitive = await decryptEntity<SessionNoteSensitive>(row.encryptedData);
+            results.push({
+                id: row.id,
+                sessionId: row.sessionId,
+                createdAt: row.createdAt,
+                updatedAt: row.timestamp,
+                synced: row.synced,
+                ...sensitive
+            } satisfies SessionNote);
+        } catch (error) {
+            console.warn(`Failed to decrypt session note ${row.id ?? 'unknown'}: `, error);
         }
-        const sensitive = await decryptEntity<SessionNoteSensitive>(row.encryptedData);
-        return {
-            id: row.id,
-            sessionId: row.sessionId,
-            createdAt: row.createdAt,
-            updatedAt: row.timestamp,
-            synced: row.synced,
-            ...sensitive
-        } satisfies SessionNote;
-    }));
+    }
 
-    return decrypted;
+    return results;
 }
 
 export async function getUnsyncedBehaviorEvents(): Promise<BehaviorEvent[]> {
     requireEncryptionReadiness();
     const rows = await db.behaviorEvents.filter((item) => !item.synced).toArray();
 
-    return Promise.all(rows.map(async (row) => {
-        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
-        if (!isValid) {
-            throw new Error(`Data integrity check failed for behavior event ${row.id ?? 'unknown'}`);
+    const results: BehaviorEvent[] = [];
+    for (const row of rows) {
+        try {
+            const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+            if (!isValid) {
+                console.warn(`Data integrity check failed for behavior event ${row.id ?? 'unknown'} - skipping`);
+                continue;
+            }
+            const sensitive = await decryptEntity<BehaviorSensitive>(row.encryptedData);
+            results.push({
+                id: row.id,
+                sessionId: row.sessionId,
+                timestamp: row.timestamp,
+                createdAt: row.createdAt,
+                synced: row.synced,
+                ...sensitive
+            } satisfies BehaviorEvent);
+        } catch (error) {
+            console.warn(`Failed to decrypt behavior event ${row.id ?? 'unknown'}: `, error);
         }
-        const sensitive = await decryptEntity<BehaviorSensitive>(row.encryptedData);
-        return {
-            id: row.id,
-            sessionId: row.sessionId,
-            timestamp: row.timestamp,
-            createdAt: row.createdAt,
-            synced: row.synced,
-            ...sensitive
-        } satisfies BehaviorEvent;
-    }));
+    }
+
+    return results;
 }
 
 export async function getUnsyncedSkillTrials(): Promise<SkillTrial[]> {
     requireEncryptionReadiness();
     const rows = await db.skillTrials.filter((item) => !item.synced).toArray();
 
-    return Promise.all(rows.map(async (row) => {
-        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
-        if (!isValid) {
-            throw new Error(`Data integrity check failed for skill trial ${row.id ?? 'unknown'}`);
+    const results: SkillTrial[] = [];
+    for (const row of rows) {
+        try {
+            const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+            if (!isValid) {
+                console.warn(`Data integrity check failed for skill trial ${row.id ?? 'unknown'} - skipping`);
+                continue;
+            }
+            const sensitive = await decryptEntity<SkillTrialSensitive>(row.encryptedData);
+            results.push({
+                id: row.id,
+                sessionId: row.sessionId,
+                timestamp: row.timestamp,
+                createdAt: row.createdAt,
+                synced: row.synced,
+                ...sensitive
+            } satisfies SkillTrial);
+        } catch (error) {
+            console.warn(`Failed to decrypt skill trial ${row.id ?? 'unknown'}: `, error);
         }
-        const sensitive = await decryptEntity<SkillTrialSensitive>(row.encryptedData);
-        return {
-            id: row.id,
-            sessionId: row.sessionId,
-            timestamp: row.timestamp,
-            createdAt: row.createdAt,
-            synced: row.synced,
-            ...sensitive
-        } satisfies SkillTrial;
-    }));
+    }
+
+    return results;
 }
 
 export async function getUnsyncedSessionNotes(): Promise<SessionNote[]> {
     requireEncryptionReadiness();
     const rows = await db.sessionNotes.filter((item) => !item.synced).toArray();
 
-    return Promise.all(rows.map(async (row) => {
-        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
-        if (!isValid) {
-            throw new Error(`Data integrity check failed for session note ${row.id ?? 'unknown'}`);
+    const results: SessionNote[] = [];
+    for (const row of rows) {
+        try {
+            const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+            if (!isValid) {
+                console.warn(`Data integrity check failed for session note ${row.id ?? 'unknown'} - skipping`);
+                continue;
+            }
+            const sensitive = await decryptEntity<SessionNoteSensitive>(row.encryptedData);
+            results.push({
+                id: row.id,
+                sessionId: row.sessionId,
+                createdAt: row.createdAt,
+                updatedAt: row.timestamp,
+                synced: row.synced,
+                ...sensitive
+            } satisfies SessionNote);
+        } catch (error) {
+            console.warn(`Failed to decrypt session note ${row.id ?? 'unknown'}: `, error);
         }
-        const sensitive = await decryptEntity<SessionNoteSensitive>(row.encryptedData);
-        return {
-            id: row.id,
-            sessionId: row.sessionId,
-            createdAt: row.createdAt,
-            updatedAt: row.timestamp,
-            synced: row.synced,
-            ...sensitive
-        } satisfies SessionNote;
-    }));
+    }
+
+    return results;
 }
 
 export async function getUnsyncedIncidents(): Promise<Incident[]> {
     requireEncryptionReadiness();
     const rows = await db.incidents.filter((item) => !item.synced).toArray();
 
-    return Promise.all(rows.map(async (row) => {
-        const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
-        if (!isValid) {
-            throw new Error(`Data integrity check failed for incident ${row.id ?? 'unknown'}`);
+    const results: Incident[] = [];
+    for (const row of rows) {
+        try {
+            const isValid = await verifyEncryptedData(row.encryptedData, assertSignature(row));
+            if (!isValid) {
+                console.warn(`Data integrity check failed for incident ${row.id ?? 'unknown'} - skipping`);
+                continue;
+            }
+            const sensitive = await decryptEntity<IncidentSensitive>(row.encryptedData);
+            results.push({
+                id: row.id,
+                sessionId: row.sessionId,
+                timestamp: row.timestamp,
+                createdAt: row.createdAt,
+                synced: row.synced,
+                ...sensitive
+            } satisfies Incident);
+        } catch (error) {
+            console.warn(`Failed to decrypt incident ${row.id ?? 'unknown'}: `, error);
         }
-        const sensitive = await decryptEntity<IncidentSensitive>(row.encryptedData);
-        return {
-            id: row.id,
-            sessionId: row.sessionId,
-            timestamp: row.timestamp,
-            createdAt: row.createdAt,
-            synced: row.synced,
-            ...sensitive
-        } satisfies Incident;
-    }));
+    }
+
+    return results;
 }
 
 export async function markBehaviorEventSynced(id: number): Promise<void> {
