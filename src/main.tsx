@@ -11,6 +11,7 @@ import LearnersPage from './pages/LearnersPage.tsx'
 import AuditLogsPage from './pages/AuditLogsPage.tsx'
 import BillingPage from './pages/BillingPage.tsx'
 import LegalPage from './pages/LegalPage.tsx'
+import { ArchitecturePage } from './pages/ArchitecturePage.tsx'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -29,6 +30,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/admin/audit" element={<AuditLogsPage />} />
           <Route path="/admin/billing" element={<BillingPage />} />
           <Route path="/legal" element={<LegalPage />} />
+          <Route path="/architecture" element={<ArchitecturePage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

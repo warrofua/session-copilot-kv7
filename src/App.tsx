@@ -14,6 +14,7 @@ import { parseUserInput, generateConfirmation, generateNoteDraft, type ParsedInp
 import { TermsModal } from './components/TermsModal';
 import { useEncryptionStore } from './stores/encryptionStore';
 import { useAuth } from './contexts/AuthContext';
+import { RoleToggle } from './components/RoleToggle';
 
 /**
  * Main application orchestration component.
@@ -538,6 +539,7 @@ function App() {
         onOpenChange={setIncidentModalOpen}
       />
       <TermsModal />
+      <RoleToggle />
     </div>
   );
 }

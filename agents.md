@@ -50,17 +50,47 @@ This is a **Session Co-Pilot** application for Applied Behavior Analysis (ABA) t
 -   `api/src/services/cosmosDb.ts`: Cosmos DB operations for users/orgs/audit logs
 -   `api/src/utils/auth.ts`: JWT generation, password hashing, permissions, cookie helpers
 
+- **API:** Azure Functions in `api/` automatically deploy with the Static Web App.
+- **Architectural Showcase Features:**
+    - `src/pages/ArchitecturePage.tsx`: Detailed system architecture and data flow.
+    - `src/components/RoleToggle.tsx`: Floating widget to switch roles (Admin/BCBA/RBT) for demonstration or testing.
+
+## Agent Verification & Playwright Guide
+Mandatory instructions for AI agents to ensure successful feature verification and E2E testing:
+
+1.  **Dev Server Port:** Always start the local server with `npm run dev -- --port 5173`.
+    - **Critical:** Vite may jump to port 5174 if 5173 is occupied. Playwright is configured for 5173; port jumping will cause `net::ERR_CONNECTION_REFUSED`.
+2.  **Role-Based Verification:** 
+    - The application uses strict RBAC. To verify "System Architecture" or "Billing" features, you **must** use the **Role Toggle** widget (bottom left) to switch to the `BCBA` or `Manager` role.
+    - Path `/architecture` only appears in the menu for `BCBA`.
+    - Path `/admin/billing` only appears for `Manager`.
+
+## Playwright Setup
+To run E2E tests locally as an agent:
+1.  **Base URL Documentation:** Ensure `playwright.config.ts` matches the dev server port:
+    ```typescript
+    use: {
+      baseURL: 'http://localhost:5173',
+    },
+    webServer: {
+      command: 'npm run dev -- --port 5173',
+      url: 'http://localhost:5173',
+      reuseExistingServer: true,
+    },
+    ```
+2.  **Verification Steps:** If a test fails with "navigation failed," immediately check if `npm run dev` is running on the correct port in the background.
+
 ## "Oh Crap" Protocol
-If the user reports a "bug" or "crash":
+If the user or tests report a "bug" or "crash":
 1.  Check `useSyncStore` for offline status.
 2.  Check Dexie.js transaction failures.
-3.  Verify the LLM token in `.env` (or CI/CD secrets).
+3.  Verify the LLM token in `.env`.
+4.  **Role Toggle Missing?** Ensure `App.tsx` renders `<RoleToggle />` outside the main layout container.
+5.  **Browser Tool Fails?** Ensure the dev server wasn't started on port 5174.
 
 ## Deployment
 -   **CI/CD:** GitHub Actions (`.github/workflows/azure-static-web-apps-*.yml`).
--   **Secrets:** Set as GitHub Repository Secrets:
-    -   `VITE_GITHUB_TOKEN` - GitHub Models API token
-    -   `COSMOS_CONNECTION_STRING` - Cosmos DB connection string (backend only)
-    -   `JWT_SECRET` - Secure string for token signing (backend only)
--   **Routing:** React Router handles frontend routing. Azure SWA config in `swa-cli.config.json`.
--   **API:** Azure Functions in `api/` automatically deploy with the Static Web App.
+-   **Secrets:** `VITE_GITHUB_TOKEN`, `COSMOS_CONNECTION_STRING`, `JWT_SECRET`.
+-   **Routing:** React Router + `staticwebapp.config.json`.
+
+

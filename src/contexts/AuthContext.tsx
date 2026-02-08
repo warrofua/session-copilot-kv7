@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { User, Learner, Organization } from '../services/authService';
 export type { User };
@@ -152,8 +152,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, [user, logout]);
 
+    // Demo only: override role
+    const [demoRole, setDemoRole] = useState<'manager' | 'bcba' | 'rbt' | null>(null);
+
+    const effectiveUser = useMemo(() => {
+        if (!user) return null;
+        if (demoRole) {
+            return { ...user, role: demoRole };
+        }
+        return user;
+    }, [user, demoRole]);
+
     const value: AuthContextValue = {
-        user,
+        user: effectiveUser,
         learners,
         organization,
         isLoading,
@@ -162,7 +173,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
-        refreshUser
+        refreshUser,
+        // @ts-ignore - appending invisible demo prop
+        setDemoRole
     };
 
     return (

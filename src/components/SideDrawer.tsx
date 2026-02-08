@@ -122,6 +122,9 @@ export function SideDrawer({ isOpen, onClose, currentSessionId }: SideDrawerProp
                                     User Management
                                 </button>
                             )}
+                            <button className="drawer-nav-btn architecture" onClick={() => navigateTo('/architecture')} style={{ marginTop: '8px', borderStyle: 'dashed' }}>
+                                ⚙️ System Architecture
+                            </button>
                         </div>
                     </section>
 

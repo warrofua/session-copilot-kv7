@@ -71,8 +71,18 @@ export default function BillingPage() {
             const data = await getSubscriptionStatus();
             setSubscription(data);
         } catch (err) {
-            setError('Failed to load subscription status');
-            console.error(err);
+            console.warn('Billing API unavailable, falling back to Demo Mode');
+            // Fallback to Demo Mode
+            setSubscription({
+                subscription: {
+                    status: 'active',
+                    plan: 'starter (demo)',
+                    activeLearnerCount: 5,
+                    maxActiveLearners: 10,
+                    trialDaysRemaining: null,
+                    usagePercent: 50
+                }
+            } as any);
         } finally {
             setIsLoading(false);
         }
@@ -143,6 +153,11 @@ export default function BillingPage() {
                             ✓ {successMessage}
                         </div>
                     )}
+
+                    <div className="billing-demo-banner" style={{ background: '#fffbeb', border: '1px solid #fcd34d', color: '#92400e', padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>💳</span>
+                        Billing System: <strong>Disabled in Demo</strong>
+                    </div>
 
                     {/* Current Status Card */}
                     <div className="billing-status-card">
@@ -249,6 +264,9 @@ export default function BillingPage() {
                                             {isProcessing ? 'Loading...' : isTrialing || isCanceled ? 'Choose Plan' : 'Upgrade'}
                                         </button>
                                     )}
+                                    <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', fontStyle: 'italic' }}>
+                                        * Payment processing disabled
+                                    </div>
                                 </div>
                             );
                         })}

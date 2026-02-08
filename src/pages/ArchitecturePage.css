@@ -1,0 +1,244 @@
+/* Architecture Page Styles */
+.architecture-page {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.arch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3rem;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 1.5rem;
+}
+
+.arch-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0;
+    letter-spacing: -0.05rem;
+}
+
+.arch-subtitle {
+    font-size: 1.1rem;
+    color: #64748b;
+    margin-top: 0.5rem;
+}
+
+.arch-close-btn {
+    padding: 0.75rem 1.5rem;
+    background-color: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.arch-close-btn:hover {
+    background-color: #f1f5f9;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+}
+
+.arch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+}
+
+.arch-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f5f9;
+    transition: transform 0.2s;
+}
+
+.arch-section:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.5rem;
+    color: #0f172a;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f8fafc;
+}
+
+.section-title .icon {
+    font-size: 1.5rem;
+}
+
+/* Tech Stack Cards */
+.card-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.tech-card {
+    background: #f8fafc;
+    padding: 1.25rem;
+    border-radius: 12px;
+    border-left: 4px solid #3b82f6;
+}
+
+.tech-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+    color: #334155;
+}
+
+.tags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.tag {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.tag.react { background: #e0f2fe; color: #0369a1; }
+.tag.vite { background: #fdf4ff; color: #a21caf; }
+.tag.ts { background: #eff6ff; color: #1d4ed8; }
+.tag.zustand { background: #f0fdf4; color: #15803d; }
+.tag.dexie { background: #fefce8; color: #a16207; }
+.tag.pwa { background: #fff1f2; color: #be123c; }
+.tag.llm { background: #f5f3ff; color: #6d28d9; }
+.tag.regex { background: #fffbeb; color: #b45309; }
+
+.tech-card p {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Data Flow Diagram */
+.flow-diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.flow-step {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    background: #fff;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.step-number {
+    background: #0f172a;
+    color: white;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.step-content h4 {
+    margin: 0 0 0.25rem 0;
+    color: #334155;
+}
+
+.step-content p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.flow-arrow {
+    color: #cbd5e1;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+/* Security Features */
+.feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.feature-item h4 {
+    margin: 0 0 0.5rem 0;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+}
+
+.feature-item h4::before {
+    content: "✓";
+    color: #10b981;
+    margin-right: 0.5rem;
+    font-weight: bold;
+}
+
+.feature-item p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.95rem;
+    padding-left: 1.5rem;
+    line-height: 1.5;
+}
+
+.rbac-preview {
+    margin-top: 0.75rem;
+    padding-left: 1.5rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.role-chip {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.role-chip.admin { background: #1e293b; color: white; }
+.role-chip.bcba { background: #3b82f6; color: white; }
+.role-chip.rbt { background: #64748b; color: white; }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .arch-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .arch-title {
+        font-size: 1.75rem;
+    }
+}
