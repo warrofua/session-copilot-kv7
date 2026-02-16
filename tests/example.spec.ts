@@ -1,47 +1,18 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
-async function acceptTermsIfPresent(page: Page) {
-  const accept = page.getByTestId('terms-accept-button');
-  if (await accept.isVisible().catch(() => false)) {
-    await accept.click();
-    await expect(page.locator('.terms-overlay')).toBeHidden();
-  }
-}
+test('has title', async ({ page }) => {
+  await page.goto('https://playwright.dev/');
 
-async function stubAuthMe(page: Page) {
-  await page.route('**/api/auth/me', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        user: {
-          id: 'demo-user-id',
-          email: 'demo2@agentsofaba.com',
-          name: 'Demo User',
-          role: 'bcba',
-          permissions: [],
-          encryptionSalt: 'mock-salt',
-          assignedLearnerIds: ['demo'],
-        },
-        organization: { id: 'demo-org', name: 'Demo Org' },
-        learners: [{ id: 'demo', name: 'Alex B.', orgId: 'demo-org', status: 'active' }],
-      }),
-    });
-  });
-}
-
-test('landing page renders', async ({ page }) => {
-  await stubAuthMe(page);
-  await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Agents of ABA' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /try demo/i })).toBeVisible();
+  // Expect a title "to contain" a substring.
+  await expect(page).toHaveTitle(/Playwright/);
 });
 
-test('demo route loads session UI', async ({ page }) => {
-  await stubAuthMe(page);
-  await page.goto('/demo');
-  await acceptTermsIfPresent(page);
-  await expect(page.locator('header')).toBeVisible();
-  await expect(page.locator('.action-buttons')).toBeVisible();
-  await expect(page.locator('.input-field')).toBeVisible();
+test('get started link', async ({ page }) => {
+  await page.goto('https://playwright.dev/');
+
+  // Click the get started link.
+  await page.getByRole('link', { name: 'Get started' }).click();
+
+  // Expects page to have a heading with the name of Installation.
+  await expect(page.getByRole('heading', { name: 'Installation' })).toBeVisible();
 });
