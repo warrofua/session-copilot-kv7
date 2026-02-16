@@ -153,7 +153,7 @@ export async function generateNoteDraft(
     const token = getApiToken();
 
     if (!token) {
-        return mockGenerateNote(behaviors, skillTrials, clientName);
+        return mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
     }
 
     try {
@@ -199,6 +199,61 @@ function mockParseInput(input: string): ParsedInput {
     const skillTrials: ParsedInput['skillTrials'] = [];
     let reinforcement: ParsedInput['reinforcement'] | undefined;
 
+    const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const includesKeyword = (source: string, keyword: string): boolean => {
+        const normalized = keyword.toLowerCase().trim();
+        if (!normalized) return false;
+
+        // Match whole words for single-token keywords to avoid false positives like "mand" in "demand".
+        if (!normalized.includes(' ')) {
+            return new RegExp(`\\b${escapeRegex(normalized)}\\b`).test(source);
+        }
+
+        // For simple phrases, tolerate flexible whitespace while keeping word boundaries.
+        const phrase = escapeRegex(normalized).replace(/\\s+/g, '\\\\s+');
+        return new RegExp(`\\b${phrase}\\b`).test(source);
+    };
+
+    const isLikelySkillPhrase = (phrase: string): boolean => {
+        const normalized = phrase.toLowerCase().replace(/^to\s+/, '').trim();
+        if (!normalized) return false;
+
+        const disallowedPatterns = [
+            /\bavoid\b/,
+            /\bescape\b/,
+            /\brefus(?:al|ed)?\b/,
+            /\bnon[-\s]?compliance\b/,
+            /\btantrum\b/,
+            /\baggression\b/,
+            /\bscream(?:ed|ing)?\b/,
+            /\bcry(?:ing|ied)?\b/,
+            /\bhit(?:ting)?\b/,
+            /\bkick(?:ing)?\b/,
+            /\bbite(?:d|ing)?\b/,
+            /\bscratch(?:ed|ing)?\b/,
+            /\belop(?:ement|ed|ing)?\b/,
+            /\bsib\b/,
+            /\bstim(?:ming)?\b/,
+        ];
+        if (disallowedPatterns.some((pattern) => pattern.test(normalized))) {
+            return false;
+        }
+
+        const fillerWords = new Set(['the', 'a', 'an', 'and', 'with', 'on', 'for', 'of']);
+        const tokens = normalized
+            .split(/\s+/)
+            .filter(Boolean)
+            .filter((token) => !fillerWords.has(token));
+
+        if (tokens.length === 0) return false;
+        if (tokens.length === 1 && ['task', 'work', 'instruction', 'behavior', 'compliance'].includes(tokens[0])) {
+            return false;
+        }
+
+        return true;
+    };
+
     // --- Behavior Detection ---
     const behaviorPatterns = [
         { type: 'elopement', keywords: ['elopement', 'ran away', 'bolted', 'left room'] },
@@ -206,7 +261,7 @@ function mockParseInput(input: string): ParsedInput {
         { type: 'aggression', keywords: ['aggression', 'hit', 'kick', 'bite', 'scratch', 'pinch'] },
         { type: 'SIB', keywords: ['sib', 'self-injur', 'head bang', 'bit hand', 'bit self'] },
         { type: 'property_destruction', keywords: ['property destruction', 'threw', 'broke', 'ripped'] },
-        { type: 'refusal', keywords: ['refusal', 'non-compliance', 'no', 'refused'] },
+        { type: 'refusal', keywords: ['refusal', 'non-compliance', 'non compliance', 'refused', 'would not', 'did not comply', 'declined'] },
         { type: 'stereotypy', keywords: ['stereotypy', 'stimming', 'hand flap', 'rocking'] }
     ];
 
@@ -233,101 +288,179 @@ function mockParseInput(input: string): ParsedInput {
 
     // --- Skill Trial Detection ---
     // Add "tried", "practiced", "worked on" to keywords
-    const skillKeywords = ['trial', 'skill', 'target', 'dtt', 'matching', 'imitation', 'labeling', 'mand', 'tact', 'tried', 'practiced', 'worked on'];
-    const hasSkillKeyword = skillKeywords.some(k => lowerInput.includes(k));
+    const skillKeywords = ['trial', 'tr', 'skill', 'dtt', 'matching', 'imitation', 'labeling', 'label', 'mand', 'tact', 'tried', 'practiced', 'worked on'];
+    const shorthandMatch = input.match(/\btr\b(?=\s+[a-z0-9])/i);
+    const labelAliasMatch = /\blabel(?:ed|ing|s)?\b/i.test(input);
+    const hasSkillKeyword = skillKeywords.some((k) => includesKeyword(lowerInput, k)) || !!shorthandMatch || labelAliasMatch;
 
     if (hasSkillKeyword) {
         let skill = 'Unknown Skill';
         let target = 'Current Target'; // Default to generic
         let response = 'Incorrect'; // Default to incorrect (conservative)
         let promptLevel: string | undefined;
+        let shouldCreateSkillTrial = true;
 
         // 1. Extract Skill Name
-        // First try to find a known keyword that isn't generic
-        const specificSkill = skillKeywords.find(k =>
-            lowerInput.includes(k) && !['trial', 'skill', 'target', 'tried', 'practiced', 'worked on'].includes(k)
+        // First try to find a known keyword that isn't generic.
+        const specificSkill = skillKeywords.find((k) =>
+            includesKeyword(lowerInput, k) && !['trial', 'tr', 'skill', 'tried', 'practiced', 'worked on'].includes(k)
         );
+        const matchedSpecificSkill = specificSkill || (labelAliasMatch ? 'label' : undefined) || (shorthandMatch ? 'tr' : undefined);
+        const canonicalizeSkill = (skillName: string): string => {
+            if (skillName === 'trial' || skillName === 'tr') return 'Generic Trial';
+            if (skillName === 'label') return 'Labeling';
+            return skillName.charAt(0).toUpperCase() + skillName.slice(1);
+        };
+        const genericSkillMatch = input.match(/\b(?:skill|trial|tr)\s*[-:]\s*([^,]+)/i);
 
-        if (specificSkill) {
-            skill = specificSkill.charAt(0).toUpperCase() + specificSkill.slice(1);
-        } else if (lowerInput.includes('trial') && !lowerInput.includes('tried')) {
+        if (matchedSpecificSkill) {
+            skill = canonicalizeSkill(matchedSpecificSkill);
+        } else if (includesKeyword(lowerInput, 'trial') && !includesKeyword(lowerInput, 'tried')) {
             skill = 'Generic Trial';
         } else {
-            // Heuristic for "tried X" or "practiced X"
-            // Capture everything until a comma, stop word, or end of string
-            const actionMatch = input.match(/\b(tried|practiced|worked on)\s+([^,]+)/i);
-            if (actionMatch) {
-                let extracted = actionMatch[2].trim();
-                // Clean up trailing words if they made it in
-                const stopWords = [' with', ' using', ' but', ' and', ' they', ' he', ' she', ' which', ' needed'];
-                for (const word of stopWords) {
-                    const idx = extracted.toLowerCase().indexOf(word);
-                    if (idx !== -1) extracted = extracted.substring(0, idx);
-                }
-
-                if (extracted.length > 0) {
-                    skill = extracted.trim();
-                    skill = skill.charAt(0).toUpperCase() + skill.slice(1);
-                } else {
+            if (genericSkillMatch) {
+                const extractedSkill = genericSkillMatch[1]?.trim();
+                if (extractedSkill && isLikelySkillPhrase(extractedSkill)) {
                     skill = 'Generic Trial';
                 }
             } else {
-                skill = 'Generic Trial';
+                // Heuristic for "tried X" or "practiced X"
+                // Capture everything until a comma, stop word, or end of string
+                const actionMatch = input.match(/\b(tried|practiced|worked on)\s+([^,]+)/i);
+                if (actionMatch) {
+                    let extracted = actionMatch[2].trim();
+                    // Clean up trailing words if they made it in
+                    const stopWords = [' with', ' using', ' but', ' and', ' they', ' he', ' she', ' which', ' needed'];
+                    for (const word of stopWords) {
+                        const idx = extracted.toLowerCase().indexOf(word);
+                        if (idx !== -1) extracted = extracted.substring(0, idx);
+                    }
+
+                    if (extracted.length > 0 && isLikelySkillPhrase(extracted)) {
+                        skill = extracted.trim();
+                        skill = skill.charAt(0).toUpperCase() + skill.slice(1);
+                    } else {
+                        shouldCreateSkillTrial = false;
+                    }
+                } else {
+                    shouldCreateSkillTrial = false;
+                }
+            }
+
+            if (genericSkillMatch && genericSkillMatch[1] && !isLikelySkillPhrase(genericSkillMatch[1].trim())) {
+                shouldCreateSkillTrial = false;
             }
         }
+
+            if (!shouldCreateSkillTrial) {
+                // If we cannot confidently derive a skill target, skip logging.
+                shouldCreateSkillTrial = false;
+            }
         skill = skill.charAt(0).toUpperCase() + skill.slice(1);
 
         // 2. Extract Response
         // Priority: Incorrect/Error -> Prompted (treated as Incorrect) -> Correct
-        if (lowerInput.includes('incorrect') || lowerInput.includes('-') || lowerInput.includes('error') || lowerInput.includes('wrong')) {
+        if (
+            /\b(incorrect|wrong|error|inc|not\s+ind|not\s+independent|prompted|assisted|helped|physical)\b/i.test(
+                lowerInput
+            )
+        ) {
             response = 'Incorrect';
-        } else if (lowerInput.includes('prompt') || lowerInput.includes('help') || lowerInput.includes('assisted') || lowerInput.includes('physical') || lowerInput.includes('gestural') || lowerInput.includes('model') || lowerInput.includes('verbal')) {
+        } else if (
+            lowerInput.includes('prompt') || lowerInput.includes('help') || lowerInput.includes('assisted') || lowerInput.includes('physical') || lowerInput.includes('gestural') || lowerInput.includes('model') || lowerInput.includes('verbal')
+        ) {
             // Domain rule: Any urged/prompted trial is technically an incorrect independent response
             response = 'Incorrect';
-        } else if (lowerInput.includes('correct') || lowerInput.includes('+') || lowerInput.includes('independent') || lowerInput.includes('ind') || lowerInput.includes('right')) {
+        } else if (
+            /\b(correct|right|c\b|accurate|\+|independent|\bind\b|\bindep\w*\b)\b/i.test(
+                lowerInput
+            )
+        ) {
             response = 'Correct';
         }
 
-        if (lowerInput.includes('full physical') || lowerInput.includes('full-physical')) {
+        if (/\bfull\s*-?\s*(?:physical|phys)\b/.test(lowerInput) || /\bfull\s*p\b/.test(lowerInput)) {
             promptLevel = 'full-physical';
-        } else if (lowerInput.includes('partial physical') || lowerInput.includes('partial-physical')) {
+        } else if (/\bpartial\s*-?\s*(?:physical|phys)\b/.test(lowerInput) || /\bpart\s*p\b/.test(lowerInput)) {
             promptLevel = 'partial-physical';
-        } else if (lowerInput.includes('gestural')) {
+        } else if (/\bgest\b|\bgestural\b/.test(lowerInput)) {
             promptLevel = 'gestural';
-        } else if (lowerInput.includes('model')) {
+        } else if (/\bmodel\b/.test(lowerInput)) {
             promptLevel = 'model';
-        } else if (lowerInput.includes('verbal')) {
+        } else if (/\bverbal\b|\bv\b(?!\w)/.test(lowerInput)) {
             promptLevel = 'verbal';
         } else if (lowerInput.includes('prompt')) {
             promptLevel = 'verbal';
-        } else if (lowerInput.includes('independent') || lowerInput.includes('ind')) {
+        } else if (lowerInput.includes('independent') || /\bind\b/.test(lowerInput)) {
             promptLevel = 'independent';
         }
 
+        const targetDelimiters =
+            'correct|right|accurate|inc|incorrect|c\\b|wrong|error|prompted?|help(ed)?|assisted|full\\s*-?\\s*(?:phys|physical)|full\\s*p|partial\\s*-?\\s*(?:phys|physical)|part\\s*(?:p|phys)|gestural|model|verbal|\\bind\\b|\\bindep\\w*\\b|[.,;!?]|$';
+
         // 3. Extract Target
         const quoteMatch = input.match(/"([^"]+)"/);
-        const targetMatch = input.match(/target\s+(?:was\s+)?(\w+)/i);
-        const withTargetMatch = input.match(/\b(?:with|for)\s+([a-z0-9-]+)\s+(?:target|trial)?\b/i);
-        const trialTargetMatch = input.match(/trial\s+([a-z0-9-]+)/i);
+        const targetMatch = input.match(
+            new RegExp(`target\\s+(?:was\\s+)?([a-z0-9][a-z0-9\\s'-]*?)(?=\\s+(?:${targetDelimiters}))`, 'i')
+        );
+        const withTargetMatch = input.match(
+            new RegExp(`\\b(?:with|for)\\s+([a-z0-9][a-z0-9\\s'-]*?)(?=\\s+(?:${targetDelimiters}))`, 'i')
+        );
+        const trialTargetMatch = input.match(
+            new RegExp(`\\b(?:trial|tr)\\s+(?:on\\s+)?([a-z0-9][a-z0-9\\s'-]*?)(?=\\s+(?:${targetDelimiters}))`, 'i')
+        );
+        const skillSeparatorMatch = input.match(
+            new RegExp(
+                `\\b(?:skill|dtt|matching|imitation|labeling|mand|tact)\\b\\s*[-:]\\s*([^,.;!?]+?)(?=\\s+(?:${targetDelimiters}))`,
+                'i'
+            )
+        );
+        const shorthandTrialTargetMatch = input.match(
+            new RegExp(`\\b(?:${['matching', 'imitation', 'labeling', 'label', 'mand', 'tact', 'dtt'].join('|')})\\s+target\\s+([a-z0-9][a-z0-9\\s'-]*?)(?=\\s+(?:${targetDelimiters}))`, 'i')
+        );
+        const labelOnlyMatch = input.match(
+            new RegExp(`\\blabel(?:ed|ing)?\\s+([a-z0-9][a-z0-9\\s'-]*?)(?=\\s+(?:${targetDelimiters}))`, 'i')
+        );
+        const onTargetMatch = input.match(
+            new RegExp(
+                `\\b(?:imitation|matching|labeling|label|mand|tact|dtt)\\b(?:\\s+\\w+){0,2}\\s+on\\s+([a-z0-9][a-z0-9\\s'-]*?)(?=\\s+(?:${targetDelimiters}))`,
+                'i'
+            )
+        );
+        const bareSkillTargetMatch = input.match(
+            new RegExp(
+                `\\b(?:matching|imitation|labeling|label|mand|tact|dtt|generic trial|skill)\\b\\s+([a-z0-9][a-z0-9\\s'-]*?)(?=\\s+(?:${targetDelimiters}))`,
+                'i'
+            )
+        );
 
         const nonTargetTokens = new Set(['correct', 'incorrect', 'prompted', 'independent', 'error', 'wrong']);
         const pickTarget = (candidate?: string): string | null => {
             if (!candidate) return null;
-            const normalized = candidate.trim().toLowerCase();
-            return nonTargetTokens.has(normalized) ? null : candidate.trim();
+            const normalized = candidate.trim().replace(/\s*[-:]\s*$/, '').toLowerCase();
+            if (normalized.length === 0) return null;
+            if (nonTargetTokens.has(normalized)) return null;
+            return candidate.trim();
         };
 
         const extractedTarget =
             pickTarget(quoteMatch?.[1]) ??
             pickTarget(targetMatch?.[1]) ??
             pickTarget(withTargetMatch?.[1]) ??
-            pickTarget(trialTargetMatch?.[1]);
+            pickTarget(trialTargetMatch?.[1]) ??
+            pickTarget(shorthandTrialTargetMatch?.[1]) ??
+            pickTarget(labelOnlyMatch?.[1]) ??
+            pickTarget(onTargetMatch?.[1]) ??
+            pickTarget(bareSkillTargetMatch?.[1]) ??
+            pickTarget(skillSeparatorMatch?.[1]);
 
         if (extractedTarget) {
             target = extractedTarget;
         }
 
-        skillTrials.push({ skill, target, response, promptLevel });
+        if (shouldCreateSkillTrial) {
+            skillTrials.push({ skill, target, response, promptLevel });
+        }
     }
 
     // --- Reinforcement Detection ---

@@ -3,10 +3,6 @@ import { test, expect } from '@playwright/test';
 test('Caseload Navigator displays learners and expands to show session history', async ({ page }) => {
     test.setTimeout(30000);
 
-    // Debug requests
-    page.on('request', request => console.log('>>', request.method(), request.url()));
-    page.on('response', response => console.log('<<', response.status(), response.url()));
-
     // Set mobile viewport to ensure hamburger menu is visible
     await page.setViewportSize({ width: 375, height: 667 });
 
@@ -35,9 +31,8 @@ test('Caseload Navigator displays learners and expands to show session history',
         });
     });
 
-    // Navigate to /demo
-    // We use /demo to ensure encryption is auto-initialized, bypassing the offline lock
-    await page.goto('http://localhost:5174/demo');
+    // Navigate to /app (uses AuthProvider learners; encryption may remain locked, but drawer should still work)
+    await page.goto('/app');
 
     // Wait for standard elements
     await expect(page.locator('header')).toBeVisible();
