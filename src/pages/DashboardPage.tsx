@@ -62,6 +62,12 @@ const badgeClassByAlert = (alert: DashboardClientFeed['alertLevel']): string => 
   return 'stable'
 }
 
+const alertLabelByLevel: Record<AlertLevel, string> = {
+  critical: 'priority',
+  watch: 'focus',
+  stable: 'steady',
+}
+
 const byRecentTrial = (left: DashboardSignalSeries, right: DashboardSignalSeries): number =>
   right.lastUpdatedTick - left.lastUpdatedTick
 
@@ -265,8 +271,8 @@ export function DashboardPage() {
       <header className="dashboard-header">
         <div className="dashboard-title-block">
           <p className="dashboard-kicker">Agents of ABA</p>
-          <h1>BCBA Real-Time Monitor</h1>
-          <p>Live multi-client view for clinical trend detection with compact multi-signal cards.</p>
+          <h1>BCBA Live Overview</h1>
+          <p>A gentle, real-time snapshot of client progress and trends across the current caseload.</p>
         </div>
 
         <div className="dashboard-header-center">
@@ -276,11 +282,11 @@ export function DashboardPage() {
             onClick={handleAlertToggle}
             aria-expanded={isAlertMenuOpen}
           >
-            Alerts
+            Updates
             <span className="alert-pill">{unseenAlertCount > 99 ? '99+' : unseenAlertCount}</span>
           </button>
           <span className="alert-summary-text">
-            {view.watchCount} watch | {view.criticalCount} critical
+            {view.watchCount} focus | {view.criticalCount} priority
           </span>
 
           {isAlertMenuOpen ? (
@@ -290,7 +296,7 @@ export function DashboardPage() {
                   <li key={alert.id} className={badgeClassByAlert(alert.level)}>
                     <header>
                       <strong>{alert.moniker}</strong>
-                      <span>{alert.riskScore.toFixed(1)} risk</span>
+                      <span>{alert.riskScore.toFixed(1)} signal</span>
                     </header>
                     <p>{alert.summary}</p>
                     <footer>
@@ -301,7 +307,7 @@ export function DashboardPage() {
                 ))}
                 {alertInbox.length === 0 ? (
                   <li className="stable empty-alert-item">
-                    <p>No active alerts yet.</p>
+                    <p>No notable updates yet.</p>
                   </li>
                 ) : null}
               </ul>
@@ -371,9 +377,9 @@ export function DashboardPage() {
           <span>Simulated feed active</span>
         </article>
         <article>
-          <h3>Watch + Critical</h3>
+          <h3>Focus + Priority</h3>
           <p>{view.watchCount + view.criticalCount}</p>
-          <span>{view.criticalCount} critical signals</span>
+          <span>{view.criticalCount} priority updates</span>
         </article>
         <article>
           <h3>Avg Skill Accuracy</h3>
@@ -433,7 +439,9 @@ export function DashboardPage() {
                     </span>
                   </div>
                   <div className="client-card-badges">
-                    <em className={`alert-badge ${badgeClassByAlert(client.alertLevel)}`}>{client.alertLevel}</em>
+                    <em className={`alert-badge ${badgeClassByAlert(client.alertLevel)}`}>
+                      {alertLabelByLevel[client.alertLevel]}
+                    </em>
                     <span className={`celeration-pill ${celerationClass}`}>{celerationText}</span>
                   </div>
                 </header>

@@ -194,17 +194,17 @@ const computeCelerationMetrics = (points: DashboardPoint[]): { celerationValue: 
 const computeAttentionLabel = (riskScore: number, celerationValue: number): string => {
   if (riskScore >= 78) {
     if (celerationValue >= 1.08) {
-      return 'Escalating quickly'
+      return 'Rising trend'
     }
     if (celerationValue <= 0.93) {
-      return 'Decelerating'
+      return 'Settling trend'
     }
-    return 'High concern'
+    return 'Needs closer look'
   }
   if (riskScore >= 58) {
-    return celerationValue >= 1.04 ? 'Shift in baseline' : 'Needs watch'
+    return celerationValue >= 1.04 ? 'Baseline drift' : 'Monitor trend'
   }
-  return 'Within expected variance'
+  return 'Within expected range'
 }
 
 const computeAlertLevel = (riskScore: number): AlertLevel => {

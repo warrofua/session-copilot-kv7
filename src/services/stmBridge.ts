@@ -52,10 +52,10 @@ export const deriveHeuristicInsight = (input: StmInsightInput): StmInsight => {
   const riskScore = Number(scoreHeuristically(input).toFixed(2))
   const summary =
     riskScore >= 80
-      ? `${input.moniker}: high-priority shift detected. Recommend immediate BCBA review.`
+      ? `${input.moniker}: notable shift detected. A BCBA check-in may be helpful soon.`
       : riskScore >= 62
-      ? `${input.moniker}: trend is outside baseline. Queue targeted protocol check.`
-      : `${input.moniker}: stream is within expected variance.`
+      ? `${input.moniker}: trend is moving outside typical range. Consider a brief protocol review.`
+      : `${input.moniker}: trend is within expected range.`
 
   return {
     source: 'heuristic',
@@ -103,10 +103,10 @@ export const fetchStmInsight = async (input: StmInsightInput): Promise<StmInsigh
 
     const summary =
       riskScore >= 80
-        ? `${input.moniker}: STM flagged a high-risk semantic drift signature.`
+        ? `${input.moniker}: STM noticed a meaningful pattern shift; consider a clinical review.`
         : riskScore >= 62
-        ? `${input.moniker}: STM detected elevated semantic drift. Review protocol fidelity.`
-        : `${input.moniker}: STM signal is stable with no major drift.`
+        ? `${input.moniker}: STM detected mild drift. A quick fidelity check may help.`
+        : `${input.moniker}: STM signal is steady with no major drift.`
 
     return {
       source: 'stm-api',
