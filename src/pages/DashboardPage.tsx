@@ -63,8 +63,8 @@ const badgeClassByAlert = (alert: DashboardClientFeed['alertLevel']): string => 
 }
 
 const alertLabelByLevel: Record<AlertLevel, string> = {
-  critical: 'priority',
-  watch: 'focus',
+  critical: 'review',
+  watch: 'monitor',
   stable: 'steady',
 }
 
@@ -271,8 +271,8 @@ export function DashboardPage() {
       <header className="dashboard-header">
         <div className="dashboard-title-block">
           <p className="dashboard-kicker">Agents of ABA</p>
-          <h1>BCBA Live Overview</h1>
-          <p>A gentle, real-time snapshot of client progress and trends across the current caseload.</p>
+          <h1>Clinical Session Overview</h1>
+          <p>Calm, real-time visibility into client progress and session trends across the caseload.</p>
         </div>
 
         <div className="dashboard-header-center">
@@ -282,11 +282,11 @@ export function DashboardPage() {
             onClick={handleAlertToggle}
             aria-expanded={isAlertMenuOpen}
           >
-            Updates
+            Inbox
             <span className="alert-pill">{unseenAlertCount > 99 ? '99+' : unseenAlertCount}</span>
           </button>
           <span className="alert-summary-text">
-            {view.watchCount} focus | {view.criticalCount} priority
+            {view.totalClients} active | {view.watchCount} monitor | {view.criticalCount} review
           </span>
 
           {isAlertMenuOpen ? (
@@ -307,7 +307,7 @@ export function DashboardPage() {
                 ))}
                 {alertInbox.length === 0 ? (
                   <li className="stable empty-alert-item">
-                    <p>No notable updates yet.</p>
+                    <p>No new items right now.</p>
                   </li>
                 ) : null}
               </ul>
@@ -316,8 +316,8 @@ export function DashboardPage() {
         </div>
 
         <div className="dashboard-header-actions">
-          <span className="demo-pill">DEMO STREAM</span>
-          <span className={`stm-pill ${stmStatus}`}>STM {stmStatus.toUpperCase()}</span>
+          <span className="demo-pill">Demo</span>
+          <span className={`stm-pill ${stmStatus}`}>STM {stmStatus === 'connected' ? 'Connected' : stmStatus === 'fallback' ? 'Fallback' : 'Warming'}</span>
           <button type="button" className="back-button" onClick={() => navigate('/demo')}>
             Back to Demo
           </button>
@@ -326,7 +326,7 @@ export function DashboardPage() {
 
       <section className="dashboard-controls" aria-label="Dashboard controls">
         <label>
-          Update Interval
+          Refresh
           <select value={intervalSeconds} onChange={(event) => setIntervalSeconds(Number(event.target.value))}>
             <option value={1}>1s</option>
             <option value={2}>2s</option>
@@ -338,7 +338,7 @@ export function DashboardPage() {
           </select>
         </label>
         <label>
-          Signals per Chart
+          Lines per Chart
           <select value={signalLines} onChange={(event) => setSignalLines(Number(event.target.value))}>
             <option value={2}>2 lines</option>
             <option value={3}>3 lines</option>
@@ -346,7 +346,7 @@ export function DashboardPage() {
           </select>
         </label>
         <label>
-          Session Zoom
+          History Window
           <select value={sessionZoomDays} onChange={(event) => handleZoomDaysChange(Number(event.target.value))}>
             <option value={3}>3 days</option>
             <option value={5}>5 days</option>
@@ -354,7 +354,7 @@ export function DashboardPage() {
           </select>
         </label>
         <label>
-          Simulated Clients
+          Clients in View
           <input
             type="range"
             min={8}
@@ -366,7 +366,7 @@ export function DashboardPage() {
           <span>{clientCount}</span>
         </label>
         <button type="button" className="run-toggle" onClick={() => setIsRunning((previous) => !previous)}>
-          {isRunning ? 'Pause Stream' : 'Resume Stream'}
+          {isRunning ? 'Pause Updates' : 'Resume Updates'}
         </button>
       </section>
 
@@ -374,22 +374,22 @@ export function DashboardPage() {
         <article>
           <h3>Clients Online</h3>
           <p>{view.totalClients}</p>
-          <span>Simulated feed active</span>
+          <span>Demo stream active</span>
         </article>
         <article>
-          <h3>Focus + Priority</h3>
+          <h3>Monitor + Review</h3>
           <p>{view.watchCount + view.criticalCount}</p>
-          <span>{view.criticalCount} priority updates</span>
+          <span>{view.criticalCount} clients to review</span>
         </article>
         <article>
           <h3>Avg Skill Accuracy</h3>
           <p>{view.averageSkillAccuracy.toFixed(1)}%</p>
-          <span>Across active panel</span>
+          <span>Across active clients</span>
         </article>
         <article>
           <h3>Avg Behavior Rate</h3>
           <p>{view.averageBehaviorRate.toFixed(1)}/hr</p>
-          <span>Composite behavior stream</span>
+          <span>Across active clients</span>
         </article>
       </section>
 
@@ -449,6 +449,7 @@ export function DashboardPage() {
                 <div className="client-card-main">
                   <div className="client-signal-grid">
                     <div className="metric-block compact">
+                      <p className="signal-title">Behavior Trends</p>
                       <span>{latest.behaviorRatePerHour.toFixed(1)}/hr</span>
                       <Sparkline
                         className="multi-sparkline"
@@ -460,6 +461,7 @@ export function DashboardPage() {
                       />
                     </div>
                     <div className="metric-block compact">
+                      <p className="signal-title">Skill Trends</p>
                       <span>{latest.skillAccuracyPct.toFixed(1)}%</span>
                       <Sparkline
                         className="multi-sparkline"
@@ -473,6 +475,7 @@ export function DashboardPage() {
                   </div>
 
                   <aside className="client-card-note">
+                    <h4>Clinical Note</h4>
                     <p>{noteText}</p>
                     <span>{insight.source === 'stm-api' ? 'stm-api' : 'heuristic'} | {formatMsAgo(latest.timestampMs)}</span>
                   </aside>
