@@ -284,7 +284,6 @@ export function DashboardPage() {
         <div className="dashboard-title-block">
           <p className="dashboard-kicker">Agents of ABA</p>
           <h1>Clinical Session Overview</h1>
-          <p>Calm, real-time visibility into client progress and session trends across the caseload.</p>
         </div>
 
         <div className="dashboard-header-center">
