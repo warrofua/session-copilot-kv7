@@ -67,6 +67,10 @@ type InternalClientState = {
   promptTrend: number
   trendTicksRemaining: number
   stabilityBias: number
+  activeSkillProgramIndex: number
+  skillProgramTicksRemaining: number
+  skillProgramSignalIds: string[][]
+  behaviorFocusSignalIds: string[]
   points: DashboardPoint[]
   skillSignals: InternalSignalState[]
   behaviorSignals: InternalSignalState[]
@@ -87,6 +91,9 @@ const DEFAULT_SESSION_ZOOM_DAYS = 5
 const SESSION_SNAPSHOTS_PER_DAY = 12
 const PRELOAD_TICK_SECONDS = 15
 const FIELD_ADVANCE_PROBABILITY = 0.25
+const SKILL_PROGRAM_SIZE = 3
+const SKILL_PROGRAM_MIN_TICKS = 14
+const SKILL_PROGRAM_MAX_TICKS = 28
 
 const reinforcers = [
   'token board',
@@ -128,6 +135,13 @@ const round = (value: number): number => Number(value.toFixed(2))
 const smoothToward = (previous: number, target: number, alpha: number, maxDelta: number): number => {
   const blended = previous + (target - previous) * alpha
   return clamp(blended, previous - maxDelta, previous + maxDelta)
+}
+
+const takeWrapped = <T>(items: T[], startIndex: number, count: number): T[] => {
+  if (items.length === 0 || count <= 0) {
+    return []
+  }
+  return Array.from({ length: count }, (_, index) => items[(startIndex + index) % items.length])
 }
 
 const nextSeed = (seed: number): number => {
@@ -270,6 +284,47 @@ const createSignalStates = (
   return { signals, seed: currentSeed }
 }
 
+const buildSignalOrder = (seed: number, signalIds: string[]): { ordered: string[]; seed: number } => {
+  if (signalIds.length === 0) {
+    return { ordered: [], seed }
+  }
+
+  let currentSeed = seed
+  const startRand = randFromSeed(currentSeed)
+  currentSeed = startRand.seed
+  const startIndex = Math.floor(startRand.value * signalIds.length) % signalIds.length
+
+  return {
+    ordered: signalIds.map((_, index) => signalIds[(startIndex + index) % signalIds.length]),
+    seed: currentSeed,
+  }
+}
+
+const createSkillPrograms = (seed: number): { programs: string[][]; seed: number } => {
+  const signalIds = skillCatalog.map((entry) => entry.signalId)
+  const orderedSignals = buildSignalOrder(seed, signalIds)
+
+  const programs = [
+    takeWrapped(orderedSignals.ordered, 0, SKILL_PROGRAM_SIZE),
+    takeWrapped(orderedSignals.ordered, 1, SKILL_PROGRAM_SIZE),
+    takeWrapped(orderedSignals.ordered, 2, SKILL_PROGRAM_SIZE),
+  ]
+
+  return {
+    programs,
+    seed: orderedSignals.seed,
+  }
+}
+
+const createBehaviorFocusSignals = (seed: number): { signalIds: string[]; seed: number } => {
+  const signalIds = behaviorCatalog.map((entry) => entry.signalId)
+  const orderedSignals = buildSignalOrder(seed, signalIds)
+  return {
+    signalIds: takeWrapped(orderedSignals.ordered, 0, Math.min(3, orderedSignals.ordered.length)),
+    seed: orderedSignals.seed,
+  }
+}
+
 const createClientState = (index: number, seed: number, timestampMs: number): { state: InternalClientState; seed: number } => {
   let currentSeed = seed
 
@@ -331,6 +386,18 @@ const createClientState = (index: number, seed: number, timestampMs: number): { 
   const behaviorsBuilt = createSignalStates(currentSeed, behaviorCatalog, behaviorBaseline, 3.2, 0.2, 20, 0.2)
   currentSeed = behaviorsBuilt.seed
 
+  const skillProgramsBuilt = createSkillPrograms(currentSeed)
+  currentSeed = skillProgramsBuilt.seed
+
+  const behaviorFocusBuilt = createBehaviorFocusSignals(currentSeed)
+  currentSeed = behaviorFocusBuilt.seed
+
+  const initialProgramDurationRand = randFromSeed(currentSeed)
+  currentSeed = initialProgramDurationRand.seed
+  const skillProgramTicksRemaining =
+    SKILL_PROGRAM_MIN_TICKS +
+    Math.floor(initialProgramDurationRand.value * (SKILL_PROGRAM_MAX_TICKS - SKILL_PROGRAM_MIN_TICKS + 1))
+
   const initialPoint = makeInitialPoint(timestampMs, behaviorBaseline, skillBaseline, promptBaseline)
 
   return {
@@ -350,6 +417,10 @@ const createClientState = (index: number, seed: number, timestampMs: number): { 
       promptTrend,
       trendTicksRemaining,
       stabilityBias,
+      activeSkillProgramIndex: 0,
+      skillProgramTicksRemaining,
+      skillProgramSignalIds: skillProgramsBuilt.programs,
+      behaviorFocusSignalIds: behaviorFocusBuilt.signalIds,
       points: [initialPoint],
       skillSignals: skillsBuilt.signals,
       behaviorSignals: behaviorsBuilt.signals,
@@ -386,9 +457,25 @@ const stepSignalGroup = (
   signals: InternalSignalState[],
   tick: number,
   seed: number,
-  cadenceFactor: number
+  cadenceFactor: number,
+  options?: {
+    focusedSignalIds?: Set<string>
+    focusedAdvanceBonus?: number
+    unfocusedAdvanceScale?: number
+    trendDriftScale?: number
+    noiseScale?: number
+    alphaScale?: number
+    maxDeltaScale?: number
+  }
 ): { signals: InternalSignalState[]; seed: number } => {
   let currentSeed = seed
+  const focusedSignalIds = options?.focusedSignalIds
+  const focusedAdvanceBonus = options?.focusedAdvanceBonus ?? 0
+  const unfocusedAdvanceScale = options?.unfocusedAdvanceScale ?? 1
+  const trendDriftScale = options?.trendDriftScale ?? 1
+  const noiseScale = options?.noiseScale ?? 1
+  const alphaScale = options?.alphaScale ?? 1
+  const maxDeltaScale = options?.maxDeltaScale ?? 1
 
   const nextSignals = signals.map((signal) => {
     const advanceRand = randFromSeed(currentSeed)
@@ -398,16 +485,24 @@ const stepSignalGroup = (
     const noiseB = randFromSeed(currentSeed)
     currentSeed = noiseB.seed
 
-    const shouldAdvance = advanceRand.value < FIELD_ADVANCE_PROBABILITY
-    const trendDrift = (noiseA.value - 0.5) * 0.06 * cadenceFactor
-    const nextTrend = clamp(signal.trend * 0.94 + trendDrift, -1.2, 1.2)
+    const isFocusedSignal = focusedSignalIds?.has(signal.signalId) ?? false
+    const advanceProbability = clamp(
+      isFocusedSignal
+        ? FIELD_ADVANCE_PROBABILITY + focusedAdvanceBonus
+        : FIELD_ADVANCE_PROBABILITY * unfocusedAdvanceScale,
+      0.01,
+      0.95
+    )
+    const shouldAdvance = advanceRand.value < advanceProbability
+    const trendDrift = (noiseA.value - 0.5) * 0.04 * cadenceFactor * trendDriftScale
+    const nextTrend = clamp(signal.trend * 0.96 + trendDrift, -1.2, 1.2)
 
-    const reversion = (signal.baseline - signal.value) * 0.06
-    const noise = (noiseB.value - 0.5) * 0.9 * cadenceFactor
-    const target = clamp(signal.value + nextTrend * 0.45 + reversion + noise, signal.min, signal.max)
+    const reversion = (signal.baseline - signal.value) * 0.08
+    const noise = (noiseB.value - 0.5) * 0.42 * cadenceFactor * noiseScale
+    const target = clamp(signal.value + nextTrend * 0.3 + reversion + noise, signal.min, signal.max)
 
-    const alpha = 0.16 * cadenceFactor
-    const maxDelta = 0.55 * cadenceFactor
+    const alpha = (0.11 + cadenceFactor * 0.06) * alphaScale
+    const maxDelta = (0.28 + cadenceFactor * 0.22) * maxDeltaScale
     const value = shouldAdvance ? round(smoothToward(signal.value, target, alpha, maxDelta)) : signal.value
 
     const history = [...signal.history, value].slice(-HISTORY_LIMIT)
@@ -441,12 +536,45 @@ const stepClient = (
   tickSeconds: number
 ): InternalClientState => {
   let seed = client.seed
-  const cadenceFactor = clamp(tickSeconds / 12, 0.08, 1.2)
+  const cadenceFactor = clamp(tickSeconds / 16, 0.07, 0.95)
 
-  const skillsUpdate = stepSignalGroup(client.skillSignals, tick, seed, cadenceFactor)
+  let activeSkillProgramIndex = client.activeSkillProgramIndex
+  let skillProgramTicksRemaining = client.skillProgramTicksRemaining
+  const skillProgramDurationRand = randFromSeed(seed)
+  seed = skillProgramDurationRand.seed
+
+  if (skillProgramTicksRemaining > 0) {
+    skillProgramTicksRemaining -= 1
+  } else {
+    activeSkillProgramIndex = (activeSkillProgramIndex + 1) % Math.max(1, client.skillProgramSignalIds.length)
+    skillProgramTicksRemaining =
+      SKILL_PROGRAM_MIN_TICKS +
+      Math.floor(skillProgramDurationRand.value * (SKILL_PROGRAM_MAX_TICKS - SKILL_PROGRAM_MIN_TICKS + 1))
+  }
+
+  const activeSkillSignals = new Set(client.skillProgramSignalIds[activeSkillProgramIndex] ?? [])
+  const behaviorFocusSignals = new Set(client.behaviorFocusSignalIds)
+
+  const skillsUpdate = stepSignalGroup(client.skillSignals, tick, seed, cadenceFactor, {
+    focusedSignalIds: activeSkillSignals,
+    focusedAdvanceBonus: 0.22,
+    unfocusedAdvanceScale: 0.18,
+    trendDriftScale: 0.88,
+    noiseScale: 0.82,
+    alphaScale: 0.9,
+    maxDeltaScale: 0.86,
+  })
   seed = skillsUpdate.seed
 
-  const behaviorsUpdate = stepSignalGroup(client.behaviorSignals, tick, seed, cadenceFactor)
+  const behaviorsUpdate = stepSignalGroup(client.behaviorSignals, tick, seed, cadenceFactor, {
+    focusedSignalIds: behaviorFocusSignals,
+    focusedAdvanceBonus: 0.2,
+    unfocusedAdvanceScale: 0.1,
+    trendDriftScale: 0.75,
+    noiseScale: 0.72,
+    alphaScale: 0.84,
+    maxDeltaScale: 0.78,
+  })
   seed = behaviorsUpdate.seed
 
   const noiseA = randFromSeed(seed)
@@ -601,6 +729,8 @@ const stepClient = (
     skillTrend,
     promptTrend,
     trendTicksRemaining,
+    activeSkillProgramIndex,
+    skillProgramTicksRemaining,
     points,
     skillSignals: skillsUpdate.signals,
     behaviorSignals: behaviorsUpdate.signals,
@@ -650,7 +780,7 @@ export const createDashboardSimulation = (
 export const tickDashboardSimulation = (
   previous: DashboardSimulationState,
   generatedAtMs: number = Date.now(),
-  tickSeconds: number = 15
+  tickSeconds: number = 3
 ): DashboardSimulationState => {
   const tick = previous.tick + 1
 

@@ -388,10 +388,7 @@
 }
 
 .client-card-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1.85fr) minmax(180px, 0.95fr);
-  gap: 0.6rem;
-  align-items: stretch;
+  display: block;
 }
 
 .metric-block {
@@ -419,7 +416,7 @@
 
 .multi-sparkline svg {
   width: 100%;
-  height: 54px;
+  height: 68px;
 }
 
 .sparkline-legend {
@@ -451,22 +448,66 @@
   white-space: nowrap;
 }
 
-.client-card-note {
-  border-radius: 10px;
-  border: 1px solid rgb(167 190 219 / 22%);
-  background: rgb(23 37 54 / 46%);
-  padding: 0.45rem 0.5rem;
-  display: grid;
-  align-content: center;
-  gap: 0.28rem;
+.client-card-note-shell {
+  display: flex;
+  align-items: stretch;
+  gap: 0.46rem;
 }
 
-.client-card-note h4 {
-  margin: 0;
+.client-card-note-toggle {
+  appearance: none;
+  min-width: 140px;
+  border-radius: 10px;
+  border: 1px solid rgb(167 190 219 / 24%);
+  background: rgb(23 37 54 / 38%);
+  color: rgb(226 232 240);
+  padding: 0.46rem 0.52rem;
+  display: grid;
+  gap: 0.16rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.client-card-note-toggle strong {
   font-size: 0.68rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: rgb(180 203 226);
+}
+
+.client-card-note-toggle span {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(148 163 184);
+}
+
+.client-card-note-toggle:hover,
+.client-card-note-toggle.expanded {
+  border-color: rgb(191 219 254 / 42%);
+  background: rgb(32 49 71 / 54%);
+}
+
+.client-card-note {
+  border-radius: 10px;
+  border: 1px solid rgb(167 190 219 / 22%);
+  background: rgb(23 37 54 / 50%);
+  padding: 0;
+  display: grid;
+  align-content: center;
+  gap: 0.26rem;
+  max-width: 0;
+  min-width: 0;
+  flex: 0 0 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-color: transparent;
+  transition:
+    max-width 220ms ease,
+    opacity 170ms ease,
+    padding 220ms ease,
+    border-color 180ms ease;
 }
 
 .client-card-note p {
@@ -475,7 +516,7 @@
   color: rgb(226 232 240);
   margin: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -485,6 +526,15 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: rgb(148 163 184);
+}
+
+.client-card-note.expanded {
+  max-width: 560px;
+  flex: 1 1 clamp(280px, 44%, 560px);
+  opacity: 1;
+  padding: 0.46rem 0.56rem;
+  border-color: rgb(167 190 219 / 22%);
+  pointer-events: auto;
 }
 
 .risk-high {
@@ -524,11 +574,20 @@
   }
 
   .client-card-main {
-    grid-template-columns: 1fr;
+    display: block;
   }
 
   .client-signal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .client-card-note-shell {
+    flex-direction: column;
+  }
+
+  .client-card-note,
+  .client-card-note.expanded {
+    max-width: 100%;
   }
 }
 

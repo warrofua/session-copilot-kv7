@@ -80,7 +80,7 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const [clientCount, setClientCount] = useState(14)
   const [sessionZoomDays, setSessionZoomDays] = useState(5)
-  const [intervalSeconds, setIntervalSeconds] = useState(1)
+  const [intervalSeconds, setIntervalSeconds] = useState(3)
   const [signalLines, setSignalLines] = useState(3)
   const [isRunning, setIsRunning] = useState(true)
   const [simulation, setSimulation] = useState(() => createDashboardSimulation(clientCount, Date.now(), Date.now(), 5))
@@ -88,6 +88,7 @@ export function DashboardPage() {
   const [isAlertMenuOpen, setIsAlertMenuOpen] = useState(false)
   const [unseenAlertCount, setUnseenAlertCount] = useState(0)
   const [alertInbox, setAlertInbox] = useState<AlertInboxItem[]>([])
+  const [expandedNoteClientId, setExpandedNoteClientId] = useState<string | null>(null)
   const previousAlertRef = useRef<Record<string, AlertSnapshot>>({})
 
   const handleClientCountChange = (nextCount: number) => {
@@ -96,6 +97,7 @@ export function DashboardPage() {
     setInsightsByClient({})
     setAlertInbox([])
     setUnseenAlertCount(0)
+    setExpandedNoteClientId(null)
     previousAlertRef.current = {}
   }
 
@@ -105,6 +107,7 @@ export function DashboardPage() {
     setInsightsByClient({})
     setAlertInbox([])
     setUnseenAlertCount(0)
+    setExpandedNoteClientId(null)
     previousAlertRef.current = {}
   }
 
@@ -328,7 +331,6 @@ export function DashboardPage() {
         <label>
           Refresh
           <select value={intervalSeconds} onChange={(event) => setIntervalSeconds(Number(event.target.value))}>
-            <option value={1}>1s</option>
             <option value={2}>2s</option>
             <option value={3}>3s</option>
             <option value={4}>4s</option>
@@ -424,6 +426,8 @@ export function DashboardPage() {
               stroke: signal.color,
             }))
             const noteText = formatAgentNote(client.moniker, insight.summary)
+            const noteMeta = `${insight.source === 'stm-api' ? 'stm-api' : 'heuristic'} | ${formatMsAgo(latest.timestampMs)}`
+            const isNoteExpanded = expandedNoteClientId === client.clientId
 
             const celerationText = `${formatCeleration(latest.celerationValue)}/min`
             const celerationClass =
@@ -473,11 +477,23 @@ export function DashboardPage() {
                       />
                     </div>
                   </div>
+                </div>
 
-                  <aside className="client-card-note">
-                    <h4>Clinical Note</h4>
+                <div className="client-card-note-shell">
+                  <button
+                    type="button"
+                    className={`client-card-note-toggle ${isNoteExpanded ? 'expanded' : ''}`}
+                    aria-expanded={isNoteExpanded}
+                    onClick={() =>
+                      setExpandedNoteClientId((previous) => (previous === client.clientId ? null : client.clientId))
+                    }
+                  >
+                    <strong>Clinical Note</strong>
+                    <span>{noteMeta}</span>
+                  </button>
+                  <aside className={`client-card-note ${isNoteExpanded ? 'expanded' : ''}`}>
                     <p>{noteText}</p>
-                    <span>{insight.source === 'stm-api' ? 'stm-api' : 'heuristic'} | {formatMsAgo(latest.timestampMs)}</span>
+                    <span>{noteMeta}</span>
                   </aside>
                 </div>
               </article>
