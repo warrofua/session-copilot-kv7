@@ -37,6 +37,11 @@ type InternalClientState = {
   skillBaseline: number
   promptBaseline: number
   phase: number
+  behaviorTrend: number
+  skillTrend: number
+  promptTrend: number
+  trendTicksRemaining: number
+  stabilityBias: number
   points: DashboardPoint[]
 }
 
@@ -173,6 +178,26 @@ const createClientState = (index: number, seed: number, timestampMs: number): { 
   currentSeed = phaseRand.seed
   const phase = 0.2 + phaseRand.value * 1.8
 
+  const trendRandA = randFromSeed(currentSeed)
+  currentSeed = trendRandA.seed
+  const behaviorTrend = (trendRandA.value - 0.5) * 0.08
+
+  const trendRandB = randFromSeed(currentSeed)
+  currentSeed = trendRandB.seed
+  const skillTrend = (0.5 - trendRandB.value) * 0.2
+
+  const trendRandC = randFromSeed(currentSeed)
+  currentSeed = trendRandC.seed
+  const promptTrend = (trendRandC.value - 0.5) * 0.22
+
+  const trendDurationRand = randFromSeed(currentSeed)
+  currentSeed = trendDurationRand.seed
+  const trendTicksRemaining = 5 + Math.floor(trendDurationRand.value * 8)
+
+  const stabilityRand = randFromSeed(currentSeed)
+  currentSeed = stabilityRand.seed
+  const stabilityBias = 0.62 + stabilityRand.value * 0.24
+
   const initialPoint = makeInitialPoint(timestampMs, behaviorBaseline, skillBaseline, promptBaseline)
 
   return {
@@ -187,6 +212,11 @@ const createClientState = (index: number, seed: number, timestampMs: number): { 
       skillBaseline,
       promptBaseline,
       phase,
+      behaviorTrend,
+      skillTrend,
+      promptTrend,
+      trendTicksRemaining,
+      stabilityBias,
       points: [initialPoint],
     },
     seed: currentSeed,
@@ -200,39 +230,101 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
   seed = noiseA.seed
   const noiseB = randFromSeed(seed)
   seed = noiseB.seed
-  const spikeRand = randFromSeed(seed)
-  seed = spikeRand.seed
+  const trendGateRand = randFromSeed(seed)
+  seed = trendGateRand.seed
+  const trendDurationRand = randFromSeed(seed)
+  seed = trendDurationRand.seed
+  const trendShapeRand = randFromSeed(seed)
+  seed = trendShapeRand.seed
 
   const previousPoint = client.points[client.points.length - 1]
 
+  let behaviorTrend = client.behaviorTrend
+  let skillTrend = client.skillTrend
+  let promptTrend = client.promptTrend
+  let trendTicksRemaining = client.trendTicksRemaining
+
+  if (trendTicksRemaining > 0) {
+    trendTicksRemaining -= 1
+    const trendNudge = (trendShapeRand.value - 0.5) * 0.015
+    behaviorTrend = clamp(behaviorTrend * 0.98 + trendNudge, -0.32, 0.32)
+    skillTrend = clamp(skillTrend * 0.98 - trendNudge * 1.6, -0.9, 0.9)
+    promptTrend = clamp(promptTrend * 0.98 + trendNudge * 1.2, -0.9, 0.9)
+  } else if (trendGateRand.value > 0.86) {
+    const direction = trendShapeRand.value >= 0.5 ? 1 : -1
+    const intensity = 0.08 + noiseA.value * 0.16
+    behaviorTrend = direction * intensity * client.volatility
+    skillTrend = clamp(-direction * (0.18 + noiseB.value * 0.45), -0.9, 0.9)
+    promptTrend = clamp(direction * (0.16 + noiseA.value * 0.38), -0.9, 0.9)
+    trendTicksRemaining = 6 + Math.floor(trendDurationRand.value * 10)
+  } else {
+    behaviorTrend *= 0.75
+    skillTrend *= 0.75
+    promptTrend *= 0.75
+  }
+
+  const quietTick = trendTicksRemaining === 0 && noiseB.value < client.stabilityBias
   const oscillation =
-    Math.sin((tick / 20) * client.phase) + Math.cos((tick / 24) * (client.phase + 0.25)) * 0.45
-  const randomShock = (noiseA.value - 0.5) * 1.1 * client.volatility
-  const driftEvent = spikeRand.value > 0.985 ? 0.8 + spikeRand.value * 0.9 : 0
+    Math.sin((tick / 36) * client.phase) * 0.35 + Math.cos((tick / 44) * (client.phase + 0.2)) * 0.2
 
   const behaviorTarget = clamp(
-    client.behaviorBaseline + oscillation * client.volatility * 0.6 + randomShock + driftEvent,
+    previousPoint.behaviorRatePerHour +
+      (client.behaviorBaseline - previousPoint.behaviorRatePerHour) * 0.03 +
+      behaviorTrend +
+      oscillation * client.volatility * 0.2 +
+      (noiseA.value - 0.5) * (quietTick ? 0.25 : 0.55) * client.volatility,
     0.2,
     20
   )
   const behaviorRate = clamp(
-    smoothToward(previousPoint.behaviorRatePerHour, behaviorTarget, 0.22, 0.6),
+    smoothToward(
+      previousPoint.behaviorRatePerHour,
+      behaviorTarget,
+      quietTick ? 0.18 : 0.24,
+      quietTick ? 0.25 : 0.5
+    ),
     0.2,
     20
   )
 
-  const skillDrift = Math.sin((tick / 22) * (client.phase * 0.8)) * 2.8 + (0.5 - noiseB.value) * 2.2
-  const skillTarget = clamp(client.skillBaseline - behaviorRate * 0.65 + skillDrift, 35, 99)
+  const skillTarget = clamp(
+    previousPoint.skillAccuracyPct +
+      (client.skillBaseline - previousPoint.skillAccuracyPct) * 0.04 +
+      skillTrend -
+      behaviorRate * 0.08 +
+      client.behaviorBaseline * 0.05 +
+      (0.5 - noiseB.value) * (quietTick ? 0.5 : 1),
+    35,
+    99
+  )
   const skillAccuracy = clamp(
-    smoothToward(previousPoint.skillAccuracyPct, skillTarget, 0.2, 1.1),
+    smoothToward(
+      previousPoint.skillAccuracyPct,
+      skillTarget,
+      quietTick ? 0.16 : 0.22,
+      quietTick ? 0.55 : 0.95
+    ),
     35,
     99
   )
 
-  const promptDrift = Math.cos((tick / 18) * client.phase) * 2.4 + behaviorRate * 1.15 + (noiseA.value - 0.5) * 2.5
-  const promptTarget = clamp(client.promptBaseline + promptDrift - skillAccuracy * 0.18, 5, 92)
+  const promptTarget = clamp(
+    previousPoint.promptDependencePct +
+      (client.promptBaseline - previousPoint.promptDependencePct) * 0.04 +
+      promptTrend +
+      behaviorRate * 0.18 -
+      skillAccuracy * 0.09 +
+      (noiseA.value - 0.5) * (quietTick ? 0.55 : 1.1),
+    5,
+    92
+  )
   const promptDependence = clamp(
-    smoothToward(previousPoint.promptDependencePct, promptTarget, 0.2, 1.2),
+    smoothToward(
+      previousPoint.promptDependencePct,
+      promptTarget,
+      quietTick ? 0.16 : 0.22,
+      quietTick ? 0.5 : 0.9
+    ),
     5,
     92
   )
@@ -256,6 +348,10 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
   return {
     ...client,
     seed,
+    behaviorTrend,
+    skillTrend,
+    promptTrend,
+    trendTicksRemaining,
     points,
   }
 }
