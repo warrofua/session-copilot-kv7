@@ -29,6 +29,8 @@ type AlertInboxItem = {
 }
 
 const DAY_WINDOW_MS = 86_400_000
+const WEEK_WINDOW_MS = DAY_WINDOW_MS * 7
+const BEHAVIOR_TREND_WINDOW_DAYS = 7
 
 type ReinforcerIconKey =
   | 'token'
@@ -116,6 +118,18 @@ const toSameDaySignalHistory = (client: DashboardClientFeed, signal: DashboardSi
   const dayStartTimestampMs = latestTimestampMs - DAY_WINDOW_MS
   const sameDayValues = signal.history.filter((_, index) => (client.points[index]?.timestampMs ?? 0) >= dayStartTimestampMs)
   return sameDayValues.length >= 2 ? sameDayValues : signal.history.slice(-12)
+}
+
+const toWindowSignalHistory = (
+  client: DashboardClientFeed,
+  signal: DashboardSignalSeries,
+  windowMs: number,
+  fallbackPoints: number
+): number[] => {
+  const latestTimestampMs = client.points[client.points.length - 1]?.timestampMs ?? Date.now()
+  const windowStartTimestampMs = latestTimestampMs - windowMs
+  const values = signal.history.filter((_, index) => (client.points[index]?.timestampMs ?? 0) >= windowStartTimestampMs)
+  return values.length >= 2 ? values : signal.history.slice(-fallbackPoints)
 }
 
 const hashClientKey = (value: string): number => {
@@ -276,11 +290,13 @@ function ReinforcerIcon({ iconKey }: { iconKey: ReinforcerIconKey }) {
 export function DashboardPage() {
   const navigate = useNavigate()
   const [clientCount, setClientCount] = useState(14)
-  const [sessionZoomDays, setSessionZoomDays] = useState(5)
+  const [sessionZoomDays, setSessionZoomDays] = useState(7)
   const [intervalSeconds, setIntervalSeconds] = useState(3)
   const [signalLines, setSignalLines] = useState(3)
   const [isRunning, setIsRunning] = useState(true)
-  const [simulation, setSimulation] = useState(() => createDashboardSimulation(clientCount, Date.now(), Date.now(), 5))
+  const [simulation, setSimulation] = useState(() =>
+    createDashboardSimulation(clientCount, Date.now(), Date.now(), BEHAVIOR_TREND_WINDOW_DAYS)
+  )
   const [insightsByClient, setInsightsByClient] = useState<Record<string, StmInsight>>({})
   const [isAlertMenuOpen, setIsAlertMenuOpen] = useState(false)
   const [unseenAlertCount, setUnseenAlertCount] = useState(0)
@@ -290,7 +306,7 @@ export function DashboardPage() {
 
   const handleClientCountChange = (nextCount: number) => {
     setClientCount(nextCount)
-    setSimulation(createDashboardSimulation(nextCount, Date.now(), Date.now(), sessionZoomDays))
+    setSimulation(createDashboardSimulation(nextCount, Date.now(), Date.now(), Math.max(sessionZoomDays, BEHAVIOR_TREND_WINDOW_DAYS)))
     setInsightsByClient({})
     setAlertInbox([])
     setUnseenAlertCount(0)
@@ -300,7 +316,9 @@ export function DashboardPage() {
 
   const handleZoomDaysChange = (nextZoomDays: number) => {
     setSessionZoomDays(nextZoomDays)
-    setSimulation(createDashboardSimulation(clientCount, Date.now(), Date.now(), nextZoomDays))
+    setSimulation(
+      createDashboardSimulation(clientCount, Date.now(), Date.now(), Math.max(nextZoomDays, BEHAVIOR_TREND_WINDOW_DAYS))
+    )
     setInsightsByClient({})
     setAlertInbox([])
     setUnseenAlertCount(0)
@@ -614,7 +632,7 @@ export function DashboardPage() {
             const behaviorSeries = behaviorSignals.map((signal) => ({
               id: signal.signalId,
               label: signal.label,
-              values: signal.history.slice(-36),
+              values: toWindowSignalHistory(client, signal, WEEK_WINDOW_MS, 84),
               stroke: signal.color,
             }))
             const skillSeries = skillSignals.map((signal) => ({
