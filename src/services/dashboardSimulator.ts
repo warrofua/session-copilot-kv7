@@ -110,7 +110,7 @@ const reinforcers = [
   'trampoline break',
 ]
 
-const ageTags = ['Tiny', 'Junior', 'Prime', 'Teen', 'Navigator', 'Anchor']
+const monikerRoots = ['Atlas', 'Cedar', 'Comet', 'Echo', 'Harbor', 'Jasper', 'Lumen', 'Mosaic', 'Nova', 'Orion', 'River', 'Summit']
 
 const skillCatalog: SignalCatalogEntry[] = [
   { signalId: 'receptive-id', label: 'Receptive ID', color: '#63b3ed' },
@@ -157,22 +157,11 @@ const randFromSeed = (seed: number): { seed: number; value: number } => {
   return { seed: updated, value: updated / 0xffffffff }
 }
 
-const buildMoniker = (ageYears: number, reinforcer: string, raw: number): string => {
-  const ageBand =
-    ageYears <= 5
-      ? ageTags[0]
-      : ageYears <= 8
-        ? ageTags[1]
-        : ageYears <= 11
-          ? ageTags[2]
-          : ageYears <= 14
-            ? ageTags[3]
-            : ageYears <= 16
-              ? ageTags[4]
-              : ageTags[5]
+const buildMoniker = (reinforcer: string, raw: number): string => {
+  const monikerRoot = monikerRoots[Math.floor(raw * monikerRoots.length) % monikerRoots.length]
   const reinforcerNoun = reinforcer.split(' ')[0]
   const suffix = Math.floor(raw * 90 + 10)
-  return `${ageBand}-${reinforcerNoun}-${suffix}`
+  return `${monikerRoot}-${reinforcerNoun}-${suffix}`
 }
 
 const computeCelerationMetrics = (points: DashboardPoint[]): { celerationValue: number; celerationDeltaPct: number } => {
@@ -338,7 +327,7 @@ const createClientState = (index: number, seed: number, timestampMs: number): { 
 
   const monikerRand = randFromSeed(currentSeed)
   currentSeed = monikerRand.seed
-  const moniker = buildMoniker(ageYears, reinforcer, monikerRand.value)
+  const moniker = buildMoniker(reinforcer, monikerRand.value)
 
   const behaviorRand = randFromSeed(currentSeed)
   currentSeed = behaviorRand.seed
