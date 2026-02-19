@@ -82,6 +82,10 @@ const HISTORY_LIMIT = 42
 const CELERATION_WINDOW_POINTS = 12
 const CELERATION_MIN_POINTS = 8
 const CELERATION_PERIOD_MS = 60_000
+const DAY_MS = 86_400_000
+const DEFAULT_SESSION_ZOOM_DAYS = 5
+const SESSION_SNAPSHOTS_PER_DAY = 12
+const PRELOAD_TICK_SECONDS = 15
 
 const reinforcers = [
   'token board',
@@ -353,6 +357,30 @@ const createClientState = (index: number, seed: number, timestampMs: number): { 
   }
 }
 
+const preloadClientHistory = (
+  client: InternalClientState,
+  startTick: number,
+  startTimestampMs: number,
+  endTimestampMs: number,
+  snapshots: number
+): { client: InternalClientState; tick: number } => {
+  if (snapshots <= 0) {
+    return { client, tick: startTick }
+  }
+
+  let tick = startTick
+  let nextClient = client
+  const intervalMs = Math.max(1, (endTimestampMs - startTimestampMs) / snapshots)
+
+  for (let index = 0; index < snapshots; index += 1) {
+    tick += 1
+    const timestampMs = Math.round(startTimestampMs + intervalMs * (index + 1))
+    nextClient = stepClient(nextClient, tick, timestampMs, PRELOAD_TICK_SECONDS)
+  }
+
+  return { client: nextClient, tick }
+}
+
 const stepSignalGroup = (
   signals: InternalSignalState[],
   tick: number,
@@ -581,21 +609,28 @@ const toSignalSeries = (signals: InternalSignalState[]): DashboardSignalSeries[]
 export const createDashboardSimulation = (
   clientCount: number,
   seed: number = Date.now(),
-  generatedAtMs: number = Date.now()
+  generatedAtMs: number = Date.now(),
+  sessionZoomDays: number = DEFAULT_SESSION_ZOOM_DAYS
 ): DashboardSimulationState => {
   const count = clamp(Math.floor(clientCount), 1, 60)
+  const zoomDays = clamp(Math.floor(sessionZoomDays), 1, 14)
+  const preloadSnapshots = Math.max(1, zoomDays * SESSION_SNAPSHOTS_PER_DAY)
+  const startTimestampMs = generatedAtMs - zoomDays * DAY_MS
   const clients: InternalClientState[] = []
   let currentSeed = seed >>> 0
+  let tick = 0
 
   for (let index = 0; index < count; index += 1) {
-    const built = createClientState(index, currentSeed, generatedAtMs)
-    clients.push(built.state)
+    const built = createClientState(index, currentSeed, startTimestampMs)
+    const preloaded = preloadClientHistory(built.state, 0, startTimestampMs, generatedAtMs, preloadSnapshots)
+    clients.push(preloaded.client)
+    tick = preloaded.tick
     currentSeed = built.seed
   }
 
   return {
     seed: currentSeed,
-    tick: 0,
+    tick,
     generatedAtMs,
     clients,
   }

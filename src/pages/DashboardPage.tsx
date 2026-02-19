@@ -68,10 +68,11 @@ const byRecentTrial = (left: DashboardSignalSeries, right: DashboardSignalSeries
 export function DashboardPage() {
   const navigate = useNavigate()
   const [clientCount, setClientCount] = useState(14)
+  const [sessionZoomDays, setSessionZoomDays] = useState(5)
   const [intervalSeconds, setIntervalSeconds] = useState(4)
   const [signalLines, setSignalLines] = useState(3)
   const [isRunning, setIsRunning] = useState(true)
-  const [simulation, setSimulation] = useState(() => createDashboardSimulation(clientCount, Date.now()))
+  const [simulation, setSimulation] = useState(() => createDashboardSimulation(clientCount, Date.now(), Date.now(), 5))
   const [insightsByClient, setInsightsByClient] = useState<Record<string, StmInsight>>({})
   const [isAlertMenuOpen, setIsAlertMenuOpen] = useState(false)
   const [unseenAlertCount, setUnseenAlertCount] = useState(0)
@@ -80,7 +81,16 @@ export function DashboardPage() {
 
   const handleClientCountChange = (nextCount: number) => {
     setClientCount(nextCount)
-    setSimulation(createDashboardSimulation(nextCount, Date.now()))
+    setSimulation(createDashboardSimulation(nextCount, Date.now(), Date.now(), sessionZoomDays))
+    setInsightsByClient({})
+    setAlertInbox([])
+    setUnseenAlertCount(0)
+    previousAlertRef.current = {}
+  }
+
+  const handleZoomDaysChange = (nextZoomDays: number) => {
+    setSessionZoomDays(nextZoomDays)
+    setSimulation(createDashboardSimulation(clientCount, Date.now(), Date.now(), nextZoomDays))
     setInsightsByClient({})
     setAlertInbox([])
     setUnseenAlertCount(0)
@@ -320,6 +330,14 @@ export function DashboardPage() {
             <option value={2}>2 lines</option>
             <option value={3}>3 lines</option>
             <option value={4}>4 lines</option>
+          </select>
+        </label>
+        <label>
+          Session Zoom
+          <select value={sessionZoomDays} onChange={(event) => handleZoomDaysChange(Number(event.target.value))}>
+            <option value={3}>3 days</option>
+            <option value={5}>5 days</option>
+            <option value={7}>7 days</option>
           </select>
         </label>
         <label>
