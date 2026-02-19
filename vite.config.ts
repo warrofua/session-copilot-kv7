@@ -22,6 +22,11 @@ export default defineConfig({
         target: 'http://localhost:7071',
         changeOrigin: true,
       },
+      '/stm': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/stm/, ''),
+      },
     },
   },
   test: {
