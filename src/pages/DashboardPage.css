@@ -385,10 +385,14 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .client-card-main {
-  display: block;
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
 }
 
 .metric-block {
@@ -451,41 +455,47 @@
 .client-card-note-shell {
   display: flex;
   align-items: stretch;
-  gap: 0.46rem;
+  gap: 0.28rem;
+  flex: 0 0 auto;
+  align-self: stretch;
 }
 
 .client-card-note-toggle {
   appearance: none;
-  min-width: 140px;
-  border-radius: 10px;
+  width: 42px;
+  min-width: 42px;
+  border-radius: 8px;
   border: 1px solid rgb(167 190 219 / 24%);
   background: rgb(23 37 54 / 38%);
   color: rgb(226 232 240);
-  padding: 0.46rem 0.52rem;
-  display: grid;
-  gap: 0.16rem;
-  text-align: left;
+  padding: 0.28rem 0.16rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: border-color 160ms ease, background-color 160ms ease;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
-.client-card-note-toggle strong {
-  font-size: 0.68rem;
-  letter-spacing: 0.03em;
+.open-rail-label {
+  font-size: 0.61rem;
+  font-weight: 750;
   text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgb(197 213 232);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
 }
 
-.client-card-note-toggle span {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: rgb(148 163 184);
+.client-card-note-toggle.pulse {
+  animation: note-rail-pulse 2.2s ease-in-out infinite;
 }
 
 .client-card-note-toggle:hover,
 .client-card-note-toggle.expanded {
   border-color: rgb(191 219 254 / 42%);
   background: rgb(32 49 71 / 54%);
+  box-shadow: 0 0 0 1px rgb(191 219 254 / 18%);
 }
 
 .client-card-note {
@@ -496,7 +506,7 @@
   display: grid;
   align-content: center;
   gap: 0.26rem;
-  max-width: 0;
+  width: 0;
   min-width: 0;
   flex: 0 0 0;
   opacity: 0;
@@ -504,7 +514,7 @@
   pointer-events: none;
   border-color: transparent;
   transition:
-    max-width 220ms ease,
+    width 220ms ease,
     opacity 170ms ease,
     padding 220ms ease,
     border-color 180ms ease;
@@ -529,12 +539,26 @@
 }
 
 .client-card-note.expanded {
-  max-width: 560px;
-  flex: 1 1 clamp(280px, 44%, 560px);
+  width: clamp(230px, 30vw, 460px);
+  flex: 0 0 clamp(230px, 30vw, 460px);
   opacity: 1;
   padding: 0.46rem 0.56rem;
   border-color: rgb(167 190 219 / 22%);
   pointer-events: auto;
+}
+
+@keyframes note-rail-pulse {
+  0%,
+  100% {
+    border-color: rgb(167 190 219 / 26%);
+    background: rgb(23 37 54 / 38%);
+    box-shadow: 0 0 0 0 rgb(191 219 254 / 0%);
+  }
+  50% {
+    border-color: rgb(191 219 254 / 45%);
+    background: rgb(38 58 82 / 56%);
+    box-shadow: 0 0 0 2px rgb(191 219 254 / 12%);
+  }
 }
 
 .risk-high {
@@ -582,12 +606,18 @@
   }
 
   .client-card-note-shell {
-    flex-direction: column;
+    margin-top: 0.46rem;
+    justify-content: flex-end;
   }
 
-  .client-card-note,
+  .client-card-note {
+    width: 0;
+    flex: 0 0 0;
+  }
+
   .client-card-note.expanded {
-    max-width: 100%;
+    width: min(100%, 420px);
+    flex: 0 1 min(100%, 420px);
   }
 }
 

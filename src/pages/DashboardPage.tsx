@@ -477,24 +477,26 @@ export function DashboardPage() {
                       />
                     </div>
                   </div>
-                </div>
 
-                <div className="client-card-note-shell">
-                  <button
-                    type="button"
-                    className={`client-card-note-toggle ${isNoteExpanded ? 'expanded' : ''}`}
-                    aria-expanded={isNoteExpanded}
-                    onClick={() =>
-                      setExpandedNoteClientId((previous) => (previous === client.clientId ? null : client.clientId))
-                    }
-                  >
-                    <strong>Clinical Note</strong>
-                    <span>{noteMeta}</span>
-                  </button>
-                  <aside className={`client-card-note ${isNoteExpanded ? 'expanded' : ''}`}>
-                    <p>{noteText}</p>
-                    <span>{noteMeta}</span>
-                  </aside>
+                  <div className="client-card-note-shell">
+                    <aside className={`client-card-note ${isNoteExpanded ? 'expanded' : ''}`}>
+                      <p>{noteText}</p>
+                      <span>{noteMeta}</span>
+                    </aside>
+                    <button
+                      type="button"
+                      className={`client-card-note-toggle ${isNoteExpanded ? 'expanded' : ''} ${
+                        !isNoteExpanded && client.alertLevel !== 'stable' ? 'pulse' : ''
+                      }`}
+                      aria-expanded={isNoteExpanded}
+                      aria-label={isNoteExpanded ? 'Close clinical note' : 'Open clinical note'}
+                      onClick={() =>
+                        setExpandedNoteClientId((previous) => (previous === client.clientId ? null : client.clientId))
+                      }
+                    >
+                      <span className="open-rail-label">OPEN</span>
+                    </button>
+                  </div>
                 </div>
               </article>
             )
