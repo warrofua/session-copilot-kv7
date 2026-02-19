@@ -69,7 +69,7 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const [clientCount, setClientCount] = useState(14)
   const [sessionZoomDays, setSessionZoomDays] = useState(5)
-  const [intervalSeconds, setIntervalSeconds] = useState(4)
+  const [intervalSeconds, setIntervalSeconds] = useState(1)
   const [signalLines, setSignalLines] = useState(3)
   const [isRunning, setIsRunning] = useState(true)
   const [simulation, setSimulation] = useState(() => createDashboardSimulation(clientCount, Date.now(), Date.now(), 5))
@@ -317,6 +317,8 @@ export function DashboardPage() {
         <label>
           Update Interval
           <select value={intervalSeconds} onChange={(event) => setIntervalSeconds(Number(event.target.value))}>
+            <option value={1}>1s</option>
+            <option value={2}>2s</option>
             <option value={3}>3s</option>
             <option value={4}>4s</option>
             <option value={5}>5s</option>

@@ -86,6 +86,7 @@ const DAY_MS = 86_400_000
 const DEFAULT_SESSION_ZOOM_DAYS = 5
 const SESSION_SNAPSHOTS_PER_DAY = 12
 const PRELOAD_TICK_SECONDS = 15
+const FIELD_ADVANCE_PROBABILITY = 0.25
 
 const reinforcers = [
   'token board',
@@ -385,36 +386,29 @@ const stepSignalGroup = (
   signals: InternalSignalState[],
   tick: number,
   seed: number,
-  cadenceFactor: number,
-  activationThreshold: number
+  cadenceFactor: number
 ): { signals: InternalSignalState[]; seed: number } => {
   let currentSeed = seed
 
-  const gateRand = randFromSeed(currentSeed)
-  currentSeed = gateRand.seed
-  const indexRand = randFromSeed(currentSeed)
-  currentSeed = indexRand.seed
-
-  const hasPrimaryUpdate = gateRand.value > activationThreshold
-  const primaryIndex = Math.floor(indexRand.value * signals.length) % signals.length
-
-  const nextSignals = signals.map((signal, index) => {
+  const nextSignals = signals.map((signal) => {
+    const advanceRand = randFromSeed(currentSeed)
+    currentSeed = advanceRand.seed
     const noiseA = randFromSeed(currentSeed)
     currentSeed = noiseA.seed
     const noiseB = randFromSeed(currentSeed)
     currentSeed = noiseB.seed
 
-    const isPrimary = hasPrimaryUpdate && index === primaryIndex
-    const trendDrift = (noiseA.value - 0.5) * (isPrimary ? 0.08 : 0.03) * cadenceFactor
+    const shouldAdvance = advanceRand.value < FIELD_ADVANCE_PROBABILITY
+    const trendDrift = (noiseA.value - 0.5) * 0.06 * cadenceFactor
     const nextTrend = clamp(signal.trend * 0.94 + trendDrift, -1.2, 1.2)
 
-    const reversion = (signal.baseline - signal.value) * (isPrimary ? 0.08 : 0.04)
-    const noise = (noiseB.value - 0.5) * (isPrimary ? 1.4 : 0.45) * cadenceFactor
+    const reversion = (signal.baseline - signal.value) * 0.06
+    const noise = (noiseB.value - 0.5) * 0.9 * cadenceFactor
     const target = clamp(signal.value + nextTrend * 0.45 + reversion + noise, signal.min, signal.max)
 
-    const alpha = (isPrimary ? 0.22 : 0.14) * cadenceFactor
-    const maxDelta = (isPrimary ? 0.95 : 0.35) * cadenceFactor
-    const value = round(smoothToward(signal.value, target, alpha, maxDelta))
+    const alpha = 0.16 * cadenceFactor
+    const maxDelta = 0.55 * cadenceFactor
+    const value = shouldAdvance ? round(smoothToward(signal.value, target, alpha, maxDelta)) : signal.value
 
     const history = [...signal.history, value].slice(-HISTORY_LIMIT)
 
@@ -422,7 +416,7 @@ const stepSignalGroup = (
       ...signal,
       trend: nextTrend,
       value,
-      lastUpdatedTick: isPrimary ? tick : signal.lastUpdatedTick,
+      lastUpdatedTick: shouldAdvance ? tick : signal.lastUpdatedTick,
       history,
     }
   })
@@ -447,12 +441,12 @@ const stepClient = (
   tickSeconds: number
 ): InternalClientState => {
   let seed = client.seed
-  const cadenceFactor = clamp(tickSeconds / 12, 0.25, 1.2)
+  const cadenceFactor = clamp(tickSeconds / 12, 0.08, 1.2)
 
-  const skillsUpdate = stepSignalGroup(client.skillSignals, tick, seed, cadenceFactor, 0.34)
+  const skillsUpdate = stepSignalGroup(client.skillSignals, tick, seed, cadenceFactor)
   seed = skillsUpdate.seed
 
-  const behaviorsUpdate = stepSignalGroup(client.behaviorSignals, tick, seed, cadenceFactor, 0.45)
+  const behaviorsUpdate = stepSignalGroup(client.behaviorSignals, tick, seed, cadenceFactor)
   seed = behaviorsUpdate.seed
 
   const noiseA = randFromSeed(seed)
@@ -465,6 +459,12 @@ const stepClient = (
   seed = trendDurationRand.seed
   const trendShapeRand = randFromSeed(seed)
   seed = trendShapeRand.seed
+  const behaviorAdvanceRand = randFromSeed(seed)
+  seed = behaviorAdvanceRand.seed
+  const skillAdvanceRand = randFromSeed(seed)
+  seed = skillAdvanceRand.seed
+  const promptAdvanceRand = randFromSeed(seed)
+  seed = promptAdvanceRand.seed
 
   const previousPoint = client.points[client.points.length - 1]
 
@@ -518,13 +518,15 @@ const stepClient = (
     0.2,
     20
   )
+  const nextBehaviorRate =
+    behaviorAdvanceRand.value < FIELD_ADVANCE_PROBABILITY ? behaviorRate : previousPoint.behaviorRatePerHour
 
   const skillTarget = clamp(
     previousPoint.skillAccuracyPct +
       (skillComposite - previousPoint.skillAccuracyPct) * 0.15 +
       (client.skillBaseline - previousPoint.skillAccuracyPct) * 0.03 +
       skillTrend -
-      behaviorRate * 0.06 +
+      nextBehaviorRate * 0.06 +
       client.behaviorBaseline * 0.05 +
       (0.5 - noiseB.value) * (quietTick ? 0.4 : 0.9) * cadenceFactor,
     35,
@@ -540,13 +542,15 @@ const stepClient = (
     35,
     99
   )
+  const nextSkillAccuracy =
+    skillAdvanceRand.value < FIELD_ADVANCE_PROBABILITY ? skillAccuracy : previousPoint.skillAccuracyPct
 
   const promptTarget = clamp(
     previousPoint.promptDependencePct +
       (client.promptBaseline - previousPoint.promptDependencePct) * 0.04 +
       promptTrend +
-      behaviorRate * 0.18 -
-      skillAccuracy * 0.09 +
+      nextBehaviorRate * 0.18 -
+      nextSkillAccuracy * 0.09 +
       (noiseA.value - 0.5) * (quietTick ? 0.4 : 0.95) * cadenceFactor,
     5,
     92
@@ -561,8 +565,15 @@ const stepClient = (
     5,
     92
   )
+  const nextPromptDependence =
+    promptAdvanceRand.value < FIELD_ADVANCE_PROBABILITY ? promptDependence : previousPoint.promptDependencePct
 
-  const nextPoint = makeInitialPoint(generatedAtMs, round(behaviorRate), round(skillAccuracy), round(promptDependence))
+  const nextPoint = makeInitialPoint(
+    generatedAtMs,
+    round(nextBehaviorRate),
+    round(nextSkillAccuracy),
+    round(nextPromptDependence)
+  )
 
   const points = [...client.points, nextPoint].slice(-HISTORY_LIMIT)
   const { celerationValue, celerationDeltaPct } = computeCelerationMetrics(points)
