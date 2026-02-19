@@ -401,6 +401,13 @@
   gap: 0.5rem;
 }
 
+.client-card-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(180px, 0.95fr);
+  gap: 0.6rem;
+  align-items: stretch;
+}
+
 .metric-block {
   display: grid;
   gap: 0.28rem;
@@ -418,7 +425,7 @@
 
 .multi-sparkline svg {
   width: 100%;
-  height: 46px;
+  height: 54px;
 }
 
 .sparkline-legend {
@@ -450,23 +457,28 @@
   white-space: nowrap;
 }
 
-.client-card-footer {
+.client-card-note {
+  border-radius: 10px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  background: rgb(15 23 42 / 42%);
+  padding: 0.45rem 0.5rem;
   display: grid;
-  gap: 0.22rem;
+  align-content: center;
+  gap: 0.28rem;
 }
 
-.client-card-footer p {
+.client-card-note p {
   font-size: 0.76rem;
   line-height: 1.28;
   color: rgb(226 232 240);
   margin: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.client-card-footer span {
+.client-card-note span {
   font-size: 0.67rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -507,6 +519,10 @@
   .dashboard-controls,
   .dashboard-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .client-card-main {
+    grid-template-columns: 1fr;
   }
 
   .client-signal-grid {

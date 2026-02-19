@@ -53,17 +53,19 @@ export function Sparkline({
       return { min: 0, max: 1, range: 1 }
     }
 
-    let min = Math.min(...allValues)
-    let max = Math.max(...allValues)
+    const baseMin = Math.min(...allValues)
+    const baseMax = Math.max(...allValues)
+    const rawRange = baseMax - baseMin
+    const midpoint = (baseMin + baseMax) / 2
 
-    if (threshold !== undefined) {
-      min = Math.min(min, threshold)
-      max = Math.max(max, threshold)
-    }
+    // Keep charts expressive when values are tightly clustered.
+    const minRange = Math.max(rawRange, Math.max(0.2, Math.abs(midpoint) * 0.08))
+    const paddedRange = minRange * 1.25
+    const min = midpoint - paddedRange / 2
+    const max = midpoint + paddedRange / 2
 
-    const range = max - min || 1
-    return { min, max, range }
-  }, [activeSeries, threshold])
+    return { min, max, range: paddedRange || 1 }
+  }, [activeSeries])
 
   const thresholdY = useMemo(() => {
     if (threshold === undefined || activeSeries.length === 0) {

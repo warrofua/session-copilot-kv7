@@ -65,6 +65,11 @@ const badgeClassByAlert = (alert: DashboardClientFeed['alertLevel']): string => 
 const byRecentTrial = (left: DashboardSignalSeries, right: DashboardSignalSeries): number =>
   right.lastUpdatedTick - left.lastUpdatedTick
 
+const formatAgentNote = (moniker: string, summary: string): string => {
+  const normalizedMoniker = moniker.toLowerCase()
+  return summary.toLowerCase().startsWith(normalizedMoniker) ? summary : `${moniker}: ${summary}`
+}
+
 export function DashboardPage() {
   const navigate = useNavigate()
   const [clientCount, setClientCount] = useState(14)
@@ -403,15 +408,16 @@ export function DashboardPage() {
             const behaviorSeries = behaviorSignals.map((signal) => ({
               id: signal.signalId,
               label: signal.label,
-              values: signal.history,
+              values: signal.history.slice(-36),
               stroke: signal.color,
             }))
             const skillSeries = skillSignals.map((signal) => ({
               id: signal.signalId,
               label: signal.label,
-              values: signal.history,
+              values: signal.history.slice(-36),
               stroke: signal.color,
             }))
+            const noteText = formatAgentNote(client.moniker, insight.summary)
 
             const celerationText = `${formatCeleration(latest.celerationValue)}/min`
             const celerationClass =
@@ -432,35 +438,37 @@ export function DashboardPage() {
                   </div>
                 </header>
 
-                <div className="client-signal-grid">
-                  <div className="metric-block compact">
-                    <span>{latest.behaviorRatePerHour.toFixed(1)}/hr</span>
-                    <Sparkline
-                      className="multi-sparkline"
-                      series={behaviorSeries}
-                      threshold={6}
-                      showLegend
-                      legendMaxItems={signalLines}
-                      ariaLabel="Behavior trend signals"
-                    />
+                <div className="client-card-main">
+                  <div className="client-signal-grid">
+                    <div className="metric-block compact">
+                      <span>{latest.behaviorRatePerHour.toFixed(1)}/hr</span>
+                      <Sparkline
+                        className="multi-sparkline"
+                        series={behaviorSeries}
+                        threshold={6}
+                        showLegend
+                        legendMaxItems={signalLines}
+                        ariaLabel="Behavior trend signals"
+                      />
+                    </div>
+                    <div className="metric-block compact">
+                      <span>{latest.skillAccuracyPct.toFixed(1)}%</span>
+                      <Sparkline
+                        className="multi-sparkline"
+                        series={skillSeries}
+                        threshold={72}
+                        showLegend
+                        legendMaxItems={signalLines}
+                        ariaLabel="Skill trend signals"
+                      />
+                    </div>
                   </div>
-                  <div className="metric-block compact">
-                    <span>{latest.skillAccuracyPct.toFixed(1)}%</span>
-                    <Sparkline
-                      className="multi-sparkline"
-                      series={skillSeries}
-                      threshold={72}
-                      showLegend
-                      legendMaxItems={signalLines}
-                      ariaLabel="Skill trend signals"
-                    />
-                  </div>
-                </div>
 
-                <footer className="client-card-footer">
-                  <p>{insight.summary}</p>
-                  <span>{insight.source === 'stm-api' ? 'stm-api' : 'heuristic'} | {formatMsAgo(latest.timestampMs)}</span>
-                </footer>
+                  <aside className="client-card-note">
+                    <p>{noteText}</p>
+                    <span>{insight.source === 'stm-api' ? 'stm-api' : 'heuristic'} | {formatMsAgo(latest.timestampMs)}</span>
+                  </aside>
+                </div>
               </article>
             )
           })}
