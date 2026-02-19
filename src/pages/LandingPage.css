@@ -69,6 +69,25 @@
 .landing-nav-links {
     display: flex;
     gap: 1rem;
+    align-items: center;
+}
+
+.landing-nav-pill {
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgb(66 153 225 / 35%);
+    background: rgb(66 153 225 / 16%);
+    color: #bfdbfe;
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.landing-nav-pill:hover {
+    background: rgb(66 153 225 / 24%);
+    border-color: rgb(66 153 225 / 55%);
 }
 
 .landing-nav-btn {
@@ -210,6 +229,72 @@
     color: #718096;
     max-width: 400px;
     line-height: 1.5;
+}
+
+.landing-hero-linkout {
+    margin-top: 0.5rem;
+    color: #94a3b8;
+    font-size: 0.875rem;
+}
+
+.landing-hero-linkout a {
+    color: #90cdf4;
+    text-decoration: none;
+    border-bottom: 1px solid rgb(144 205 244 / 50%);
+}
+
+.landing-hero-linkout a:hover {
+    color: #bee3f8;
+    border-bottom-color: rgb(190 227 248 / 80%);
+}
+
+/* =============================================
+   LIVE OPS SECTION
+   ============================================= */
+
+.landing-live-ops {
+    position: relative;
+    z-index: 1;
+    padding: 5rem 2rem;
+    background: linear-gradient(135deg, rgb(66 153 225 / 8%), rgb(72 187 120 / 7%));
+    border-top: 1px solid rgb(255 255 255 / 8%);
+    border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.landing-live-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.landing-live-card {
+    background: rgb(255 255 255 / 4%);
+    border: 1px solid rgb(255 255 255 / 11%);
+    border-radius: 16px;
+    padding: 1.35rem;
+    box-shadow: 0 16px 28px -18px rgb(0 0 0 / 56%);
+}
+
+.landing-live-card h3 {
+    color: #fff;
+    font-size: 1rem;
+    margin-bottom: 0.55rem;
+}
+
+.landing-live-card p {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+.landing-live-cta-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 2rem;
 }
 
 /* =============================================
@@ -608,6 +693,14 @@
         font-size: 0.8125rem;
     }
 
+    .landing-nav-links {
+        gap: 0.5rem;
+    }
+
+    .landing-nav-pill {
+        display: none;
+    }
+
     .landing-hero {
         padding: 5rem 1.5rem 3rem;
     }
@@ -624,6 +717,14 @@
     }
 
     .landing-features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-live-ops {
+        padding: 4rem 1.5rem;
+    }
+
+    .landing-live-grid {
         grid-template-columns: 1fr;
     }
 

@@ -89,6 +89,7 @@ export default function LandingPage() {
                     <span className="landing-logo-text">Agents <span>of ABA</span></span>
                 </Link>
                 <div className="landing-nav-links">
+                    <Link to="/dashboard" className="landing-nav-pill">Live Dashboard</Link>
                     <Link to="/login" className="landing-nav-btn ghost">Login</Link>
                     <Link to="/demo" className="landing-nav-btn primary">Try Demo</Link>
                 </div>
@@ -98,30 +99,77 @@ export default function LandingPage() {
             <section className="landing-hero">
                 <div className="landing-hero-badge">
                     {icons.sparkle}
-                    <span>AI-Powered Clinical Documentation</span>
+                    <span>Realtime BCBA Dashboard + Agent Monitoring</span>
                 </div>
                 <h1>
-                    Intelligent Session <span className="highlight">Documentation</span> for ABA Therapists
+                    Realtime Clinical <span className="highlight">Signal Intelligence</span> for ABA Teams
                 </h1>
                 <p className="landing-hero-subtitle">
-                    Capture behavior data, skill trials, and session notes through natural conversation.
-                    Works offline, syncs automatically, and generates evidence-based documentation.
+                    Monitor all clients at once, inspect celeration and skill performance trends,
+                    and surface actionable alerts with an AI watch layer built for BCBA supervision.
                 </p>
                 <div className="landing-hero-ctas">
-                    <Link to="/demo" className="landing-cta primary">
-                        Access Demo
+                    <Link to="/dashboard" className="landing-cta primary">
+                        Open Live Dashboard
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M5 12h14M12 5l7 7-7 7" />
                         </svg>
                     </Link>
-                    <Link to="/login" className="landing-cta secondary">
-                        Login to Your Account
+                    <Link to="/demo" className="landing-cta secondary">
+                        Open Session Demo
                     </Link>
                 </div>
                 <p className="landing-demo-disclaimer">
                     Demo environment uses sample data. No real patient information is stored.
                     For demonstration purposes only.
                 </p>
+                <p className="landing-hero-linkout">
+                    Need implementation details? <Link to="/architecture">View system architecture</Link>
+                </p>
+            </section>
+
+            {/* Live Operations Section */}
+            <section className="landing-live-ops">
+                <div className="landing-section-header">
+                    <span className="landing-section-tag">BCBA Command Center</span>
+                    <h2>Realtime Monitoring Across the Full Caseload</h2>
+                    <p>
+                        Stock-dashboard style visibility with clinical context, configurable trend lenses,
+                        and agent-generated triage signals in one place.
+                    </p>
+                </div>
+
+                <div className="landing-live-grid">
+                    <article className="landing-live-card">
+                        <div className="landing-feature-icon">{icons.data}</div>
+                        <h3>Multi-Client Streaming View</h3>
+                        <p>
+                            Track all active clients simultaneously with fast-scanning rows, trend sparklines,
+                            and high-density operational visibility.
+                        </p>
+                    </article>
+                    <article className="landing-live-card">
+                        <div className="landing-feature-icon">{icons.sync}</div>
+                        <h3>Configurable Trend Lenses</h3>
+                        <p>
+                            Switch between frequency and celeration-focused views, tune refresh cadence,
+                            and adapt the panel to clinical priorities in real time.
+                        </p>
+                    </article>
+                    <article className="landing-live-card">
+                        <div className="landing-feature-icon">{icons.ai}</div>
+                        <h3>Agent Signal Desk</h3>
+                        <p>
+                            AI summarizes shifts against baseline, prioritizes watch and critical clients,
+                            and helps reduce lag between signal detection and BCBA action.
+                        </p>
+                    </article>
+                </div>
+
+                <div className="landing-live-cta-row">
+                    <Link to="/dashboard" className="landing-cta primary">Launch Dashboard Demo</Link>
+                    <Link to="/architecture" className="landing-cta secondary">Review Technical Architecture</Link>
+                </div>
             </section>
 
             {/* Features Section */}
@@ -305,6 +353,8 @@ export default function LandingPage() {
                 </div>
                 <p>&copy; {new Date().getFullYear()} Agents of ABA. All rights reserved.</p>
                 <div style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>
+                    <Link to="/dashboard" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', marginRight: '1rem' }}>Dashboard</Link>
+                    <Link to="/demo" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', marginRight: '1rem' }}>Session Demo</Link>
                     <Link to="/legal#terms" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', marginRight: '1rem' }}>Terms</Link>
                     <Link to="/legal#privacy" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>Privacy</Link>
                 </div>
