@@ -51,7 +51,7 @@ const badgeClassByAlert = (alert: DashboardClientFeed['alertLevel']): string => 
 export function DashboardPage() {
   const navigate = useNavigate()
   const [clientCount, setClientCount] = useState(14)
-  const [intervalSeconds, setIntervalSeconds] = useState(3)
+  const [intervalSeconds, setIntervalSeconds] = useState(15)
   const [chartMode, setChartMode] = useState<ChartMode>('frequency')
   const [isRunning, setIsRunning] = useState(true)
   const [simulation, setSimulation] = useState(() => createDashboardSimulation(clientCount, Date.now()))
@@ -193,10 +193,10 @@ export function DashboardPage() {
         <label>
           Update Interval
           <select value={intervalSeconds} onChange={(event) => setIntervalSeconds(Number(event.target.value))}>
-            <option value={2}>2s</option>
-            <option value={3}>3s</option>
-            <option value={5}>5s</option>
-            <option value={10}>10s</option>
+            <option value={15}>15s</option>
+            <option value={20}>20s</option>
+            <option value={30}>30s</option>
+            <option value={60}>60s</option>
           </select>
         </label>
         <label>

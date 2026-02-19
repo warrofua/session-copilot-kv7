@@ -63,6 +63,11 @@ const clamp = (value: number, min: number, max: number): number => Math.min(max,
 
 const round = (value: number): number => Number(value.toFixed(2))
 
+const smoothToward = (previous: number, target: number, alpha: number, maxDelta: number): number => {
+  const blended = previous + (target - previous) * alpha
+  return clamp(blended, previous - maxDelta, previous + maxDelta)
+}
+
 const nextSeed = (seed: number): number => {
   let value = seed | 0
   value ^= value << 13
@@ -162,7 +167,7 @@ const createClientState = (index: number, seed: number, timestampMs: number): { 
 
   const volRand = randFromSeed(currentSeed)
   currentSeed = volRand.seed
-  const volatility = 0.5 + volRand.value * 1.8
+  const volatility = 0.35 + volRand.value * 0.75
 
   const phaseRand = randFromSeed(currentSeed)
   currentSeed = phaseRand.seed
@@ -198,17 +203,39 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
   const spikeRand = randFromSeed(seed)
   seed = spikeRand.seed
 
-  const oscillation = Math.sin((tick / 8) * client.phase) + Math.cos((tick / 11) * (client.phase + 0.25)) * 0.7
-  const randomShock = (noiseA.value - 0.5) * 2.5 * client.volatility
-  const spike = spikeRand.value > 0.965 ? 4 + spikeRand.value * 8 : 0
+  const previousPoint = client.points[client.points.length - 1]
 
-  const behaviorRate = clamp(client.behaviorBaseline + oscillation * client.volatility + randomShock + spike, 0.2, 20)
+  const oscillation =
+    Math.sin((tick / 20) * client.phase) + Math.cos((tick / 24) * (client.phase + 0.25)) * 0.45
+  const randomShock = (noiseA.value - 0.5) * 1.1 * client.volatility
+  const driftEvent = spikeRand.value > 0.985 ? 0.8 + spikeRand.value * 0.9 : 0
 
-  const skillDrift = Math.sin((tick / 10) * (client.phase * 0.75)) * 5.5 + (0.5 - noiseB.value) * 6
-  const skillAccuracy = clamp(client.skillBaseline - behaviorRate * 0.9 + skillDrift, 25, 99)
+  const behaviorTarget = clamp(
+    client.behaviorBaseline + oscillation * client.volatility * 0.6 + randomShock + driftEvent,
+    0.2,
+    20
+  )
+  const behaviorRate = clamp(
+    smoothToward(previousPoint.behaviorRatePerHour, behaviorTarget, 0.22, 0.6),
+    0.2,
+    20
+  )
 
-  const promptDrift = Math.cos((tick / 7) * client.phase) * 4 + behaviorRate * 1.75 + (noiseA.value - 0.5) * 6
-  const promptDependence = clamp(client.promptBaseline + promptDrift - skillAccuracy * 0.28, 5, 96)
+  const skillDrift = Math.sin((tick / 22) * (client.phase * 0.8)) * 2.8 + (0.5 - noiseB.value) * 2.2
+  const skillTarget = clamp(client.skillBaseline - behaviorRate * 0.65 + skillDrift, 35, 99)
+  const skillAccuracy = clamp(
+    smoothToward(previousPoint.skillAccuracyPct, skillTarget, 0.2, 1.1),
+    35,
+    99
+  )
+
+  const promptDrift = Math.cos((tick / 18) * client.phase) * 2.4 + behaviorRate * 1.15 + (noiseA.value - 0.5) * 2.5
+  const promptTarget = clamp(client.promptBaseline + promptDrift - skillAccuracy * 0.18, 5, 92)
+  const promptDependence = clamp(
+    smoothToward(previousPoint.promptDependencePct, promptTarget, 0.2, 1.2),
+    5,
+    92
+  )
 
   const nextPoint = makeInitialPoint(generatedAtMs, round(behaviorRate), round(skillAccuracy), round(promptDependence))
 
