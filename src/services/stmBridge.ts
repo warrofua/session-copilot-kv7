@@ -32,10 +32,8 @@ let stmDisabledUntilMs = 0
 
 const isStmEnabled = (): boolean => {
   const enabled = (import.meta.env.VITE_ENABLE_STM as string | undefined)?.trim()
-  if (!enabled) {
-    return !stmTemporarilyDisabled || Date.now() >= stmDisabledUntilMs
-  }
-  const envEnabled = enabled !== '0' && enabled.toLowerCase() !== 'false'
+  // Default off: enable STM only when explicitly set (e.g. VITE_ENABLE_STM=true).
+  const envEnabled = enabled === '1' || enabled?.toLowerCase() === 'true'
   return envEnabled && (!stmTemporarilyDisabled || Date.now() >= stmDisabledUntilMs)
 }
 
