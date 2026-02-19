@@ -9,6 +9,15 @@ export interface DashboardPoint {
   riskScore: number
 }
 
+export interface DashboardSignalSeries {
+  signalId: string
+  label: string
+  color: string
+  currentValue: number
+  lastUpdatedTick: number
+  history: number[]
+}
+
 export interface DashboardClientFeed {
   clientId: string
   moniker: string
@@ -17,6 +26,8 @@ export interface DashboardClientFeed {
   alertLevel: AlertLevel
   attentionLabel: string
   points: DashboardPoint[]
+  skillSignals: DashboardSignalSeries[]
+  behaviorSignals: DashboardSignalSeries[]
 }
 
 export interface DashboardSimulationState {
@@ -24,6 +35,19 @@ export interface DashboardSimulationState {
   tick: number
   generatedAtMs: number
   clients: InternalClientState[]
+}
+
+type InternalSignalState = {
+  signalId: string
+  label: string
+  color: string
+  min: number
+  max: number
+  baseline: number
+  value: number
+  trend: number
+  lastUpdatedTick: number
+  history: number[]
 }
 
 type InternalClientState = {
@@ -43,6 +67,14 @@ type InternalClientState = {
   trendTicksRemaining: number
   stabilityBias: number
   points: DashboardPoint[]
+  skillSignals: InternalSignalState[]
+  behaviorSignals: InternalSignalState[]
+}
+
+type SignalCatalogEntry = {
+  signalId: string
+  label: string
+  color: string
 }
 
 const HISTORY_LIMIT = 42
@@ -63,6 +95,22 @@ const reinforcers = [
 ]
 
 const ageTags = ['Tiny', 'Junior', 'Prime', 'Teen', 'Navigator', 'Anchor']
+
+const skillCatalog: SignalCatalogEntry[] = [
+  { signalId: 'receptive-id', label: 'Receptive ID', color: '#63b3ed' },
+  { signalId: 'manding', label: 'Manding', color: '#4fd1c5' },
+  { signalId: 'imitation', label: 'Imitation', color: '#68d391' },
+  { signalId: 'intraverbal', label: 'Intraverbal', color: '#f6ad55' },
+  { signalId: 'listener-response', label: 'Listener Resp', color: '#f687b3' },
+]
+
+const behaviorCatalog: SignalCatalogEntry[] = [
+  { signalId: 'aggression', label: 'Aggression', color: '#fc8181' },
+  { signalId: 'elopement', label: 'Elopement', color: '#f6ad55' },
+  { signalId: 'sib', label: 'SIB', color: '#f687b3' },
+  { signalId: 'tantrum', label: 'Tantrum', color: '#f56565' },
+  { signalId: 'refusal', label: 'Refusal', color: '#90cdf4' },
+]
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
 
@@ -87,7 +135,18 @@ const randFromSeed = (seed: number): { seed: number; value: number } => {
 }
 
 const buildMoniker = (ageYears: number, reinforcer: string, raw: number): string => {
-  const ageBand = ageYears <= 5 ? ageTags[0] : ageYears <= 8 ? ageTags[1] : ageYears <= 11 ? ageTags[2] : ageYears <= 14 ? ageTags[3] : ageYears <= 16 ? ageTags[4] : ageTags[5]
+  const ageBand =
+    ageYears <= 5
+      ? ageTags[0]
+      : ageYears <= 8
+        ? ageTags[1]
+        : ageYears <= 11
+          ? ageTags[2]
+          : ageYears <= 14
+            ? ageTags[3]
+            : ageYears <= 16
+              ? ageTags[4]
+              : ageTags[5]
   const reinforcerNoun = reinforcer.split(' ')[0]
   const suffix = Math.floor(raw * 90 + 10)
   return `${ageBand}-${reinforcerNoun}-${suffix}`
@@ -142,6 +201,44 @@ const makeInitialPoint = (
   celerationDeltaPct: 0,
   riskScore: 0,
 })
+
+const createSignalStates = (
+  seed: number,
+  catalog: SignalCatalogEntry[],
+  baselineAnchor: number,
+  baselineSpread: number,
+  min: number,
+  max: number,
+  trendRange: number
+): { signals: InternalSignalState[]; seed: number } => {
+  let currentSeed = seed
+  const signals: InternalSignalState[] = []
+
+  catalog.forEach((entry) => {
+    const baselineRand = randFromSeed(currentSeed)
+    currentSeed = baselineRand.seed
+    const baseline = clamp(baselineAnchor + (baselineRand.value - 0.5) * baselineSpread, min, max)
+
+    const trendRand = randFromSeed(currentSeed)
+    currentSeed = trendRand.seed
+    const trend = (trendRand.value - 0.5) * trendRange
+
+    signals.push({
+      signalId: entry.signalId,
+      label: entry.label,
+      color: entry.color,
+      min,
+      max,
+      baseline: round(baseline),
+      value: round(baseline),
+      trend,
+      lastUpdatedTick: 0,
+      history: [round(baseline)],
+    })
+  })
+
+  return { signals, seed: currentSeed }
+}
 
 const createClientState = (index: number, seed: number, timestampMs: number): { state: InternalClientState; seed: number } => {
   let currentSeed = seed
@@ -198,6 +295,12 @@ const createClientState = (index: number, seed: number, timestampMs: number): { 
   currentSeed = stabilityRand.seed
   const stabilityBias = 0.62 + stabilityRand.value * 0.24
 
+  const skillsBuilt = createSignalStates(currentSeed, skillCatalog, skillBaseline, 16, 35, 99, 0.4)
+  currentSeed = skillsBuilt.seed
+
+  const behaviorsBuilt = createSignalStates(currentSeed, behaviorCatalog, behaviorBaseline, 3.2, 0.2, 20, 0.2)
+  currentSeed = behaviorsBuilt.seed
+
   const initialPoint = makeInitialPoint(timestampMs, behaviorBaseline, skillBaseline, promptBaseline)
 
   return {
@@ -218,13 +321,86 @@ const createClientState = (index: number, seed: number, timestampMs: number): { 
       trendTicksRemaining,
       stabilityBias,
       points: [initialPoint],
+      skillSignals: skillsBuilt.signals,
+      behaviorSignals: behaviorsBuilt.signals,
     },
     seed: currentSeed,
   }
 }
 
-const stepClient = (client: InternalClientState, tick: number, generatedAtMs: number): InternalClientState => {
+const stepSignalGroup = (
+  signals: InternalSignalState[],
+  tick: number,
+  seed: number,
+  cadenceFactor: number,
+  activationThreshold: number
+): { signals: InternalSignalState[]; seed: number } => {
+  let currentSeed = seed
+
+  const gateRand = randFromSeed(currentSeed)
+  currentSeed = gateRand.seed
+  const indexRand = randFromSeed(currentSeed)
+  currentSeed = indexRand.seed
+
+  const hasPrimaryUpdate = gateRand.value > activationThreshold
+  const primaryIndex = Math.floor(indexRand.value * signals.length) % signals.length
+
+  const nextSignals = signals.map((signal, index) => {
+    const noiseA = randFromSeed(currentSeed)
+    currentSeed = noiseA.seed
+    const noiseB = randFromSeed(currentSeed)
+    currentSeed = noiseB.seed
+
+    const isPrimary = hasPrimaryUpdate && index === primaryIndex
+    const trendDrift = (noiseA.value - 0.5) * (isPrimary ? 0.08 : 0.03) * cadenceFactor
+    const nextTrend = clamp(signal.trend * 0.94 + trendDrift, -1.2, 1.2)
+
+    const reversion = (signal.baseline - signal.value) * (isPrimary ? 0.08 : 0.04)
+    const noise = (noiseB.value - 0.5) * (isPrimary ? 1.4 : 0.45) * cadenceFactor
+    const target = clamp(signal.value + nextTrend * 0.45 + reversion + noise, signal.min, signal.max)
+
+    const alpha = (isPrimary ? 0.22 : 0.14) * cadenceFactor
+    const maxDelta = (isPrimary ? 0.95 : 0.35) * cadenceFactor
+    const value = round(smoothToward(signal.value, target, alpha, maxDelta))
+
+    const history = [...signal.history, value].slice(-HISTORY_LIMIT)
+
+    return {
+      ...signal,
+      trend: nextTrend,
+      value,
+      lastUpdatedTick: isPrimary ? tick : signal.lastUpdatedTick,
+      history,
+    }
+  })
+
+  return {
+    signals: nextSignals,
+    seed: currentSeed,
+  }
+}
+
+const averageSignalValue = (signals: InternalSignalState[]): number => {
+  if (signals.length === 0) {
+    return 0
+  }
+  return signals.reduce((sum, signal) => sum + signal.value, 0) / signals.length
+}
+
+const stepClient = (
+  client: InternalClientState,
+  tick: number,
+  generatedAtMs: number,
+  tickSeconds: number
+): InternalClientState => {
   let seed = client.seed
+  const cadenceFactor = clamp(tickSeconds / 12, 0.25, 1.2)
+
+  const skillsUpdate = stepSignalGroup(client.skillSignals, tick, seed, cadenceFactor, 0.34)
+  seed = skillsUpdate.seed
+
+  const behaviorsUpdate = stepSignalGroup(client.behaviorSignals, tick, seed, cadenceFactor, 0.45)
+  seed = behaviorsUpdate.seed
 
   const noiseA = randFromSeed(seed)
   seed = noiseA.seed
@@ -246,16 +422,16 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
 
   if (trendTicksRemaining > 0) {
     trendTicksRemaining -= 1
-    const trendNudge = (trendShapeRand.value - 0.5) * 0.015
+    const trendNudge = (trendShapeRand.value - 0.5) * 0.015 * cadenceFactor
     behaviorTrend = clamp(behaviorTrend * 0.98 + trendNudge, -0.32, 0.32)
     skillTrend = clamp(skillTrend * 0.98 - trendNudge * 1.6, -0.9, 0.9)
     promptTrend = clamp(promptTrend * 0.98 + trendNudge * 1.2, -0.9, 0.9)
   } else if (trendGateRand.value > 0.86) {
     const direction = trendShapeRand.value >= 0.5 ? 1 : -1
-    const intensity = 0.08 + noiseA.value * 0.16
+    const intensity = (0.08 + noiseA.value * 0.16) * cadenceFactor
     behaviorTrend = direction * intensity * client.volatility
-    skillTrend = clamp(-direction * (0.18 + noiseB.value * 0.45), -0.9, 0.9)
-    promptTrend = clamp(direction * (0.16 + noiseA.value * 0.38), -0.9, 0.9)
+    skillTrend = clamp(-direction * (0.18 + noiseB.value * 0.45) * cadenceFactor, -0.9, 0.9)
+    promptTrend = clamp(direction * (0.16 + noiseA.value * 0.38) * cadenceFactor, -0.9, 0.9)
     trendTicksRemaining = 6 + Math.floor(trendDurationRand.value * 10)
   } else {
     behaviorTrend *= 0.75
@@ -263,16 +439,19 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
     promptTrend *= 0.75
   }
 
+  const behaviorComposite = averageSignalValue(behaviorsUpdate.signals)
+  const skillComposite = averageSignalValue(skillsUpdate.signals)
   const quietTick = trendTicksRemaining === 0 && noiseB.value < client.stabilityBias
   const oscillation =
     Math.sin((tick / 36) * client.phase) * 0.35 + Math.cos((tick / 44) * (client.phase + 0.2)) * 0.2
 
   const behaviorTarget = clamp(
     previousPoint.behaviorRatePerHour +
-      (client.behaviorBaseline - previousPoint.behaviorRatePerHour) * 0.03 +
+      (behaviorComposite - previousPoint.behaviorRatePerHour) * 0.16 +
+      (client.behaviorBaseline - previousPoint.behaviorRatePerHour) * 0.02 +
       behaviorTrend +
       oscillation * client.volatility * 0.2 +
-      (noiseA.value - 0.5) * (quietTick ? 0.25 : 0.55) * client.volatility,
+      (noiseA.value - 0.5) * (quietTick ? 0.2 : 0.5) * client.volatility * cadenceFactor,
     0.2,
     20
   )
@@ -280,8 +459,8 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
     smoothToward(
       previousPoint.behaviorRatePerHour,
       behaviorTarget,
-      quietTick ? 0.18 : 0.24,
-      quietTick ? 0.25 : 0.5
+      quietTick ? 0.16 * cadenceFactor : 0.22 * cadenceFactor,
+      quietTick ? 0.2 * cadenceFactor : 0.45 * cadenceFactor
     ),
     0.2,
     20
@@ -289,11 +468,12 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
 
   const skillTarget = clamp(
     previousPoint.skillAccuracyPct +
-      (client.skillBaseline - previousPoint.skillAccuracyPct) * 0.04 +
+      (skillComposite - previousPoint.skillAccuracyPct) * 0.15 +
+      (client.skillBaseline - previousPoint.skillAccuracyPct) * 0.03 +
       skillTrend -
-      behaviorRate * 0.08 +
+      behaviorRate * 0.06 +
       client.behaviorBaseline * 0.05 +
-      (0.5 - noiseB.value) * (quietTick ? 0.5 : 1),
+      (0.5 - noiseB.value) * (quietTick ? 0.4 : 0.9) * cadenceFactor,
     35,
     99
   )
@@ -301,8 +481,8 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
     smoothToward(
       previousPoint.skillAccuracyPct,
       skillTarget,
-      quietTick ? 0.16 : 0.22,
-      quietTick ? 0.55 : 0.95
+      quietTick ? 0.15 * cadenceFactor : 0.2 * cadenceFactor,
+      quietTick ? 0.45 * cadenceFactor : 0.85 * cadenceFactor
     ),
     35,
     99
@@ -314,7 +494,7 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
       promptTrend +
       behaviorRate * 0.18 -
       skillAccuracy * 0.09 +
-      (noiseA.value - 0.5) * (quietTick ? 0.55 : 1.1),
+      (noiseA.value - 0.5) * (quietTick ? 0.4 : 0.95) * cadenceFactor,
     5,
     92
   )
@@ -322,8 +502,8 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
     smoothToward(
       previousPoint.promptDependencePct,
       promptTarget,
-      quietTick ? 0.16 : 0.22,
-      quietTick ? 0.5 : 0.9
+      quietTick ? 0.15 * cadenceFactor : 0.2 * cadenceFactor,
+      quietTick ? 0.4 * cadenceFactor : 0.8 * cadenceFactor
     ),
     5,
     92
@@ -334,7 +514,11 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
   const points = [...client.points, nextPoint].slice(-HISTORY_LIMIT)
   const celerationDeltaPct = computeCelerationDelta(points)
   const riskScore = clamp(
-    22 + nextPoint.behaviorRatePerHour * 4.5 + (100 - nextPoint.skillAccuracyPct) * 0.55 + nextPoint.promptDependencePct * 0.35 + Math.max(0, celerationDeltaPct) * 1.2,
+    22 +
+      nextPoint.behaviorRatePerHour * 4.5 +
+      (100 - nextPoint.skillAccuracyPct) * 0.55 +
+      nextPoint.promptDependencePct * 0.35 +
+      Math.max(0, celerationDeltaPct) * 1.2,
     0,
     100
   )
@@ -353,8 +537,20 @@ const stepClient = (client: InternalClientState, tick: number, generatedAtMs: nu
     promptTrend,
     trendTicksRemaining,
     points,
+    skillSignals: skillsUpdate.signals,
+    behaviorSignals: behaviorsUpdate.signals,
   }
 }
+
+const toSignalSeries = (signals: InternalSignalState[]): DashboardSignalSeries[] =>
+  signals.map((signal) => ({
+    signalId: signal.signalId,
+    label: signal.label,
+    color: signal.color,
+    currentValue: signal.value,
+    lastUpdatedTick: signal.lastUpdatedTick,
+    history: signal.history,
+  }))
 
 export const createDashboardSimulation = (
   clientCount: number,
@@ -381,7 +577,8 @@ export const createDashboardSimulation = (
 
 export const tickDashboardSimulation = (
   previous: DashboardSimulationState,
-  generatedAtMs: number = Date.now()
+  generatedAtMs: number = Date.now(),
+  tickSeconds: number = 15
 ): DashboardSimulationState => {
   const tick = previous.tick + 1
 
@@ -389,7 +586,7 @@ export const tickDashboardSimulation = (
     ...previous,
     tick,
     generatedAtMs,
-    clients: previous.clients.map((client) => stepClient(client, tick, generatedAtMs)),
+    clients: previous.clients.map((client) => stepClient(client, tick, generatedAtMs, tickSeconds)),
   }
 }
 
@@ -416,6 +613,8 @@ export const toDashboardLiveView = (state: DashboardSimulationState): DashboardL
       alertLevel,
       attentionLabel: computeAttentionLabel(last.riskScore, last.celerationDeltaPct),
       points: client.points,
+      skillSignals: toSignalSeries(client.skillSignals),
+      behaviorSignals: toSignalSeries(client.behaviorSignals),
     }
   })
 

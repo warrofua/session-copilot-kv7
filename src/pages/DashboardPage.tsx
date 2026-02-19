@@ -1,20 +1,31 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkline } from '../components/dashboard/Sparkline'
 import {
   createDashboardSimulation,
   tickDashboardSimulation,
   toDashboardLiveView,
+  type AlertLevel,
   type DashboardClientFeed,
+  type DashboardSignalSeries,
 } from '../services/dashboardSimulator'
 import { fetchStmInsight, deriveHeuristicInsight, type StmInsight } from '../services/stmBridge'
 import './DashboardPage.css'
 
-type ChartMode = 'frequency' | 'celeration'
+type AlertSnapshot = {
+  level: AlertLevel
+  riskScore: number
+}
 
-const chartModeLabels: Record<ChartMode, string> = {
-  frequency: 'Rate Trends',
-  celeration: 'Celeration Focus',
+type AlertInboxItem = {
+  id: string
+  clientId: string
+  moniker: string
+  level: AlertLevel
+  summary: string
+  attentionLabel: string
+  riskScore: number
+  timestampMs: number
 }
 
 const ageBand = (ageYears: number): string => {
@@ -48,19 +59,29 @@ const badgeClassByAlert = (alert: DashboardClientFeed['alertLevel']): string => 
   return 'stable'
 }
 
+const byRecentTrial = (left: DashboardSignalSeries, right: DashboardSignalSeries): number =>
+  right.lastUpdatedTick - left.lastUpdatedTick
+
 export function DashboardPage() {
   const navigate = useNavigate()
   const [clientCount, setClientCount] = useState(14)
-  const [intervalSeconds, setIntervalSeconds] = useState(15)
-  const [chartMode, setChartMode] = useState<ChartMode>('frequency')
+  const [intervalSeconds, setIntervalSeconds] = useState(4)
+  const [signalLines, setSignalLines] = useState(3)
   const [isRunning, setIsRunning] = useState(true)
   const [simulation, setSimulation] = useState(() => createDashboardSimulation(clientCount, Date.now()))
   const [insightsByClient, setInsightsByClient] = useState<Record<string, StmInsight>>({})
+  const [isAlertMenuOpen, setIsAlertMenuOpen] = useState(false)
+  const [unseenAlertCount, setUnseenAlertCount] = useState(0)
+  const [alertInbox, setAlertInbox] = useState<AlertInboxItem[]>([])
+  const previousAlertRef = useRef<Record<string, AlertSnapshot>>({})
 
   const handleClientCountChange = (nextCount: number) => {
     setClientCount(nextCount)
     setSimulation(createDashboardSimulation(nextCount, Date.now()))
     setInsightsByClient({})
+    setAlertInbox([])
+    setUnseenAlertCount(0)
+    previousAlertRef.current = {}
   }
 
   useEffect(() => {
@@ -69,7 +90,7 @@ export function DashboardPage() {
     }
 
     const interval = window.setInterval(() => {
-      setSimulation((previous) => tickDashboardSimulation(previous, Date.now()))
+      setSimulation((previous) => tickDashboardSimulation(previous, Date.now(), intervalSeconds))
     }, intervalSeconds * 1000)
 
     return () => {
@@ -140,10 +161,23 @@ export function DashboardPage() {
     }
   }, [rankedClients, simulation.tick])
 
-  const alertFeed = useMemo(
-    () =>
-      rankedClients.slice(0, 5).map((client) => {
-        const latest = client.points[client.points.length - 1]
+  useEffect(() => {
+    const inboxUpdates: AlertInboxItem[] = []
+
+    rankedClients.forEach((client) => {
+      const latest = client.points[client.points.length - 1]
+      const previous = previousAlertRef.current[client.clientId]
+      const level = client.alertLevel
+
+      const escalated =
+        !previous
+          ? level !== 'stable'
+          : (previous.level === 'stable' && level !== 'stable') ||
+            (previous.level === 'watch' && level === 'critical')
+
+      const riskJump = previous ? latest.riskScore - previous.riskScore >= 8 && level !== 'stable' : false
+
+      if (level !== 'stable' && (escalated || riskJump)) {
         const fallbackInsight = deriveHeuristicInsight({
           clientId: client.clientId,
           moniker: client.moniker,
@@ -154,14 +188,40 @@ export function DashboardPage() {
           celerationDeltaPct: latest.celerationDeltaPct,
         })
         const insight = insightsByClient[client.clientId] ?? fallbackInsight
-        return {
-          client,
-          latest,
-          insight,
+
+        inboxUpdates.push({
+          id: `${client.clientId}-${simulation.tick}-${level}`,
+          clientId: client.clientId,
+          moniker: client.moniker,
+          level,
+          summary: insight.summary,
+          attentionLabel: client.attentionLabel,
+          riskScore: latest.riskScore,
+          timestampMs: latest.timestampMs,
+        })
+      }
+
+      previousAlertRef.current[client.clientId] = {
+        level,
+        riskScore: latest.riskScore,
+      }
+    })
+
+    if (inboxUpdates.length > 0) {
+      const timeoutId = window.setTimeout(() => {
+        setAlertInbox((previous) => [...inboxUpdates, ...previous].slice(0, 48))
+        if (!isAlertMenuOpen) {
+          setUnseenAlertCount((previous) => previous + inboxUpdates.length)
         }
-      }),
-    [insightsByClient, rankedClients]
-  )
+      }, 0)
+
+      return () => {
+        window.clearTimeout(timeoutId)
+      }
+    }
+
+    return undefined
+  }, [insightsByClient, isAlertMenuOpen, rankedClients, simulation.tick])
 
   const stmStatus = useMemo(() => {
     const values = Object.values(insightsByClient)
@@ -172,14 +232,65 @@ export function DashboardPage() {
     return apiCount > 0 ? 'connected' : 'fallback'
   }, [insightsByClient])
 
+  const handleAlertToggle = () => {
+    setIsAlertMenuOpen((previous) => {
+      const next = !previous
+      if (next) {
+        setUnseenAlertCount(0)
+      }
+      return next
+    })
+  }
+
   return (
     <div className="dashboard-page">
       <header className="dashboard-header">
         <div className="dashboard-title-block">
           <p className="dashboard-kicker">Agents of ABA</p>
           <h1>BCBA Real-Time Monitor</h1>
-          <p>Live multi-client view for clinical trend detection with agent-assisted signal triage.</p>
+          <p>Live multi-client view for clinical trend detection with compact multi-signal cards.</p>
         </div>
+
+        <div className="dashboard-header-center">
+          <button
+            type="button"
+            className={`alert-dropdown-toggle ${unseenAlertCount > 0 ? 'ping' : ''}`}
+            onClick={handleAlertToggle}
+            aria-expanded={isAlertMenuOpen}
+          >
+            Alerts
+            <span className="alert-pill">{unseenAlertCount > 99 ? '99+' : unseenAlertCount}</span>
+          </button>
+          <span className="alert-summary-text">
+            {view.watchCount} watch | {view.criticalCount} critical
+          </span>
+
+          {isAlertMenuOpen ? (
+            <div className="alert-dropdown-menu" role="region" aria-label="Recent alerts">
+              <ul>
+                {alertInbox.slice(0, 12).map((alert) => (
+                  <li key={alert.id} className={badgeClassByAlert(alert.level)}>
+                    <header>
+                      <strong>{alert.moniker}</strong>
+                      <span>{alert.riskScore.toFixed(1)} risk</span>
+                    </header>
+                    <p>{alert.summary}</p>
+                    <footer>
+                      <span>{alert.attentionLabel}</span>
+                      <span>{formatMsAgo(alert.timestampMs)}</span>
+                    </footer>
+                  </li>
+                ))}
+                {alertInbox.length === 0 ? (
+                  <li className="stable empty-alert-item">
+                    <p>No active alerts yet.</p>
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+
         <div className="dashboard-header-actions">
           <span className="demo-pill">DEMO STREAM</span>
           <span className={`stm-pill ${stmStatus}`}>STM {stmStatus.toUpperCase()}</span>
@@ -193,17 +304,19 @@ export function DashboardPage() {
         <label>
           Update Interval
           <select value={intervalSeconds} onChange={(event) => setIntervalSeconds(Number(event.target.value))}>
-            <option value={15}>15s</option>
-            <option value={20}>20s</option>
-            <option value={30}>30s</option>
-            <option value={60}>60s</option>
+            <option value={3}>3s</option>
+            <option value={4}>4s</option>
+            <option value={5}>5s</option>
+            <option value={8}>8s</option>
+            <option value={10}>10s</option>
           </select>
         </label>
         <label>
-          Chart Mode
-          <select value={chartMode} onChange={(event) => setChartMode(event.target.value as ChartMode)}>
-            <option value="frequency">Rate Trends</option>
-            <option value="celeration">Celeration Focus</option>
+          Signals per Chart
+          <select value={signalLines} onChange={(event) => setSignalLines(Number(event.target.value))}>
+            <option value={2}>2 lines</option>
+            <option value={3}>3 lines</option>
+            <option value={4}>4 lines</option>
           </select>
         </label>
         <label>
@@ -242,96 +355,93 @@ export function DashboardPage() {
         <article>
           <h3>Avg Behavior Rate</h3>
           <p>{view.averageBehaviorRate.toFixed(1)}/hr</p>
-          <span>{chartModeLabels[chartMode]}</span>
+          <span>Composite behavior stream</span>
         </article>
       </section>
 
       <div className="dashboard-body">
-        <section className="dashboard-table-wrap" aria-label="Client trend board">
-          <table className="dashboard-table">
-            <thead>
-              <tr>
-                <th>Client Moniker</th>
-                <th>Behavior Signal</th>
-                <th>Skill Signal</th>
-                <th>Celeration</th>
-                <th>Agent Readout</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rankedClients.map((client) => {
-                const latest = client.points[client.points.length - 1]
-                const insight = insightsByClient[client.clientId]
-                const behaviorSeries = client.points.map((point) => point.behaviorRatePerHour)
-                const skillSeries = client.points.map((point) => point.skillAccuracyPct)
-                const celerationSeries = client.points.map((point) => point.celerationDeltaPct)
-                const celerationText = `${latest.celerationDeltaPct > 0 ? '+' : ''}${latest.celerationDeltaPct.toFixed(1)}%`
-                const celerationClass = latest.celerationDeltaPct >= 8 ? 'risk-high' : latest.celerationDeltaPct >= 0 ? 'risk-mid' : 'risk-low'
+        <section className="dashboard-client-grid" aria-label="Client trend board">
+          {rankedClients.map((client) => {
+            const latest = client.points[client.points.length - 1]
+            const fallbackInsight = deriveHeuristicInsight({
+              clientId: client.clientId,
+              moniker: client.moniker,
+              notes: toStmNotes(client),
+              behaviorRatePerHour: latest.behaviorRatePerHour,
+              skillAccuracyPct: latest.skillAccuracyPct,
+              promptDependencePct: latest.promptDependencePct,
+              celerationDeltaPct: latest.celerationDeltaPct,
+            })
+            const insight = insightsByClient[client.clientId] ?? fallbackInsight
 
-                return (
-                  <tr key={client.clientId} className={`row-${badgeClassByAlert(client.alertLevel)}`}>
-                    <td>
-                      <div className="moniker-cell">
-                        <div>
-                          <strong>{client.moniker}</strong>
-                          <span>{ageBand(client.ageYears)} | {client.primaryReinforcer}</span>
-                        </div>
-                        <em className={`alert-badge ${badgeClassByAlert(client.alertLevel)}`}>{client.alertLevel}</em>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="metric-block">
-                        <span>{latest.behaviorRatePerHour.toFixed(1)}/hr</span>
-                        <Sparkline
-                          values={chartMode === 'frequency' ? behaviorSeries : celerationSeries}
-                          stroke={latest.behaviorRatePerHour > 7 ? '#f56565' : '#ed8936'}
-                          threshold={chartMode === 'frequency' ? 6 : 0}
-                        />
-                      </div>
-                    </td>
-                    <td>
-                      <div className="metric-block">
-                        <span>{latest.skillAccuracyPct.toFixed(1)}%</span>
-                        <Sparkline values={skillSeries} stroke={latest.skillAccuracyPct < 70 ? '#f56565' : '#48bb78'} threshold={72} />
-                      </div>
-                    </td>
-                    <td>
-                      <div className="celeration-cell">
-                        <strong className={celerationClass}>{celerationText}</strong>
-                        <span>{client.attentionLabel}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="agent-cell">
-                        <p>{insight?.summary ?? 'Agent profiling baseline...'}</p>
-                        <span>{insight ? `${insight.source} | ${formatMsAgo(insight.evaluatedAtMs)}` : formatMsAgo(latest.timestampMs)}</span>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </section>
+            const behaviorSignals = [...client.behaviorSignals].sort(byRecentTrial).slice(0, signalLines)
+            const skillSignals = [...client.skillSignals].sort(byRecentTrial).slice(0, signalLines)
 
-        <aside className="dashboard-alerts" aria-label="Alert feed">
-          <h2>Agent Alert Feed</h2>
-          <ul>
-            {alertFeed.map(({ client, insight, latest }) => (
-              <li key={client.clientId} className={badgeClassByAlert(client.alertLevel)}>
-                <header>
-                  <strong>{client.moniker}</strong>
-                  <span>{latest.riskScore.toFixed(1)} risk</span>
+            const behaviorSeries = behaviorSignals.map((signal) => ({
+              id: signal.signalId,
+              label: signal.label,
+              values: signal.history,
+              stroke: signal.color,
+            }))
+            const skillSeries = skillSignals.map((signal) => ({
+              id: signal.signalId,
+              label: signal.label,
+              values: signal.history,
+              stroke: signal.color,
+            }))
+
+            const celerationText = `${latest.celerationDeltaPct > 0 ? '+' : ''}${latest.celerationDeltaPct.toFixed(1)}%`
+            const celerationClass =
+              latest.celerationDeltaPct >= 8 ? 'risk-high' : latest.celerationDeltaPct >= 0 ? 'risk-mid' : 'risk-low'
+
+            return (
+              <article key={client.clientId} className={`client-card row-${badgeClassByAlert(client.alertLevel)}`}>
+                <header className="client-card-header">
+                  <div>
+                    <strong>{client.moniker}</strong>
+                    <span>
+                      {ageBand(client.ageYears)} | {client.primaryReinforcer}
+                    </span>
+                  </div>
+                  <div className="client-card-badges">
+                    <em className={`alert-badge ${badgeClassByAlert(client.alertLevel)}`}>{client.alertLevel}</em>
+                    <span className={`celeration-pill ${celerationClass}`}>{celerationText}</span>
+                  </div>
                 </header>
-                <p>{insight.summary}</p>
-                <footer>
-                  <span>{client.attentionLabel}</span>
-                  <span>{formatMsAgo(latest.timestampMs)}</span>
+
+                <div className="client-signal-grid">
+                  <div className="metric-block compact">
+                    <span>{latest.behaviorRatePerHour.toFixed(1)}/hr</span>
+                    <Sparkline
+                      className="multi-sparkline"
+                      series={behaviorSeries}
+                      threshold={6}
+                      showLegend
+                      legendMaxItems={signalLines}
+                      ariaLabel="Behavior trend signals"
+                    />
+                  </div>
+                  <div className="metric-block compact">
+                    <span>{latest.skillAccuracyPct.toFixed(1)}%</span>
+                    <Sparkline
+                      className="multi-sparkline"
+                      series={skillSeries}
+                      threshold={72}
+                      showLegend
+                      legendMaxItems={signalLines}
+                      ariaLabel="Skill trend signals"
+                    />
+                  </div>
+                </div>
+
+                <footer className="client-card-footer">
+                  <p>{insight.summary}</p>
+                  <span>{insight.source === 'stm-api' ? 'stm-api' : 'heuristic'} | {formatMsAgo(latest.timestampMs)}</span>
                 </footer>
-              </li>
-            ))}
-          </ul>
-        </aside>
+              </article>
+            )
+          })}
+        </section>
       </div>
     </div>
   )
