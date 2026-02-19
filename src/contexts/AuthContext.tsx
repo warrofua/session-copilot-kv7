@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { User, Learner, Organization } from '../services/authService';
 export type { User };
 import {
@@ -35,8 +36,18 @@ export interface RegisterData {
 
 import { AuthContext } from './AuthContextInstance';
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+const SESSION_OPTIONAL_ROUTES = new Set([
+    '/',
+    '/dashboard',
+    '/demo',
+    '/login',
+    '/login/org',
+    '/login/parent',
+    '/legal'
+]);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+    const location = useLocation();
     const [user, setUser] = useState<User | null>(null);
     const [learners, setLearners] = useState<Learner[]>([]);
     const [organization, setOrganization] = useState<Organization | null>(null);
@@ -44,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [error, setError] = useState<string | null>(null);
     const initializeEncryption = useEncryptionStore((state) => state.initializeWithPassword);
     const clearEncryption = useEncryptionStore((state) => state.clear);
+    const isSessionOptionalRoute = SESSION_OPTIONAL_ROUTES.has(location.pathname);
 
     const refreshUser = useCallback(async () => {
         try {
@@ -76,8 +88,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [clearEncryption]);
 
     useEffect(() => {
-        refreshUser();
-    }, [refreshUser]);
+        if (isSessionOptionalRoute) {
+            setIsLoading(false);
+            return;
+        }
+
+        void refreshUser();
+    }, [isSessionOptionalRoute, refreshUser]);
 
     const login = async (email: string, password: string) => {
         setIsLoading(true);

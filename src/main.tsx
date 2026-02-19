@@ -17,8 +17,8 @@ import './index.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
       <BrowserRouter>
+        <AuthProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/demo" element={<App />} />
@@ -36,7 +36,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/architecture" element={<ArchitecturePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
         </Routes>
+        </AuthProvider>
       </BrowserRouter>
-    </AuthProvider>
   </StrictMode>,
 )
