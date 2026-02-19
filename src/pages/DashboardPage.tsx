@@ -28,6 +28,8 @@ type AlertInboxItem = {
   timestampMs: number
 }
 
+const DAY_WINDOW_MS = 86_400_000
+
 const ageBand = (ageYears: number): string => {
   if (ageYears <= 5) return 'Early Learner'
   if (ageYears <= 8) return 'Child'
@@ -74,6 +76,13 @@ const byRecentTrial = (left: DashboardSignalSeries, right: DashboardSignalSeries
 const formatAgentNote = (moniker: string, summary: string): string => {
   const normalizedMoniker = moniker.toLowerCase()
   return summary.toLowerCase().startsWith(normalizedMoniker) ? summary : `${moniker}: ${summary}`
+}
+
+const toSameDaySignalHistory = (client: DashboardClientFeed, signal: DashboardSignalSeries): number[] => {
+  const latestTimestampMs = client.points[client.points.length - 1]?.timestampMs ?? Date.now()
+  const dayStartTimestampMs = latestTimestampMs - DAY_WINDOW_MS
+  const sameDayValues = signal.history.filter((_, index) => (client.points[index]?.timestampMs ?? 0) >= dayStartTimestampMs)
+  return sameDayValues.length >= 2 ? sameDayValues : signal.history.slice(-12)
 }
 
 export function DashboardPage() {
@@ -411,7 +420,9 @@ export function DashboardPage() {
             const insight = insightsByClient[client.clientId] ?? fallbackInsight
 
             const behaviorSignals = [...client.behaviorSignals].sort(byRecentTrial).slice(0, signalLines)
-            const skillSignals = [...client.skillSignals].sort(byRecentTrial).slice(0, signalLines)
+            const rankedSkillSignals = [...client.skillSignals].sort(byRecentTrial)
+            const skillSignals = rankedSkillSignals.slice(0, signalLines)
+            const lastRunSkillSignal = rankedSkillSignals[0]
 
             const behaviorSeries = behaviorSignals.map((signal) => ({
               id: signal.signalId,
@@ -425,6 +436,16 @@ export function DashboardPage() {
               values: signal.history.slice(-36),
               stroke: signal.color,
             }))
+            const lastRunSkillSeries = lastRunSkillSignal
+              ? [
+                  {
+                    id: `last-run-${lastRunSkillSignal.signalId}`,
+                    label: lastRunSkillSignal.label,
+                    values: toSameDaySignalHistory(client, lastRunSkillSignal),
+                    stroke: lastRunSkillSignal.color,
+                  },
+                ]
+              : []
             const noteText = formatAgentNote(client.moniker, insight.summary)
             const noteMeta = `${insight.source === 'stm-api' ? 'stm-api' : 'heuristic'} | ${formatMsAgo(latest.timestampMs)}`
             const isNoteExpanded = expandedNoteClientId === client.clientId
@@ -474,6 +495,18 @@ export function DashboardPage() {
                         showLegend
                         legendMaxItems={signalLines}
                         ariaLabel="Skill trend signals"
+                      />
+                    </div>
+                    <div className="metric-block compact">
+                      <p className="signal-title">Last Run Skill</p>
+                      <span>{lastRunSkillSignal ? `${lastRunSkillSignal.currentValue.toFixed(1)}%` : '--'}</span>
+                      <Sparkline
+                        className="multi-sparkline"
+                        series={lastRunSkillSeries}
+                        threshold={72}
+                        showLegend
+                        legendMaxItems={1}
+                        ariaLabel="Last run skill same-day trend"
                       />
                     </div>
                   </div>
