@@ -5,6 +5,7 @@ export interface DashboardPoint {
   behaviorRatePerHour: number
   skillAccuracyPct: number
   promptDependencePct: number
+  celerationValue: number
   celerationDeltaPct: number
   riskScore: number
 }
@@ -78,6 +79,9 @@ type SignalCatalogEntry = {
 }
 
 const HISTORY_LIMIT = 42
+const CELERATION_WINDOW_POINTS = 12
+const CELERATION_MIN_POINTS = 8
+const CELERATION_PERIOD_MS = 60_000
 
 const reinforcers = [
   'token board',
@@ -152,28 +156,48 @@ const buildMoniker = (ageYears: number, reinforcer: string, raw: number): string
   return `${ageBand}-${reinforcerNoun}-${suffix}`
 }
 
-const computeCelerationDelta = (points: DashboardPoint[]): number => {
-  if (points.length < 10) {
-    return 0
-  }
-  const recent = points.slice(-5)
-  const prior = points.slice(-10, -5)
-  const recentMean = recent.reduce((sum, point) => sum + point.behaviorRatePerHour, 0) / recent.length
-  const priorMean = prior.reduce((sum, point) => sum + point.behaviorRatePerHour, 0) / prior.length
-
-  if (priorMean === 0) {
-    return 0
+const computeCelerationMetrics = (points: DashboardPoint[]): { celerationValue: number; celerationDeltaPct: number } => {
+  if (points.length < CELERATION_MIN_POINTS) {
+    return { celerationValue: 1, celerationDeltaPct: 0 }
   }
 
-  return ((recentMean - priorMean) / priorMean) * 100
+  const window = points.slice(-CELERATION_WINDOW_POINTS)
+  const startTimestampMs = window[0]?.timestampMs ?? 0
+
+  const transformed = window.map((point) => ({
+    x: (point.timestampMs - startTimestampMs) / CELERATION_PERIOD_MS,
+    y: Math.log10(Math.max(point.behaviorRatePerHour, 0.01)),
+  }))
+
+  const meanX = transformed.reduce((sum, point) => sum + point.x, 0) / transformed.length
+  const meanY = transformed.reduce((sum, point) => sum + point.y, 0) / transformed.length
+
+  const covariance = transformed.reduce((sum, point) => sum + (point.x - meanX) * (point.y - meanY), 0)
+  const varianceX = transformed.reduce((sum, point) => sum + (point.x - meanX) ** 2, 0)
+
+  if (varianceX <= Number.EPSILON) {
+    return { celerationValue: 1, celerationDeltaPct: 0 }
+  }
+
+  const slope = covariance / varianceX
+  const celerationValue = clamp(10 ** slope, 0.2, 5)
+  const celerationDeltaPct = (celerationValue - 1) * 100
+
+  return { celerationValue, celerationDeltaPct }
 }
 
-const computeAttentionLabel = (riskScore: number, celerationDeltaPct: number): string => {
+const computeAttentionLabel = (riskScore: number, celerationValue: number): string => {
   if (riskScore >= 78) {
-    return celerationDeltaPct > 0 ? 'Escalating quickly' : 'High concern'
+    if (celerationValue >= 1.08) {
+      return 'Escalating quickly'
+    }
+    if (celerationValue <= 0.93) {
+      return 'Decelerating'
+    }
+    return 'High concern'
   }
   if (riskScore >= 58) {
-    return celerationDeltaPct > 8 ? 'Shift in baseline' : 'Needs watch'
+    return celerationValue >= 1.04 ? 'Shift in baseline' : 'Needs watch'
   }
   return 'Within expected variance'
 }
@@ -198,6 +222,7 @@ const makeInitialPoint = (
   behaviorRatePerHour,
   skillAccuracyPct,
   promptDependencePct,
+  celerationValue: 1,
   celerationDeltaPct: 0,
   riskScore: 0,
 })
@@ -512,7 +537,7 @@ const stepClient = (
   const nextPoint = makeInitialPoint(generatedAtMs, round(behaviorRate), round(skillAccuracy), round(promptDependence))
 
   const points = [...client.points, nextPoint].slice(-HISTORY_LIMIT)
-  const celerationDeltaPct = computeCelerationDelta(points)
+  const { celerationValue, celerationDeltaPct } = computeCelerationMetrics(points)
   const riskScore = clamp(
     22 +
       nextPoint.behaviorRatePerHour * 4.5 +
@@ -525,6 +550,7 @@ const stepClient = (
 
   points[points.length - 1] = {
     ...nextPoint,
+    celerationValue: round(celerationValue),
     celerationDeltaPct: round(celerationDeltaPct),
     riskScore: round(riskScore),
   }
@@ -611,7 +637,7 @@ export const toDashboardLiveView = (state: DashboardSimulationState): DashboardL
       ageYears: client.ageYears,
       primaryReinforcer: client.primaryReinforcer,
       alertLevel,
-      attentionLabel: computeAttentionLabel(last.riskScore, last.celerationDeltaPct),
+      attentionLabel: computeAttentionLabel(last.riskScore, last.celerationValue),
       points: client.points,
       skillSignals: toSignalSeries(client.skillSignals),
       behaviorSignals: toSignalSeries(client.behaviorSignals),

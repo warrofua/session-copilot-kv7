@@ -43,13 +43,16 @@ const formatMsAgo = (timestampMs: number): string => {
   return `${minutes}m ago`
 }
 
+const formatCeleration = (celerationValue: number): string =>
+  celerationValue >= 1 ? `x${celerationValue.toFixed(2)}` : `÷${(1 / Math.max(celerationValue, 0.01)).toFixed(2)}`
+
 const toStmNotes = (client: DashboardClientFeed): string[] => {
   const latest = client.points[client.points.length - 1]
   return [
     `${client.moniker} behavior rate ${latest.behaviorRatePerHour.toFixed(1)} per hour.`,
     `${client.moniker} skill accuracy ${latest.skillAccuracyPct.toFixed(1)} percent.`,
     `${client.moniker} prompt dependence ${latest.promptDependencePct.toFixed(1)} percent.`,
-    `${client.moniker} celeration shift ${latest.celerationDeltaPct.toFixed(1)} percent.`,
+    `${client.moniker} celeration ${formatCeleration(latest.celerationValue)} per minute.`,
   ]
 }
 
@@ -390,9 +393,9 @@ export function DashboardPage() {
               stroke: signal.color,
             }))
 
-            const celerationText = `${latest.celerationDeltaPct > 0 ? '+' : ''}${latest.celerationDeltaPct.toFixed(1)}%`
+            const celerationText = `${formatCeleration(latest.celerationValue)}/min`
             const celerationClass =
-              latest.celerationDeltaPct >= 8 ? 'risk-high' : latest.celerationDeltaPct >= 0 ? 'risk-mid' : 'risk-low'
+              latest.celerationValue >= 1.08 ? 'risk-high' : latest.celerationValue >= 1 ? 'risk-mid' : 'risk-low'
 
             return (
               <article key={client.clientId} className={`client-card row-${badgeClassByAlert(client.alertLevel)}`}>
