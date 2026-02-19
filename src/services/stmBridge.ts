@@ -27,13 +27,16 @@ type StmEvasionResponse = {
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
 
 const baseUrl = (import.meta.env.VITE_STM_API_URL as string | undefined)?.trim() || '/stm'
+let stmTemporarilyDisabled = false
+let stmDisabledUntilMs = 0
 
 const isStmEnabled = (): boolean => {
   const enabled = (import.meta.env.VITE_ENABLE_STM as string | undefined)?.trim()
   if (!enabled) {
-    return true
+    return !stmTemporarilyDisabled || Date.now() >= stmDisabledUntilMs
   }
-  return enabled !== '0' && enabled.toLowerCase() !== 'false'
+  const envEnabled = enabled !== '0' && enabled.toLowerCase() !== 'false'
+  return envEnabled && (!stmTemporarilyDisabled || Date.now() >= stmDisabledUntilMs)
 }
 
 const scoreHeuristically = (input: StmInsightInput): number => {
@@ -93,6 +96,17 @@ export const fetchStmInsight = async (input: StmInsightInput): Promise<StmInsigh
     })
 
     if (!response.ok) {
+      // Endpoint is reachable but POST is unsupported or path is unavailable.
+      // Disable STM requests for the remainder of this session to avoid noisy repeats.
+      if (response.status === 404 || response.status === 405 || response.status === 501) {
+        stmTemporarilyDisabled = true
+        stmDisabledUntilMs = Number.POSITIVE_INFINITY
+      }
+      // Backoff on throttling/server errors for 2 minutes.
+      if (response.status === 429 || response.status >= 500) {
+        stmTemporarilyDisabled = true
+        stmDisabledUntilMs = Date.now() + 2 * 60_000
+      }
       return fallback
     }
 
@@ -117,6 +131,9 @@ export const fetchStmInsight = async (input: StmInsightInput): Promise<StmInsigh
       velocity: Number.isNaN(velocity) ? undefined : velocity,
     }
   } catch {
+    // Network/path issues: brief backoff to reduce repeated failed calls.
+    stmTemporarilyDisabled = true
+    stmDisabledUntilMs = Date.now() + 2 * 60_000
     return fallback
   } finally {
     clearTimeout(timeout)

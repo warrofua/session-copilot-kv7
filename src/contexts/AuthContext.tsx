@@ -58,11 +58,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setError(null);
             }
         } catch (err) {
-            console.error('Failed to refresh user:', err);
+            const message = err instanceof Error ? err.message : '';
+            const isExpectedUnauthenticated = message === 'Session expired';
+            if (!isExpectedUnauthenticated) {
+                console.error('Failed to refresh user:', err);
+            }
             clearEncryption();
             setUser(null);
             setLearners([]);
             setOrganization(null);
+            if (!isExpectedUnauthenticated) {
+                setError('Unable to refresh user session.');
+            }
         } finally {
             setIsLoading(false);
         }
