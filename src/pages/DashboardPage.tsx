@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkline } from '../components/dashboard/Sparkline'
 import {
@@ -29,6 +29,39 @@ type AlertInboxItem = {
 }
 
 const DAY_WINDOW_MS = 86_400_000
+
+type ReinforcerIconKey =
+  | 'token'
+  | 'music'
+  | 'sensory'
+  | 'lego'
+  | 'bubbles'
+  | 'tablet'
+  | 'movement'
+  | 'art'
+  | 'story'
+  | 'snack'
+  | 'puzzle'
+  | 'trampoline'
+  | 'generic'
+
+type ToneTriplet = [number, number, number]
+
+type ClientVisualTheme = {
+  background: string
+  borderColor: string
+  iconBackground: string
+  iconColor: string
+}
+
+const tonePresets: ReadonlyArray<{ primary: ToneTriplet; secondary: ToneTriplet; border: ToneTriplet }> = [
+  { primary: [88, 131, 188], secondary: [118, 171, 148], border: [158, 190, 220] },
+  { primary: [101, 143, 181], secondary: [152, 170, 132], border: [171, 199, 213] },
+  { primary: [87, 151, 169], secondary: [133, 181, 178], border: [156, 207, 210] },
+  { primary: [112, 129, 188], secondary: [152, 160, 207], border: [181, 189, 224] },
+  { primary: [98, 138, 170], secondary: [118, 179, 198], border: [168, 201, 219] },
+  { primary: [83, 145, 182], secondary: [171, 170, 140], border: [171, 198, 213] },
+]
 
 const ageBand = (ageYears: number): string => {
   if (ageYears <= 5) return 'Early Learner'
@@ -83,6 +116,161 @@ const toSameDaySignalHistory = (client: DashboardClientFeed, signal: DashboardSi
   const dayStartTimestampMs = latestTimestampMs - DAY_WINDOW_MS
   const sameDayValues = signal.history.filter((_, index) => (client.points[index]?.timestampMs ?? 0) >= dayStartTimestampMs)
   return sameDayValues.length >= 2 ? sameDayValues : signal.history.slice(-12)
+}
+
+const hashClientKey = (value: string): number => {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+const clampChannel = (value: number): number => Math.min(255, Math.max(0, Math.round(value)))
+
+const shiftTone = (tone: ToneTriplet, shift: number): ToneTriplet => [
+  clampChannel(tone[0] + shift),
+  clampChannel(tone[1] + shift),
+  clampChannel(tone[2] + shift),
+]
+
+const toneToRgb = (tone: ToneTriplet): string => `${tone[0]} ${tone[1]} ${tone[2]}`
+
+const toClientVisualTheme = (client: DashboardClientFeed): ClientVisualTheme => {
+  const hash = hashClientKey(`${client.clientId}-${client.moniker}-${client.primaryReinforcer}`)
+  const preset = tonePresets[hash % tonePresets.length]
+  const shift = ((hash >>> 5) % 18) - 9
+  const primaryTone = shiftTone(preset.primary, shift)
+  const secondaryTone = shiftTone(preset.secondary, shift)
+  const borderTone = shiftTone(preset.border, shift)
+
+  return {
+    background: `linear-gradient(118deg, rgb(${toneToRgb(primaryTone)} / 0.2), rgb(${toneToRgb(
+      secondaryTone
+    )} / 0.16) 42%, rgb(255 255 255 / 0.04) 100%)`,
+    borderColor: `rgb(${toneToRgb(borderTone)} / 0.34)`,
+    iconBackground: `rgb(${toneToRgb(primaryTone)} / 0.3)`,
+    iconColor: `rgb(${toneToRgb(borderTone)} / 0.95)`,
+  }
+}
+
+const normalizeIconKey = (value: string): ReinforcerIconKey => {
+  const normalized = value.toLowerCase()
+  if (normalized.includes('token')) return 'token'
+  if (normalized.includes('music')) return 'music'
+  if (normalized.includes('sensory') || normalized.includes('swing')) return 'sensory'
+  if (normalized.includes('lego')) return 'lego'
+  if (normalized.includes('bubble')) return 'bubbles'
+  if (normalized.includes('tablet')) return 'tablet'
+  if (normalized.includes('movement')) return 'movement'
+  if (normalized.includes('art')) return 'art'
+  if (normalized.includes('story')) return 'story'
+  if (normalized.includes('snack')) return 'snack'
+  if (normalized.includes('puzzle')) return 'puzzle'
+  if (normalized.includes('trampoline')) return 'trampoline'
+  return 'generic'
+}
+
+const toReinforcerIconKey = (client: DashboardClientFeed): ReinforcerIconKey => {
+  const monikerParts = client.moniker.split('-')
+  const monikerProgram = monikerParts[1] ?? ''
+  const fromMoniker = normalizeIconKey(monikerProgram)
+  if (fromMoniker !== 'generic') return fromMoniker
+  return normalizeIconKey(client.primaryReinforcer)
+}
+
+const iconPathByReinforcer: Record<ReinforcerIconKey, ReactNode> = {
+  token: (
+    <>
+      <polygon points="12,2.6 20.4,7.2 20.4,16.8 12,21.4 3.6,16.8 3.6,7.2" />
+      <path d="M8.2 12h7.6" />
+    </>
+  ),
+  music: (
+    <>
+      <path d="M8 5.5v10.5a2.4 2.4 0 1 1-1.8-2.3V7.1l8.8-2v8.9a2.4 2.4 0 1 1-1.8-2.3V5.5L8 6.8" />
+    </>
+  ),
+  sensory: (
+    <>
+      <path d="M3.2 8.2c2.3-2.4 4.5-2.4 6.8 0s4.5 2.4 6.8 0 4.5-2.4 6.8 0" />
+      <path d="M3.2 15.8c2.3-2.4 4.5-2.4 6.8 0s4.5 2.4 6.8 0 4.5-2.4 6.8 0" />
+    </>
+  ),
+  lego: (
+    <>
+      <rect x="4.1" y="8" width="15.8" height="11.8" rx="2" />
+      <rect x="6.6" y="5" width="2.6" height="3" rx="0.7" />
+      <rect x="10.7" y="5" width="2.6" height="3" rx="0.7" />
+      <rect x="14.8" y="5" width="2.6" height="3" rx="0.7" />
+    </>
+  ),
+  bubbles: (
+    <>
+      <circle cx="8" cy="14.5" r="4.2" />
+      <circle cx="14.6" cy="8.6" r="3" />
+      <circle cx="18.6" cy="14.8" r="2.4" />
+    </>
+  ),
+  tablet: (
+    <>
+      <rect x="6" y="3.6" width="12" height="16.8" rx="2.2" />
+      <path d="M10 6.6h4" />
+      <circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none" />
+    </>
+  ),
+  movement: (
+    <>
+      <path d="M5 14c2.2-2 4.3-2 6.5 0" />
+      <path d="M12 14c2.2-2 4.3-2 6.5 0" />
+      <path d="M9 10.8l2.2 2.2L9 15.2" />
+      <path d="M15 10.8l2.2 2.2-2.2 2.2" />
+    </>
+  ),
+  art: (
+    <>
+      <path d="M6.3 17.8c0-1.8 1.3-3.2 3-3.2h1.1c1.4 0 2.5-1.2 2.5-2.7 0-3.2-2.5-5.7-5.6-5.7-3.4 0-6.1 2.8-6.1 6.2 0 3.4 2.7 6.2 6.1 6.2h5.9c1.5 0 2.7-1.3 2.7-2.9 0-1.6-1.2-2.9-2.7-2.9-.8 0-1.5.6-1.5 1.4v.3c0 1.5-1.1 2.7-2.5 2.7h-1c-1.1 0-1.9.9-1.9 2z" />
+    </>
+  ),
+  story: (
+    <>
+      <path d="M5 4.8h8.2a3.3 3.3 0 0 1 3.3 3.3v11.1H8.3A3.3 3.3 0 0 0 5 22.5z" />
+      <path d="M8.3 19.2V8.1a3.3 3.3 0 0 0-3.3-3.3H3.5v11.1a3.3 3.3 0 0 0 3.3 3.3h1.5z" />
+    </>
+  ),
+  snack: (
+    <>
+      <path d="M12 5.2c-2.9 0-5.3 2.4-5.3 5.4 0 4.8 5.3 8.6 5.3 8.6s5.3-3.8 5.3-8.6c0-3-2.4-5.4-5.3-5.4z" />
+      <path d="M12 5.2c0-1.4.9-2.4 2.2-2.9" />
+    </>
+  ),
+  puzzle: (
+    <>
+      <path d="M8.1 4h3.2a2.1 2.1 0 1 1 4.2 0H19a1.7 1.7 0 0 1 1.7 1.7v3.2a2.1 2.1 0 1 0 0 4.2v3.2A1.7 1.7 0 0 1 19 18h-3.2a2.1 2.1 0 1 1-4.2 0H8.1A1.7 1.7 0 0 1 6.4 16.3v-3.2a2.1 2.1 0 1 0 0-4.2V5.7A1.7 1.7 0 0 1 8.1 4z" />
+    </>
+  ),
+  trampoline: (
+    <>
+      <ellipse cx="12" cy="10.8" rx="6.8" ry="3.3" />
+      <path d="M6.8 10.8v6.8M17.2 10.8v6.8M9.4 13.6v4M14.6 13.6v4" />
+      <path d="M5.2 18.4h13.6" />
+    </>
+  ),
+  generic: (
+    <>
+      <circle cx="12" cy="12" r="7.4" />
+      <path d="M12 8.4v7.2M8.4 12h7.2" />
+    </>
+  ),
+}
+
+function ReinforcerIcon({ iconKey }: { iconKey: ReinforcerIconKey }) {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden>
+      {iconPathByReinforcer[iconKey]}
+    </svg>
+  )
 }
 
 export function DashboardPage() {
@@ -448,19 +636,39 @@ export function DashboardPage() {
             const noteText = formatAgentNote(client.moniker, insight.summary)
             const noteMeta = `${insight.source === 'stm-api' ? 'stm-api' : 'heuristic'} | ${formatMsAgo(latest.timestampMs)}`
             const isNoteExpanded = expandedNoteClientId === client.clientId
+            const iconKey = toReinforcerIconKey(client)
+            const visualTheme = toClientVisualTheme(client)
+            const cardStyle: CSSProperties = {
+              background: visualTheme.background,
+              borderColor: visualTheme.borderColor,
+            }
+            const iconStyle: CSSProperties = {
+              background: visualTheme.iconBackground,
+              color: visualTheme.iconColor,
+              borderColor: visualTheme.borderColor,
+            }
 
             const celerationText = `${formatCeleration(latest.celerationValue)}/min`
             const celerationClass =
               latest.celerationValue >= 1.08 ? 'risk-high' : latest.celerationValue >= 1 ? 'risk-mid' : 'risk-low'
 
             return (
-              <article key={client.clientId} className={`client-card row-${badgeClassByAlert(client.alertLevel)}`}>
+              <article
+                key={client.clientId}
+                className={`client-card row-${badgeClassByAlert(client.alertLevel)}`}
+                style={cardStyle}
+              >
                 <header className="client-card-header">
-                  <div>
-                    <strong>{client.moniker}</strong>
-                    <span>
-                      {ageBand(client.ageYears)} | {client.primaryReinforcer}
+                  <div className="client-identity">
+                    <span className="client-icon-badge" style={iconStyle}>
+                      <ReinforcerIcon iconKey={iconKey} />
                     </span>
+                    <div>
+                      <strong>{client.moniker}</strong>
+                      <span>
+                        {ageBand(client.ageYears)} | {client.primaryReinforcer}
+                      </span>
+                    </div>
                   </div>
                   <div className="client-card-badges">
                     <em className={`alert-badge ${badgeClassByAlert(client.alertLevel)}`}>

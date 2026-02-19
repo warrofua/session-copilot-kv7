@@ -311,11 +311,11 @@
 }
 
 .client-card.row-critical {
-  background: linear-gradient(110deg, rgb(148 210 189 / 11%), rgb(255 255 255 / 4%) 40%);
+  box-shadow: inset 0 0 0 1px rgb(148 210 189 / 34%);
 }
 
 .client-card.row-watch {
-  background: linear-gradient(110deg, rgb(167 190 219 / 10%), rgb(255 255 255 / 4%) 40%);
+  box-shadow: inset 0 0 0 1px rgb(167 190 219 / 30%);
 }
 
 .client-card:hover {
@@ -329,10 +329,31 @@
   gap: 0.6rem;
 }
 
+.client-identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.client-icon-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid rgb(255 255 255 / 26%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
 .client-card-header strong {
   display: block;
   font-size: 0.92rem;
   margin-bottom: 0.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .client-card-header span {
