@@ -18,6 +18,7 @@ type SparklineProps = {
   showLegend?: boolean
   legendMaxItems?: number
   ariaLabel?: string
+  showYAxis?: boolean
 }
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
@@ -27,6 +28,13 @@ const asSeries = (values: number[] | undefined, stroke: string): SparklineSeries
     return []
   }
   return [{ id: 'primary', label: 'Primary', values, stroke }]
+}
+
+const formatAxisValue = (value: number): string => {
+  const magnitude = Math.abs(value)
+  if (magnitude >= 100) return value.toFixed(0)
+  if (magnitude >= 10) return value.toFixed(1)
+  return value.toFixed(2)
 }
 
 export function Sparkline({
@@ -40,6 +48,7 @@ export function Sparkline({
   showLegend = false,
   legendMaxItems = 3,
   ariaLabel = 'Trend sparkline',
+  showYAxis = true,
 }: SparklineProps) {
   const id = useId()
   const activeSeries = useMemo(() => {
@@ -56,14 +65,35 @@ export function Sparkline({
     const baseMin = Math.min(...allValues)
     const baseMax = Math.max(...allValues)
     const rawRange = baseMax - baseMin
-    const magnitudeAnchor = Math.max(1, Math.abs(baseMin), Math.abs(baseMax))
-    const minRange = Math.max(rawRange, 0.35, magnitudeAnchor * 0.014)
-    const padding = Math.max(0.08, minRange * 0.24)
+    if (rawRange <= Number.EPSILON) {
+      const baselinePadding = Math.max(Math.abs(baseMin) * 0.02, 0.08)
+      const min = baseMin - baselinePadding
+      const max = baseMax + baselinePadding
+      return { min, max, range: Math.max(max - min, 0.16) }
+    }
+
+    // Keep truthful data but normalize tightly so subtle trend shifts are visible.
+    const padding = Math.max(rawRange * 0.08, 0.01)
     const min = baseMin - padding
     const max = baseMax + padding
 
-    return { min, max, range: Math.max(max - min, 0.25) }
+    return { min, max, range: Math.max(max - min, 0.02) }
   }, [activeSeries])
+
+  const axisTicks = useMemo(() => {
+    const top = bounds.max
+    const middle = bounds.min + bounds.range / 2
+    const bottom = bounds.min
+    return [top, middle, bottom]
+  }, [bounds.max, bounds.min, bounds.range])
+
+  const layout = useMemo(() => {
+    const leftGutter = showYAxis ? 24 : 4
+    const rightPadding = 2
+    const plotX = leftGutter
+    const plotWidth = Math.max(1, width - leftGutter - rightPadding)
+    return { leftGutter, plotX, plotWidth }
+  }, [showYAxis, width])
 
   const thresholdY = useMemo(() => {
     if (threshold === undefined || activeSeries.length === 0) {
@@ -77,7 +107,7 @@ export function Sparkline({
     return activeSeries.map((entry, index) => {
       const path = entry.values
         .map((value, valueIndex) => {
-          const x = (valueIndex / Math.max(1, entry.values.length - 1)) * width
+          const x = layout.plotX + (valueIndex / Math.max(1, entry.values.length - 1)) * layout.plotWidth
           const y = height - ((value - bounds.min) / bounds.range) * height
           return `${valueIndex === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${clamp(y, 0, height).toFixed(2)}`
         })
@@ -90,7 +120,7 @@ export function Sparkline({
         path,
       }
     })
-  }, [activeSeries, bounds.min, bounds.range, height, id, width])
+  }, [activeSeries, bounds.min, bounds.range, height, id, layout.plotWidth, layout.plotX])
 
   return (
     <div className={className}>
@@ -102,10 +132,34 @@ export function Sparkline({
         aria-label={ariaLabel}
         preserveAspectRatio="none"
       >
-        <rect x="0" y="0" width={width} height={height} rx="8" fill="rgba(255,255,255,0.02)" />
+        <rect x={layout.plotX} y="0" width={layout.plotWidth} height={height} rx="8" fill="rgba(255,255,255,0.02)" />
+        {showYAxis ? (
+          <>
+            <line x1={layout.plotX} y1="0" x2={layout.plotX} y2={height} stroke="rgba(148,163,184,0.5)" strokeWidth="1" />
+            {axisTicks.map((tick) => {
+              const y = clamp(height - ((tick - bounds.min) / bounds.range) * height, 0, height)
+              return (
+                <g key={`${id}-axis-${tick.toFixed(3)}`}>
+                  <line
+                    x1={layout.plotX - 3}
+                    y1={y}
+                    x2={width}
+                    y2={y}
+                    stroke="rgba(148,163,184,0.18)"
+                    strokeWidth="0.8"
+                    strokeDasharray="2 4"
+                  />
+                  <text x={layout.plotX - 5} y={y + 3} textAnchor="end" fill="rgba(148,163,184,0.86)" fontSize="7">
+                    {formatAxisValue(tick)}
+                  </text>
+                </g>
+              )
+            })}
+          </>
+        ) : null}
         {thresholdY !== null ? (
           <line
-            x1="0"
+            x1={layout.plotX}
             y1={thresholdY}
             x2={width}
             y2={thresholdY}
