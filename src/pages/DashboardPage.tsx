@@ -336,6 +336,7 @@ export function DashboardPage() {
   const [expandedNoteClientId, setExpandedNoteClientId] = useState<string | null>(null)
   const previousAlertRef = useRef<Record<string, AlertSnapshot>>({})
   const suggestionInFlightRef = useRef<Set<string>>(new Set())
+  const pendingSuggestionJobsRef = useRef<Record<string, PendingSuggestionJob>>({})
 
   const handleZoomDaysChange = (nextZoomDays: number) => {
     setSessionZoomDays(nextZoomDays)
@@ -347,6 +348,8 @@ export function DashboardPage() {
     setUnseenAlertCount(0)
     setExpandedNoteClientId(null)
     previousAlertRef.current = {}
+    pendingSuggestionJobsRef.current = {}
+    suggestionInFlightRef.current.clear()
   }
 
   useEffect(() => {
@@ -429,6 +432,7 @@ export function DashboardPage() {
       )
     } finally {
       suggestionInFlightRef.current.delete(job.alertId)
+      delete pendingSuggestionJobsRef.current[job.alertId]
     }
   }, [])
 
@@ -577,7 +581,7 @@ export function DashboardPage() {
           setUnseenAlertCount((previous) => previous + inboxUpdates.length)
         }
         suggestionJobs.forEach((job) => {
-          void streamSuggestionForAlert(job)
+          pendingSuggestionJobsRef.current[job.alertId] = job
         })
       }, 0)
 
@@ -588,6 +592,23 @@ export function DashboardPage() {
 
     return undefined
   }, [insightsByClient, isAlertMenuOpen, rankedClients, simulation.tick, streamSuggestionForAlert])
+
+  useEffect(() => {
+    if (!isAlertMenuOpen) {
+      return
+    }
+
+    const pendingAlertIds = alertInbox
+      .filter((item) => item.suggestionStatus === 'pending')
+      .map((item) => item.id)
+
+    pendingAlertIds.forEach((alertId) => {
+      const job = pendingSuggestionJobsRef.current[alertId]
+      if (job) {
+        void streamSuggestionForAlert(job)
+      }
+    })
+  }, [alertInbox, isAlertMenuOpen, streamSuggestionForAlert])
 
   const stmStatus = useMemo(() => {
     const values = Object.values(insightsByClient)
