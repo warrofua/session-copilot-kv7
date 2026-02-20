@@ -74,7 +74,7 @@ const buildChatPrompt = (payload: InboxChatRequest): string => {
     const alertDigest = buildAlertDigest(payload);
     const clientDigest = buildClientDigest(payload);
     const nonZeroCeleration = payload.clients
-        .filter((client) => Math.abs(client.celerationDeltaPct) >= 0.1)
+        .filter((client) => Math.abs(client.celerationDeltaPct) > 0)
         .map((client) => `${client.moniker} (${client.celerationDeltaPct.toFixed(1)}%)`)
         .join(', ');
     const recentTurns = (payload.recentMessages || [])
@@ -146,6 +146,7 @@ async function inboxSuggestionHandler(request: HttpRequest, context: InvocationC
           'Use ABA terms and reference provided caseload measures. ' +
           'Grounding rules: use only provided numbers and definitions; if a value is unavailable, explicitly say it is unavailable in current snapshot; ' +
           'do not invent thresholds, formulas, or extra clients. ' +
+          'Treat any celeration delta value not equal to 0.0 as non-zero. ' +
           'Known definitions: risk critical if score >= 78, watch if >= 58; ' +
           'risk formula = 22 + behaviorRate*4.5 + (100-skillAccuracy)*0.55 + promptDependence*0.35 + max(0, celerationDeltaPct)*1.2; ' +
           'celeration delta comes from recent log-slope trend of behavior rate and can be positive, zero, or negative. ' +
