@@ -10,6 +10,8 @@ type AlertSignalSnapshot = {
     promptDependencePct: number;
     celerationValue: number;
     celerationDeltaPct: number;
+    celerationPeriod: 'per_week';
+    celerationInterpretation: 'worsening' | 'improving' | 'flat';
 };
 
 type InboxContext = {
@@ -39,12 +41,18 @@ type InboxSuggestionRequest = InboxSummaryRequest | InboxChatRequest;
 const readEnv = (name: string): string =>
     (process.env[name] || '').trim();
 
+const formatCeleration = (celerationValue: number): string =>
+    celerationValue >= 1
+        ? `x${celerationValue.toFixed(2)}`
+        : `÷${(1 / Math.max(celerationValue, 0.01)).toFixed(2)}`;
+
 const buildAlertDigest = (payload: InboxContext): string => payload.alerts
         .slice(0, 3)
         .map((alert) =>
             `${alert.moniker} (${alert.level}, risk ${alert.riskScore.toFixed(1)}, ${alert.attentionLabel}, ` +
             `${alert.behaviorRatePerHour.toFixed(1)}/hr, ${alert.skillAccuracyPct.toFixed(1)}% skills, ` +
-            `${alert.promptDependencePct.toFixed(1)}% prompt dep, celeration delta ${alert.celerationDeltaPct.toFixed(1)}%)`
+            `${alert.promptDependencePct.toFixed(1)}% prompt dep, celeration ${formatCeleration(alert.celerationValue)}/wk ` +
+            `(${alert.celerationDeltaPct.toFixed(1)}%, ${alert.celerationInterpretation}))`
         )
         .join('; ');
 
@@ -65,8 +73,8 @@ const buildClientDigest = (payload: InboxContext): string => payload.clients
             (client) =>
                 `${client.moniker} (${client.level}, risk ${client.riskScore.toFixed(1)}, ` +
                 `${client.behaviorRatePerHour.toFixed(1)}/hr, ${client.skillAccuracyPct.toFixed(1)}% skills, ` +
-                `${client.promptDependencePct.toFixed(1)}% prompt dep, celeration ${client.celerationValue.toFixed(2)}, ` +
-                `delta ${client.celerationDeltaPct.toFixed(1)}%)`
+                `${client.promptDependencePct.toFixed(1)}% prompt dep, celeration ${formatCeleration(client.celerationValue)}/wk, ` +
+                `delta ${client.celerationDeltaPct.toFixed(1)}%, ${client.celerationInterpretation})`
         )
         .join('; ');
 
@@ -147,9 +155,10 @@ async function inboxSuggestionHandler(request: HttpRequest, context: InvocationC
           'Grounding rules: use only provided numbers and definitions; if a value is unavailable, explicitly say it is unavailable in current snapshot; ' +
           'do not invent thresholds, formulas, or extra clients. ' +
           'Treat any celeration delta value not equal to 0.0 as non-zero. ' +
+          'SCC interpretation for behavior reduction targets: x1.00+ means behavior frequency is accelerating (worsening), ÷ values mean behavior frequency is decelerating (improving), and near x1.00 is flat. ' +
           'Known definitions: risk critical if score >= 78, watch if >= 58; ' +
           'risk formula = 22 + behaviorRate*4.5 + (100-skillAccuracy)*0.55 + promptDependence*0.35 + max(0, celerationDeltaPct)*1.2; ' +
-          'celeration delta comes from recent log-slope trend of behavior rate and can be positive, zero, or negative. ' +
+          'celeration is computed from recent behavior-rate trend and normalized to a weekly multiplier. ' +
           'Return plain text, max 120 words.';
 
     const userPrompt = payload.summaryScope === 'caseload'

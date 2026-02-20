@@ -123,7 +123,7 @@ const toStmNotes = (client: DashboardClientFeed): string[] => {
     `${client.moniker} skill accuracy ${latest.skillAccuracyPct.toFixed(1)}% with prompt dependence ${latest.promptDependencePct.toFixed(1)}%.`,
     `${client.moniker} behavior measures: ${behaviorSnapshot}.`,
     `${client.moniker} active skill set: ${skillSnapshot}.`,
-    `${client.moniker} celeration ${formatCeleration(latest.celerationValue)} per minute (${latest.celerationDeltaPct.toFixed(1)}% delta).`,
+    `${client.moniker} behavior celeration ${formatCeleration(latest.celerationValue)} per week (${latest.celerationDeltaPct.toFixed(1)}% delta, ${latest.celerationInterpretation} trend).`,
   ]
 }
 
@@ -413,6 +413,8 @@ export function DashboardPage() {
             promptDependencePct: latest.promptDependencePct,
             celerationValue: latest.celerationValue,
             celerationDeltaPct: latest.celerationDeltaPct,
+            celerationPeriod: latest.celerationPeriod,
+            celerationInterpretation: latest.celerationInterpretation,
           }
         }),
       clients: rankedClients.slice(0, FIXED_CLIENT_COUNT).map((client) => {
@@ -427,6 +429,8 @@ export function DashboardPage() {
           promptDependencePct: latest.promptDependencePct,
           celerationValue: latest.celerationValue,
           celerationDeltaPct: latest.celerationDeltaPct,
+          celerationPeriod: latest.celerationPeriod,
+          celerationInterpretation: latest.celerationInterpretation,
         }
       }),
     }),
@@ -887,9 +891,13 @@ export function DashboardPage() {
               borderColor: visualTheme.borderColor,
             }
 
-            const celerationText = `${formatCeleration(latest.celerationValue)}/min`
+            const celerationText = `${formatCeleration(latest.celerationValue)}/wk`
             const celerationClass =
-              latest.celerationValue >= 1.08 ? 'risk-high' : latest.celerationValue >= 1 ? 'risk-mid' : 'risk-low'
+              latest.celerationInterpretation === 'worsening'
+                ? 'risk-high'
+                : latest.celerationInterpretation === 'improving'
+                  ? 'risk-low'
+                  : 'risk-mid'
 
             return (
               <article

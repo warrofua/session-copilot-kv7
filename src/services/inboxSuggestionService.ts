@@ -10,6 +10,8 @@ export type CaseloadAlertSnapshot = {
   promptDependencePct: number
   celerationValue: number
   celerationDeltaPct: number
+  celerationPeriod: 'per_week'
+  celerationInterpretation: 'worsening' | 'improving' | 'flat'
 }
 
 export type CaseloadClientSnapshot = {
@@ -22,6 +24,8 @@ export type CaseloadClientSnapshot = {
   promptDependencePct: number
   celerationValue: number
   celerationDeltaPct: number
+  celerationPeriod: 'per_week'
+  celerationInterpretation: 'worsening' | 'improving' | 'flat'
 }
 
 type InboxContext = {

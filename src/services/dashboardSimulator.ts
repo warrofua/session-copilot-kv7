@@ -7,6 +7,8 @@ export interface DashboardPoint {
   promptDependencePct: number
   celerationValue: number
   celerationDeltaPct: number
+  celerationPeriod: 'per_week'
+  celerationInterpretation: 'worsening' | 'improving' | 'flat'
   riskScore: number
 }
 
@@ -86,9 +88,11 @@ type SignalCatalogEntry = {
 }
 
 const HISTORY_LIMIT = 168
-const CELERATION_WINDOW_POINTS = 12
-const CELERATION_MIN_POINTS = 8
-const CELERATION_PERIOD_MS = 60_000
+const CELERATION_WINDOW_DAYS = 14
+const CELERATION_MIN_DAYS = 5
+const CELERATION_PERIOD_DAYS = 7
+const CELERATION_RISING_THRESHOLD = 1.15
+const CELERATION_FALLING_THRESHOLD = 1 / CELERATION_RISING_THRESHOLD
 const DAY_MS = 86_400_000
 const DEFAULT_SESSION_ZOOM_DAYS = 7
 const SESSION_SNAPSHOTS_PER_DAY = 12
@@ -167,16 +171,49 @@ const buildMoniker = (reinforcer: string, raw: number): string => {
   return `${monikerRoot}-${reinforcerNoun}-${suffix}`
 }
 
+const toCelerationInterpretation = (celerationValue: number): DashboardPoint['celerationInterpretation'] => {
+  if (celerationValue >= CELERATION_RISING_THRESHOLD) {
+    return 'worsening'
+  }
+  if (celerationValue <= CELERATION_FALLING_THRESHOLD) {
+    return 'improving'
+  }
+  return 'flat'
+}
+
 const computeCelerationMetrics = (points: DashboardPoint[]): { celerationValue: number; celerationDeltaPct: number } => {
-  if (points.length < CELERATION_MIN_POINTS) {
+  if (points.length < CELERATION_MIN_DAYS) {
     return { celerationValue: 1, celerationDeltaPct: 0 }
   }
 
-  const window = points.slice(-CELERATION_WINDOW_POINTS)
-  const startTimestampMs = window[0]?.timestampMs ?? 0
+  const dailyBuckets = points.reduce<Map<number, { sum: number; count: number }>>((acc, point) => {
+    const dayBucket = Math.floor(point.timestampMs / DAY_MS)
+    const existing = acc.get(dayBucket)
+    if (existing) {
+      existing.sum += point.behaviorRatePerHour
+      existing.count += 1
+      return acc
+    }
+    acc.set(dayBucket, { sum: point.behaviorRatePerHour, count: 1 })
+    return acc
+  }, new Map())
 
-  const transformed = window.map((point) => ({
-    x: (point.timestampMs - startTimestampMs) / CELERATION_PERIOD_MS,
+  const dailySeries = [...dailyBuckets.entries()]
+    .sort((left, right) => left[0] - right[0])
+    .slice(-CELERATION_WINDOW_DAYS)
+    .map(([dayBucket, aggregate]) => ({
+      dayBucket,
+      behaviorRatePerHour: aggregate.sum / Math.max(1, aggregate.count),
+    }))
+
+  if (dailySeries.length < CELERATION_MIN_DAYS) {
+    return { celerationValue: 1, celerationDeltaPct: 0 }
+  }
+
+  const startDayBucket = dailySeries[0]?.dayBucket ?? 0
+
+  const transformed = dailySeries.map((point) => ({
+    x: point.dayBucket - startDayBucket,
     y: Math.log10(Math.max(point.behaviorRatePerHour, 0.01)),
   }))
 
@@ -191,7 +228,7 @@ const computeCelerationMetrics = (points: DashboardPoint[]): { celerationValue: 
   }
 
   const slope = covariance / varianceX
-  const celerationValue = clamp(10 ** slope, 0.2, 5)
+  const celerationValue = clamp(10 ** (slope * CELERATION_PERIOD_DAYS), 0.2, 5)
   const celerationDeltaPct = (celerationValue - 1) * 100
 
   return { celerationValue, celerationDeltaPct }
@@ -199,16 +236,16 @@ const computeCelerationMetrics = (points: DashboardPoint[]): { celerationValue: 
 
 const computeAttentionLabel = (riskScore: number, celerationValue: number): string => {
   if (riskScore >= 78) {
-    if (celerationValue >= 1.08) {
+    if (celerationValue >= CELERATION_RISING_THRESHOLD) {
       return 'Rising trend'
     }
-    if (celerationValue <= 0.93) {
+    if (celerationValue <= CELERATION_FALLING_THRESHOLD) {
       return 'Settling trend'
     }
     return 'Needs closer look'
   }
   if (riskScore >= 58) {
-    return celerationValue >= 1.04 ? 'Baseline drift' : 'Monitor trend'
+    return celerationValue >= 1.08 ? 'Baseline drift' : 'Monitor trend'
   }
   return 'Within expected range'
 }
@@ -235,6 +272,8 @@ const makeInitialPoint = (
   promptDependencePct,
   celerationValue: 1,
   celerationDeltaPct: 0,
+  celerationPeriod: 'per_week',
+  celerationInterpretation: 'flat',
   riskScore: 0,
 })
 
@@ -712,6 +751,8 @@ const stepClient = (
     ...nextPoint,
     celerationValue: round(celerationValue),
     celerationDeltaPct: round(celerationDeltaPct),
+    celerationPeriod: 'per_week',
+    celerationInterpretation: toCelerationInterpretation(celerationValue),
     riskScore: round(riskScore),
   }
 
