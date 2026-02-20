@@ -212,7 +212,7 @@
 .dashboard-controls {
   margin-top: 0.85rem;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
   padding: 0.78rem 0.9rem;
   border-radius: 14px;

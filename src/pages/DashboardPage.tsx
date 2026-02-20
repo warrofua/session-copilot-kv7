@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkline } from '../components/dashboard/Sparkline'
 import {
@@ -10,6 +10,7 @@ import {
   type DashboardSignalSeries,
 } from '../services/dashboardSimulator'
 import { fetchStmInsight, deriveHeuristicInsight, type StmInsight } from '../services/stmBridge'
+import { streamInboxSuggestion, type InboxSuggestionRequest } from '../services/inboxSuggestionService'
 import './DashboardPage.css'
 
 type AlertSnapshot = {
@@ -26,11 +27,20 @@ type AlertInboxItem = {
   attentionLabel: string
   riskScore: number
   timestampMs: number
+  suggestionStatus: 'pending' | 'streaming' | 'complete' | 'fallback'
+  suggestionSource: 'gpt-5-chat' | 'stm-api' | 'heuristic'
+}
+
+type PendingSuggestionJob = {
+  alertId: string
+  request: InboxSuggestionRequest
+  fallbackSummary: string
 }
 
 const DAY_WINDOW_MS = 86_400_000
 const WEEK_WINDOW_MS = DAY_WINDOW_MS * 7
 const BEHAVIOR_TREND_WINDOW_DAYS = 7
+const FIXED_CLIENT_COUNT = 8
 
 type ReinforcerIconKey =
   | 'token'
@@ -83,13 +93,36 @@ const formatMsAgo = (timestampMs: number): string => {
 const formatCeleration = (celerationValue: number): string =>
   celerationValue >= 1 ? `x${celerationValue.toFixed(2)}` : `÷${(1 / Math.max(celerationValue, 0.01)).toFixed(2)}`
 
+const signalDelta = (signal: DashboardSignalSeries): number => {
+  if (signal.history.length < 2) {
+    return 0
+  }
+  return signal.history[signal.history.length - 1] - signal.history[signal.history.length - 2]
+}
+
+const summarizeSignalSlice = (signals: DashboardSignalSeries[], count: number): string =>
+  signals
+    .slice(0, count)
+    .map((signal) => {
+      const delta = signalDelta(signal)
+      const direction = Math.abs(delta) < 0.01 ? 'flat' : delta > 0 ? 'rising' : 'decreasing'
+      return `${signal.label} ${signal.currentValue.toFixed(1)} (${signal.measureLabel}, ${direction})`
+    })
+    .join('; ')
+
 const toStmNotes = (client: DashboardClientFeed): string[] => {
   const latest = client.points[client.points.length - 1]
+  const prioritizedBehaviors = [...client.behaviorSignals].sort((left, right) => right.lastUpdatedTick - left.lastUpdatedTick)
+  const prioritizedSkills = [...client.skillSignals].sort((left, right) => right.lastUpdatedTick - left.lastUpdatedTick)
+  const behaviorSnapshot = summarizeSignalSlice(prioritizedBehaviors, 3)
+  const skillSnapshot = summarizeSignalSlice(prioritizedSkills, 3)
+
   return [
-    `${client.moniker} behavior rate ${latest.behaviorRatePerHour.toFixed(1)} per hour.`,
-    `${client.moniker} skill accuracy ${latest.skillAccuracyPct.toFixed(1)} percent.`,
-    `${client.moniker} prompt dependence ${latest.promptDependencePct.toFixed(1)} percent.`,
-    `${client.moniker} celeration ${formatCeleration(latest.celerationValue)} per minute.`,
+    `${client.moniker} behavior composite ${latest.behaviorRatePerHour.toFixed(1)} events per hour over the past week.`,
+    `${client.moniker} skill accuracy ${latest.skillAccuracyPct.toFixed(1)}% with prompt dependence ${latest.promptDependencePct.toFixed(1)}%.`,
+    `${client.moniker} behavior measures: ${behaviorSnapshot}.`,
+    `${client.moniker} active skill set: ${skillSnapshot}.`,
+    `${client.moniker} celeration ${formatCeleration(latest.celerationValue)} per minute (${latest.celerationDeltaPct.toFixed(1)}% delta).`,
   ]
 }
 
@@ -289,13 +322,12 @@ function ReinforcerIcon({ iconKey }: { iconKey: ReinforcerIconKey }) {
 
 export function DashboardPage() {
   const navigate = useNavigate()
-  const [clientCount, setClientCount] = useState(14)
   const [sessionZoomDays, setSessionZoomDays] = useState(7)
   const [intervalSeconds, setIntervalSeconds] = useState(3)
   const [signalLines, setSignalLines] = useState(3)
   const [isRunning, setIsRunning] = useState(true)
   const [simulation, setSimulation] = useState(() =>
-    createDashboardSimulation(clientCount, Date.now(), Date.now(), BEHAVIOR_TREND_WINDOW_DAYS)
+    createDashboardSimulation(FIXED_CLIENT_COUNT, Date.now(), Date.now(), BEHAVIOR_TREND_WINDOW_DAYS)
   )
   const [insightsByClient, setInsightsByClient] = useState<Record<string, StmInsight>>({})
   const [isAlertMenuOpen, setIsAlertMenuOpen] = useState(false)
@@ -303,21 +335,12 @@ export function DashboardPage() {
   const [alertInbox, setAlertInbox] = useState<AlertInboxItem[]>([])
   const [expandedNoteClientId, setExpandedNoteClientId] = useState<string | null>(null)
   const previousAlertRef = useRef<Record<string, AlertSnapshot>>({})
-
-  const handleClientCountChange = (nextCount: number) => {
-    setClientCount(nextCount)
-    setSimulation(createDashboardSimulation(nextCount, Date.now(), Date.now(), Math.max(sessionZoomDays, BEHAVIOR_TREND_WINDOW_DAYS)))
-    setInsightsByClient({})
-    setAlertInbox([])
-    setUnseenAlertCount(0)
-    setExpandedNoteClientId(null)
-    previousAlertRef.current = {}
-  }
+  const suggestionInFlightRef = useRef<Set<string>>(new Set())
 
   const handleZoomDaysChange = (nextZoomDays: number) => {
     setSessionZoomDays(nextZoomDays)
     setSimulation(
-      createDashboardSimulation(clientCount, Date.now(), Date.now(), Math.max(nextZoomDays, BEHAVIOR_TREND_WINDOW_DAYS))
+      createDashboardSimulation(FIXED_CLIENT_COUNT, Date.now(), Date.now(), Math.max(nextZoomDays, BEHAVIOR_TREND_WINDOW_DAYS))
     )
     setInsightsByClient({})
     setAlertInbox([])
@@ -351,6 +374,63 @@ export function DashboardPage() {
       }),
     [view.clients]
   )
+
+  const streamSuggestionForAlert = useCallback(async (job: PendingSuggestionJob) => {
+    if (suggestionInFlightRef.current.has(job.alertId)) {
+      return
+    }
+
+    suggestionInFlightRef.current.add(job.alertId)
+    let generatedText = ''
+
+    setAlertInbox((previous) =>
+      previous.map((item) =>
+        item.id === job.alertId
+          ? { ...item, suggestionStatus: 'streaming', suggestionSource: 'gpt-5-chat', summary: 'Analyzing new data...' }
+          : item
+      )
+    )
+
+    try {
+      await streamInboxSuggestion(job.request, (chunk) => {
+        generatedText += chunk
+        const nextText = generatedText.trim()
+        if (!nextText) {
+          return
+        }
+        setAlertInbox((previous) =>
+          previous.map((item) =>
+            item.id === job.alertId
+              ? { ...item, summary: nextText, suggestionStatus: 'streaming', suggestionSource: 'gpt-5-chat' }
+              : item
+          )
+        )
+      })
+
+      const finalText = generatedText.trim()
+      if (!finalText) {
+        throw new Error('Empty stream result')
+      }
+
+      setAlertInbox((previous) =>
+        previous.map((item) =>
+          item.id === job.alertId
+            ? { ...item, summary: finalText, suggestionStatus: 'complete', suggestionSource: 'gpt-5-chat' }
+            : item
+        )
+      )
+    } catch {
+      setAlertInbox((previous) =>
+        previous.map((item) =>
+          item.id === job.alertId
+            ? { ...item, summary: job.fallbackSummary, suggestionStatus: 'fallback', suggestionSource: 'heuristic' }
+            : item
+        )
+      )
+    } finally {
+      suggestionInFlightRef.current.delete(job.alertId)
+    }
+  }, [])
 
   useEffect(() => {
     if (simulation.tick === 0 || simulation.tick % 4 !== 0) {
@@ -405,6 +485,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     const inboxUpdates: AlertInboxItem[] = []
+    const suggestionJobs: PendingSuggestionJob[] = []
 
     rankedClients.forEach((client) => {
       const latest = client.points[client.points.length - 1]
@@ -431,8 +512,28 @@ export function DashboardPage() {
         })
         const insight = insightsByClient[client.clientId] ?? fallbackInsight
 
+        const alertId = `${client.clientId}-${simulation.tick}-${level}`
+        const behaviorSnapshots = [...client.behaviorSignals]
+          .sort(byRecentTrial)
+          .slice(0, 3)
+          .map((signal) => ({
+            label: signal.label,
+            currentValue: signal.currentValue,
+            delta: signalDelta(signal),
+            measureLabel: signal.measureLabel,
+          }))
+        const skillSnapshots = [...client.skillSignals]
+          .sort(byRecentTrial)
+          .slice(0, 3)
+          .map((signal) => ({
+            label: signal.label,
+            currentValue: signal.currentValue,
+            delta: signalDelta(signal),
+            measureLabel: signal.measureLabel,
+          }))
+
         inboxUpdates.push({
-          id: `${client.clientId}-${simulation.tick}-${level}`,
+          id: alertId,
           clientId: client.clientId,
           moniker: client.moniker,
           level,
@@ -440,6 +541,26 @@ export function DashboardPage() {
           attentionLabel: client.attentionLabel,
           riskScore: latest.riskScore,
           timestampMs: latest.timestampMs,
+          suggestionStatus: 'pending',
+          suggestionSource: insight.source,
+        })
+
+        suggestionJobs.push({
+          alertId,
+          fallbackSummary: insight.summary,
+          request: {
+            moniker: client.moniker,
+            level,
+            attentionLabel: client.attentionLabel,
+            riskScore: latest.riskScore,
+            behaviorRatePerHour: latest.behaviorRatePerHour,
+            skillAccuracyPct: latest.skillAccuracyPct,
+            promptDependencePct: latest.promptDependencePct,
+            celerationValue: latest.celerationValue,
+            celerationDeltaPct: latest.celerationDeltaPct,
+            behaviors: behaviorSnapshots,
+            skills: skillSnapshots,
+          },
         })
       }
 
@@ -455,6 +576,9 @@ export function DashboardPage() {
         if (!isAlertMenuOpen) {
           setUnseenAlertCount((previous) => previous + inboxUpdates.length)
         }
+        suggestionJobs.forEach((job) => {
+          void streamSuggestionForAlert(job)
+        })
       }, 0)
 
       return () => {
@@ -463,7 +587,7 @@ export function DashboardPage() {
     }
 
     return undefined
-  }, [insightsByClient, isAlertMenuOpen, rankedClients, simulation.tick])
+  }, [insightsByClient, isAlertMenuOpen, rankedClients, simulation.tick, streamSuggestionForAlert])
 
   const stmStatus = useMemo(() => {
     const values = Object.values(insightsByClient)
@@ -518,7 +642,15 @@ export function DashboardPage() {
                     <p>{alert.summary}</p>
                     <footer>
                       <span>{alert.attentionLabel}</span>
-                      <span>{formatMsAgo(alert.timestampMs)}</span>
+                      <span>
+                        {alert.suggestionStatus === 'streaming'
+                          ? 'gpt-5 stream'
+                          : alert.suggestionSource === 'gpt-5-chat'
+                            ? 'gpt-5'
+                            : alert.suggestionSource}
+                        {' | '}
+                        {formatMsAgo(alert.timestampMs)}
+                      </span>
                     </footer>
                   </li>
                 ))}
@@ -568,18 +700,6 @@ export function DashboardPage() {
             <option value={5}>5 days</option>
             <option value={7}>7 days</option>
           </select>
-        </label>
-        <label>
-          Clients in View
-          <input
-            type="range"
-            min={8}
-            max={28}
-            step={1}
-            value={clientCount}
-            onChange={(event) => handleClientCountChange(Number(event.target.value))}
-          />
-          <span>{clientCount}</span>
         </label>
         <button type="button" className="run-toggle" onClick={() => setIsRunning((previous) => !previous)}>
           {isRunning ? 'Pause Updates' : 'Resume Updates'}

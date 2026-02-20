@@ -13,6 +13,7 @@ export interface DashboardPoint {
 export interface DashboardSignalSeries {
   signalId: string
   label: string
+  measureLabel: string
   color: string
   currentValue: number
   lastUpdatedTick: number
@@ -41,6 +42,7 @@ export interface DashboardSimulationState {
 type InternalSignalState = {
   signalId: string
   label: string
+  measureLabel: string
   color: string
   min: number
   max: number
@@ -79,6 +81,7 @@ type InternalClientState = {
 type SignalCatalogEntry = {
   signalId: string
   label: string
+  measureLabel: string
   color: string
 }
 
@@ -113,19 +116,19 @@ const reinforcers = [
 const monikerRoots = ['Atlas', 'Cedar', 'Comet', 'Echo', 'Harbor', 'Jasper', 'Lumen', 'Mosaic', 'Nova', 'Orion', 'River', 'Summit']
 
 const skillCatalog: SignalCatalogEntry[] = [
-  { signalId: 'receptive-id', label: 'Receptive ID', color: '#63b3ed' },
-  { signalId: 'manding', label: 'Manding', color: '#4fd1c5' },
-  { signalId: 'imitation', label: 'Imitation', color: '#68d391' },
-  { signalId: 'intraverbal', label: 'Intraverbal', color: '#f6ad55' },
-  { signalId: 'listener-response', label: 'Listener Resp', color: '#f687b3' },
+  { signalId: 'listener-response', label: 'Listener Resp', measureLabel: '% correct trials', color: '#63b3ed' },
+  { signalId: 'manding', label: 'Manding', measureLabel: '% independent mands', color: '#4fd1c5' },
+  { signalId: 'motor-imitation', label: 'Motor Imitation', measureLabel: '% independent trials', color: '#68d391' },
+  { signalId: 'intraverbal', label: 'Intraverbal', measureLabel: '% correct trials', color: '#f6ad55' },
+  { signalId: 'lrffc', label: 'LRFFC', measureLabel: '% mastered targets', color: '#f687b3' },
 ]
 
 const behaviorCatalog: SignalCatalogEntry[] = [
-  { signalId: 'aggression', label: 'Aggression', color: '#fc8181' },
-  { signalId: 'elopement', label: 'Elopement', color: '#f6ad55' },
-  { signalId: 'sib', label: 'SIB', color: '#f687b3' },
-  { signalId: 'tantrum', label: 'Tantrum', color: '#f56565' },
-  { signalId: 'refusal', label: 'Refusal', color: '#90cdf4' },
+  { signalId: 'aggression', label: 'Aggression', measureLabel: 'events/hr', color: '#fc8181' },
+  { signalId: 'elopement', label: 'Elopement', measureLabel: 'episodes/hr', color: '#f6ad55' },
+  { signalId: 'sib', label: 'SIB', measureLabel: 'responses/hr', color: '#f687b3' },
+  { signalId: 'tantrum', label: 'Tantrum', measureLabel: 'minutes/hr', color: '#f56565' },
+  { signalId: 'task-refusal', label: 'Task Refusal', measureLabel: '% intervals', color: '#90cdf4' },
 ]
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
@@ -259,6 +262,7 @@ const createSignalStates = (
     signals.push({
       signalId: entry.signalId,
       label: entry.label,
+      measureLabel: entry.measureLabel,
       color: entry.color,
       min,
       max,
@@ -730,6 +734,7 @@ const toSignalSeries = (signals: InternalSignalState[]): DashboardSignalSeries[]
   signals.map((signal) => ({
     signalId: signal.signalId,
     label: signal.label,
+    measureLabel: signal.measureLabel,
     color: signal.color,
     currentValue: signal.value,
     lastUpdatedTick: signal.lastUpdatedTick,
