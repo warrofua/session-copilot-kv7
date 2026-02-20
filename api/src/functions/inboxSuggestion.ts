@@ -155,7 +155,8 @@ async function inboxSuggestionHandler(request: HttpRequest, context: InvocationC
           'Grounding rules: use only provided numbers and definitions; if a value is unavailable, explicitly say it is unavailable in current snapshot; ' +
           'do not invent thresholds, formulas, or extra clients. ' +
           'Treat any celeration delta value not equal to 0.0 as non-zero. ' +
-          'SCC interpretation for behavior reduction targets: x1.00+ means behavior frequency is accelerating (worsening), ÷ values mean behavior frequency is decelerating (improving), and near x1.00 is flat. ' +
+          'SCC interpretation for behavior reduction targets: prefer the provided celerationInterpretation field. ' +
+          'Use worsening when celeration is at least x1.15 per week, improving when at or below ÷1.15 per week, otherwise flat. ' +
           'Known definitions: risk critical if score >= 78, watch if >= 58; ' +
           'risk formula = 22 + behaviorRate*4.5 + (100-skillAccuracy)*0.55 + promptDependence*0.35 + max(0, celerationDeltaPct)*1.2; ' +
           'celeration is computed from recent behavior-rate trend and normalized to a weekly multiplier. ' +
