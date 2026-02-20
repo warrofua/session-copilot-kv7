@@ -100,21 +100,26 @@
 .alert-dropdown-menu {
   position: absolute;
   top: calc(100% + 0.5rem);
-  width: min(380px, 90vw);
-  max-height: min(58vh, 520px);
+  width: min(460px, 94vw);
+  max-height: min(72vh, 680px);
   overflow: auto;
   border-radius: 14px;
   border: 1px solid rgb(167 190 219 / 36%);
   background: rgb(37 53 74 / 95%);
   box-shadow: 0 14px 24px rgb(10 18 30 / 35%);
   z-index: 200;
-  padding: 0.55rem;
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.5rem;
 }
 
 .alert-dropdown-menu ul {
   list-style: none;
   display: grid;
   gap: 0.45rem;
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 0.2rem;
 }
 
 .alert-dropdown-menu li {
@@ -154,6 +159,117 @@
   margin: 0.3rem 0;
   font-size: 0.77rem;
   line-height: 1.28;
+}
+
+.inbox-summary-card {
+  border: 1px solid rgb(148 210 189 / 40%);
+  border-radius: 10px;
+  background: rgb(21 38 56 / 62%);
+  padding: 0.55rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.inbox-summary-card header,
+.inbox-summary-card footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.inbox-summary-card header span,
+.inbox-summary-card footer span {
+  color: rgb(163 187 214);
+  font-size: 0.68rem;
+}
+
+.inbox-summary-card p {
+  margin: 0;
+  color: rgb(225 236 248);
+  font-size: 0.79rem;
+  line-height: 1.32;
+}
+
+.inbox-chat-shell {
+  border: 1px solid rgb(167 190 219 / 28%);
+  border-radius: 10px;
+  background: rgb(18 32 49 / 56%);
+  padding: 0.45rem;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.inbox-chat-log {
+  max-height: 150px;
+  overflow: auto;
+  display: grid;
+  gap: 0.35rem;
+  padding-right: 0.15rem;
+}
+
+.chat-empty {
+  margin: 0;
+  color: rgb(168 188 212);
+  font-size: 0.72rem;
+}
+
+.chat-message {
+  border-radius: 9px;
+  border: 1px solid rgb(255 255 255 / 13%);
+  background: rgb(28 43 62 / 62%);
+  padding: 0.36rem 0.42rem;
+  display: grid;
+  gap: 0.18rem;
+}
+
+.chat-message.user {
+  border-color: rgb(167 190 219 / 34%);
+  background: rgb(32 53 77 / 60%);
+}
+
+.chat-message span {
+  color: rgb(173 194 218);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.chat-message p {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.25;
+  color: rgb(226 235 246);
+}
+
+.inbox-chat-compose {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.38rem;
+}
+
+.inbox-chat-compose input {
+  border-radius: 8px;
+  border: 1px solid rgb(167 190 219 / 30%);
+  background: rgb(21 38 58 / 68%);
+  color: #e6edf7;
+  padding: 0.36rem 0.48rem;
+  font-size: 0.74rem;
+}
+
+.inbox-chat-compose button {
+  border-radius: 8px;
+  border: 1px solid rgb(167 190 219 / 40%);
+  background: linear-gradient(140deg, rgb(167 190 219 / 28%), rgb(148 210 189 / 22%));
+  color: #eef4fd;
+  padding: 0.34rem 0.58rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inbox-chat-compose button:disabled {
+  opacity: 0.66;
+  cursor: default;
 }
 
 .dashboard-header-actions {

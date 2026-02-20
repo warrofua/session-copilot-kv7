@@ -1,13 +1,6 @@
 import type { AlertLevel } from './dashboardSimulator'
 
-export type AlertSignalSnapshot = {
-  label: string
-  currentValue: number
-  delta: number
-  measureLabel: string
-}
-
-export type InboxSuggestionRequest = {
+export type CaseloadAlertSnapshot = {
   moniker: string
   level: AlertLevel
   attentionLabel: string
@@ -15,11 +8,31 @@ export type InboxSuggestionRequest = {
   behaviorRatePerHour: number
   skillAccuracyPct: number
   promptDependencePct: number
-  celerationValue: number
   celerationDeltaPct: number
-  behaviors: AlertSignalSnapshot[]
-  skills: AlertSignalSnapshot[]
 }
+
+type InboxContext = {
+  generatedAtMs: number
+  totalClients: number
+  watchCount: number
+  criticalCount: number
+  averageBehaviorRate: number
+  averageSkillAccuracy: number
+  alerts: CaseloadAlertSnapshot[]
+}
+
+export type InboxSummaryRequest = InboxContext & {
+  summaryScope: 'caseload'
+}
+
+export type InboxChatRequest = InboxContext & {
+  summaryScope: 'chat'
+  message: string
+  currentSummary?: string
+  recentMessages?: Array<{ role: 'user' | 'assistant'; text: string }>
+}
+
+export type InboxSuggestionRequest = InboxSummaryRequest | InboxChatRequest
 
 export const streamInboxSuggestion = async (
   input: InboxSuggestionRequest,

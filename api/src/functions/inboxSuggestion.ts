@@ -1,13 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
 type AlertSignalSnapshot = {
-    label: string;
-    currentValue: number;
-    delta: number;
-    measureLabel: string;
-};
-
-type InboxSuggestionRequest = {
     moniker: string;
     level: 'stable' | 'watch' | 'critical';
     attentionLabel: string;
@@ -15,43 +8,70 @@ type InboxSuggestionRequest = {
     behaviorRatePerHour: number;
     skillAccuracyPct: number;
     promptDependencePct: number;
-    celerationValue: number;
     celerationDeltaPct: number;
-    behaviors: AlertSignalSnapshot[];
-    skills: AlertSignalSnapshot[];
 };
+
+type InboxContext = {
+    generatedAtMs: number;
+    totalClients: number;
+    watchCount: number;
+    criticalCount: number;
+    averageBehaviorRate: number;
+    averageSkillAccuracy: number;
+    alerts: AlertSignalSnapshot[];
+};
+
+type InboxSummaryRequest = InboxContext & {
+    summaryScope: 'caseload';
+};
+
+type InboxChatRequest = InboxContext & {
+    summaryScope: 'chat';
+    message: string;
+    currentSummary?: string;
+    recentMessages?: Array<{ role: 'user' | 'assistant'; text: string }>;
+};
+
+type InboxSuggestionRequest = InboxSummaryRequest | InboxChatRequest;
 
 const readEnv = (name: string): string =>
     (process.env[name] || '').trim();
 
-const toDeltaText = (delta: number): string => {
-    if (Math.abs(delta) < 0.01) {
-        return 'flat';
-    }
-    return delta > 0 ? `up ${delta.toFixed(2)}` : `down ${Math.abs(delta).toFixed(2)}`;
+const buildAlertDigest = (payload: InboxContext): string => payload.alerts
+        .slice(0, 3)
+        .map((alert) =>
+            `${alert.moniker} (${alert.level}, risk ${alert.riskScore.toFixed(1)}, ${alert.attentionLabel}, ` +
+            `${alert.behaviorRatePerHour.toFixed(1)}/hr, ${alert.skillAccuracyPct.toFixed(1)}% skills, ` +
+            `${alert.promptDependencePct.toFixed(1)}% prompt dep, celeration delta ${alert.celerationDeltaPct.toFixed(1)}%)`
+        )
+        .join('; ');
+
+const buildSummaryPrompt = (payload: InboxSummaryRequest): string => {
+    const alertDigest = buildAlertDigest(payload);
+    return [
+        `Caseload size: ${payload.totalClients}`,
+        `Review load: ${payload.criticalCount} review, ${payload.watchCount} monitor`,
+        `Averages: behavior ${payload.averageBehaviorRate.toFixed(1)}/hr, skill accuracy ${payload.averageSkillAccuracy.toFixed(1)}%`,
+        `Top alerts: ${alertDigest || 'none'}`,
+        'Task: generate one concise caseload summary with the biggest risks and immediate BCBA next steps.'
+    ].join('\n');
 };
 
-const buildClinicalPrompt = (payload: InboxSuggestionRequest): string => {
-    const behaviorLine = payload.behaviors
-        .slice(0, 3)
-        .map((signal) => `${signal.label} ${signal.currentValue.toFixed(2)} (${signal.measureLabel}, ${toDeltaText(signal.delta)})`)
-        .join('; ');
-    const skillLine = payload.skills
-        .slice(0, 3)
-        .map((signal) => `${signal.label} ${signal.currentValue.toFixed(2)} (${signal.measureLabel}, ${toDeltaText(signal.delta)})`)
-        .join('; ');
+const buildChatPrompt = (payload: InboxChatRequest): string => {
+    const alertDigest = buildAlertDigest(payload);
+    const recentTurns = (payload.recentMessages || [])
+        .slice(-6)
+        .map((turn) => `${turn.role}: ${turn.text}`)
+        .join('\n');
 
     return [
-        `Client moniker: ${payload.moniker}`,
-        `Alert level: ${payload.level}`,
-        `Attention label: ${payload.attentionLabel}`,
-        `Risk score: ${payload.riskScore.toFixed(1)}`,
-        `Behavior aggregate: ${payload.behaviorRatePerHour.toFixed(2)} per hour`,
-        `Skill aggregate: ${payload.skillAccuracyPct.toFixed(1)}%`,
-        `Prompt dependence: ${payload.promptDependencePct.toFixed(1)}%`,
-        `Celeration: x${payload.celerationValue.toFixed(2)} (${payload.celerationDeltaPct.toFixed(1)}%)`,
-        `Behavior measures: ${behaviorLine || 'none'}`,
-        `Skill measures: ${skillLine || 'none'}`,
+        `Caseload size: ${payload.totalClients}`,
+        `Review load: ${payload.criticalCount} review, ${payload.watchCount} monitor`,
+        `Averages: behavior ${payload.averageBehaviorRate.toFixed(1)}/hr, skill accuracy ${payload.averageSkillAccuracy.toFixed(1)}%`,
+        `Top alerts: ${alertDigest || 'none'}`,
+        `Current summary: ${payload.currentSummary || 'none'}`,
+        `Recent chat:\n${recentTurns || 'none'}`,
+        `User question: ${payload.message}`
     ].join('\n');
 };
 
@@ -83,20 +103,29 @@ async function inboxSuggestionHandler(request: HttpRequest, context: InvocationC
         };
     }
 
-    if (!payload?.moniker || !payload.level) {
+    if (!payload?.summaryScope || !Array.isArray(payload.alerts)) {
         return {
             status: 400,
             jsonBody: { error: 'Missing required fields' }
         };
     }
+    if (payload.summaryScope === 'chat' && !((payload as InboxChatRequest).message || '').trim()) {
+        return {
+            status: 400,
+            jsonBody: { error: 'Chat message is required' }
+        };
+    }
 
-    const systemPrompt =
-        'You are a BCBA assistant. Generate a concise, calm, clinically useful suggestion for an ABA dashboard inbox. ' +
-        'Use ABA terms (e.g., antecedent strategy, reinforcement schedule, prompt fading, procedural fidelity). ' +
-        'Reference the provided measures directly and avoid diagnosis language. ' +
-        'Return plain text, 2 short sentences, max 70 words.';
+    const systemPrompt = payload.summaryScope === 'caseload'
+        ? 'You are a BCBA assistant. Write one calm, concise caseload-level summary for the Inbox. ' +
+          'Use ABA language (antecedent strategy, reinforcement schedule, prompt fading, procedural fidelity). ' +
+          'Mention key risk concentration and actionable next steps. Return plain text, max 95 words.'
+        : 'You are a BCBA assistant in an inbox chat. Answer the user question with concise, clinically grounded guidance. ' +
+          'Use ABA terms and reference provided caseload measures. Return plain text, max 120 words.';
 
-    const userPrompt = buildClinicalPrompt(payload);
+    const userPrompt = payload.summaryScope === 'caseload'
+        ? buildSummaryPrompt(payload as InboxSummaryRequest)
+        : buildChatPrompt(payload as InboxChatRequest);
 
     const normalizedEndpoint = endpoint.endsWith('/') ? endpoint.slice(0, -1) : endpoint;
     const upstreamUrl =

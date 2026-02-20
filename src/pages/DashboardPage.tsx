@@ -27,14 +27,15 @@ type AlertInboxItem = {
   attentionLabel: string
   riskScore: number
   timestampMs: number
-  suggestionStatus: 'pending' | 'streaming' | 'complete' | 'fallback'
-  suggestionSource: 'gpt-5-chat' | 'stm-api' | 'heuristic'
 }
 
-type PendingSuggestionJob = {
-  alertId: string
-  request: InboxSuggestionRequest
-  fallbackSummary: string
+type InboxSummaryStatus = 'idle' | 'streaming' | 'ready' | 'error'
+
+type InboxChatMessage = {
+  id: string
+  role: 'assistant' | 'user'
+  text: string
+  timestampMs: number
 }
 
 const DAY_WINDOW_MS = 86_400_000
@@ -331,13 +332,17 @@ export function DashboardPage() {
   )
   const [insightsByClient, setInsightsByClient] = useState<Record<string, StmInsight>>({})
   const [isAlertMenuOpen, setIsAlertMenuOpen] = useState(false)
-  const [hasOpenedInbox, setHasOpenedInbox] = useState(false)
   const [unseenAlertCount, setUnseenAlertCount] = useState(0)
   const [alertInbox, setAlertInbox] = useState<AlertInboxItem[]>([])
+  const [inboxSummaryText, setInboxSummaryText] = useState('Open Inbox to generate a live BCBA caseload summary.')
+  const [inboxSummaryStatus, setInboxSummaryStatus] = useState<InboxSummaryStatus>('idle')
+  const [inboxSummaryTimestampMs, setInboxSummaryTimestampMs] = useState<number | null>(null)
+  const [inboxChatInput, setInboxChatInput] = useState('')
+  const [inboxChatMessages, setInboxChatMessages] = useState<InboxChatMessage[]>([])
+  const [isInboxChatStreaming, setIsInboxChatStreaming] = useState(false)
   const [expandedNoteClientId, setExpandedNoteClientId] = useState<string | null>(null)
   const previousAlertRef = useRef<Record<string, AlertSnapshot>>({})
-  const suggestionInFlightRef = useRef<Set<string>>(new Set())
-  const pendingSuggestionJobsRef = useRef<Record<string, PendingSuggestionJob>>({})
+  const summaryInFlightRef = useRef(false)
 
   const handleZoomDaysChange = (nextZoomDays: number) => {
     setSessionZoomDays(nextZoomDays)
@@ -347,11 +352,15 @@ export function DashboardPage() {
     setInsightsByClient({})
     setAlertInbox([])
     setUnseenAlertCount(0)
-    setHasOpenedInbox(false)
+    setInboxSummaryText('Open Inbox to generate a live BCBA caseload summary.')
+    setInboxSummaryStatus('idle')
+    setInboxSummaryTimestampMs(null)
+    setInboxChatInput('')
+    setInboxChatMessages([])
+    setIsInboxChatStreaming(false)
     setExpandedNoteClientId(null)
     previousAlertRef.current = {}
-    pendingSuggestionJobsRef.current = {}
-    suggestionInFlightRef.current.clear()
+    summaryInFlightRef.current = false
   }
 
   useEffect(() => {
@@ -380,63 +389,137 @@ export function DashboardPage() {
     [view.clients]
   )
 
-  const streamSuggestionForAlert = useCallback(async (job: PendingSuggestionJob) => {
-    if (suggestionInFlightRef.current.has(job.alertId)) {
+  const inboxSummaryPayload = useMemo<InboxSuggestionRequest>(
+    () => ({
+      summaryScope: 'caseload',
+      generatedAtMs: Date.now(),
+      totalClients: view.totalClients,
+      watchCount: view.watchCount,
+      criticalCount: view.criticalCount,
+      averageBehaviorRate: view.averageBehaviorRate,
+      averageSkillAccuracy: view.averageSkillAccuracy,
+      alerts: rankedClients
+        .filter((client) => client.alertLevel !== 'stable')
+        .slice(0, 8)
+        .map((client) => {
+          const latest = client.points[client.points.length - 1]
+          return {
+            moniker: client.moniker,
+            level: client.alertLevel,
+            attentionLabel: client.attentionLabel,
+            riskScore: latest.riskScore,
+            behaviorRatePerHour: latest.behaviorRatePerHour,
+            skillAccuracyPct: latest.skillAccuracyPct,
+            promptDependencePct: latest.promptDependencePct,
+            celerationDeltaPct: latest.celerationDeltaPct,
+          }
+        }),
+    }),
+    [rankedClients, view.averageBehaviorRate, view.averageSkillAccuracy, view.criticalCount, view.totalClients, view.watchCount]
+  )
+
+  const streamInboxSummary = useCallback(async () => {
+    if (summaryInFlightRef.current) {
       return
     }
 
-    suggestionInFlightRef.current.add(job.alertId)
-    let generatedText = ''
+    summaryInFlightRef.current = true
+    setInboxSummaryStatus('streaming')
+    setInboxSummaryText('Synthesizing caseload snapshot...')
 
-    setAlertInbox((previous) =>
-      previous.map((item) =>
-        item.id === job.alertId
-          ? { ...item, suggestionStatus: 'streaming', suggestionSource: 'gpt-5-chat', summary: 'Analyzing new data...' }
-          : item
-      )
-    )
+    let summaryText = ''
 
     try {
-      await streamInboxSuggestion(job.request, (chunk) => {
-        generatedText += chunk
-        const nextText = generatedText.trim()
-        if (!nextText) {
-          return
+      await streamInboxSuggestion(inboxSummaryPayload, (chunk) => {
+        summaryText += chunk
+        const next = summaryText.trim()
+        if (next) {
+          setInboxSummaryText(next)
         }
-        setAlertInbox((previous) =>
-          previous.map((item) =>
-            item.id === job.alertId
-              ? { ...item, summary: nextText, suggestionStatus: 'streaming', suggestionSource: 'gpt-5-chat' }
-              : item
-          )
-        )
       })
 
-      const finalText = generatedText.trim()
+      const finalText = summaryText.trim()
       if (!finalText) {
         throw new Error('Empty stream result')
       }
 
-      setAlertInbox((previous) =>
-        previous.map((item) =>
-          item.id === job.alertId
-            ? { ...item, summary: finalText, suggestionStatus: 'complete', suggestionSource: 'gpt-5-chat' }
-            : item
-        )
+      setInboxSummaryText(finalText)
+      setInboxSummaryStatus('ready')
+      setInboxSummaryTimestampMs(Date.now())
+    } catch {
+      setInboxSummaryStatus('error')
+      setInboxSummaryText('Unable to generate GPT caseload summary. Review alert feed and try opening Inbox again.')
+    } finally {
+      summaryInFlightRef.current = false
+    }
+  }, [inboxSummaryPayload])
+
+  const handleInboxChatSend = useCallback(async () => {
+    const message = inboxChatInput.trim()
+    if (!message || isInboxChatStreaming) {
+      return
+    }
+
+    const userMessage: InboxChatMessage = {
+      id: `chat-user-${Date.now()}`,
+      role: 'user',
+      text: message,
+      timestampMs: Date.now(),
+    }
+    const assistantMessageId = `chat-assistant-${Date.now()}`
+    const priorTurns = inboxChatMessages.slice(-6).map((turn) => ({ role: turn.role, text: turn.text }))
+
+    setInboxChatInput('')
+    setIsInboxChatStreaming(true)
+    setInboxChatMessages((previous) => [
+      ...previous,
+      userMessage,
+      {
+        id: assistantMessageId,
+        role: 'assistant',
+        text: 'Thinking through the caseload context...',
+        timestampMs: Date.now(),
+      },
+    ])
+
+    let assistantText = ''
+
+    try {
+      await streamInboxSuggestion(
+        {
+          ...inboxSummaryPayload,
+          summaryScope: 'chat',
+          message,
+          currentSummary: inboxSummaryText,
+          recentMessages: priorTurns,
+        },
+        (chunk) => {
+          assistantText += chunk
+          const nextText = assistantText.trim()
+          if (!nextText) {
+            return
+          }
+          setInboxChatMessages((previous) =>
+            previous.map((item) =>
+              item.id === assistantMessageId
+                ? { ...item, text: nextText }
+                : item
+            )
+          )
+        }
       )
     } catch {
-      setAlertInbox((previous) =>
+      setInboxChatMessages((previous) =>
         previous.map((item) =>
-          item.id === job.alertId
-            ? { ...item, summary: job.fallbackSummary, suggestionStatus: 'fallback', suggestionSource: 'heuristic' }
+          item.id === assistantMessageId
+            ? { ...item, text: 'Unable to stream reply right now. Please try again in a moment.' }
             : item
         )
       )
     } finally {
-      suggestionInFlightRef.current.delete(job.alertId)
-      delete pendingSuggestionJobsRef.current[job.alertId]
+      setIsInboxChatStreaming(false)
     }
-  }, [])
+  }, [inboxChatInput, inboxChatMessages, inboxSummaryPayload, inboxSummaryText, isInboxChatStreaming])
 
   useEffect(() => {
     if (simulation.tick === 0 || simulation.tick % 4 !== 0) {
@@ -491,7 +574,6 @@ export function DashboardPage() {
 
   useEffect(() => {
     const inboxUpdates: AlertInboxItem[] = []
-    const suggestionJobs: PendingSuggestionJob[] = []
 
     rankedClients.forEach((client) => {
       const latest = client.points[client.points.length - 1]
@@ -518,28 +600,8 @@ export function DashboardPage() {
         })
         const insight = insightsByClient[client.clientId] ?? fallbackInsight
 
-        const alertId = `${client.clientId}-${simulation.tick}-${level}`
-        const behaviorSnapshots = [...client.behaviorSignals]
-          .sort(byRecentTrial)
-          .slice(0, 3)
-          .map((signal) => ({
-            label: signal.label,
-            currentValue: signal.currentValue,
-            delta: signalDelta(signal),
-            measureLabel: signal.measureLabel,
-          }))
-        const skillSnapshots = [...client.skillSignals]
-          .sort(byRecentTrial)
-          .slice(0, 3)
-          .map((signal) => ({
-            label: signal.label,
-            currentValue: signal.currentValue,
-            delta: signalDelta(signal),
-            measureLabel: signal.measureLabel,
-          }))
-
         inboxUpdates.push({
-          id: alertId,
+          id: `${client.clientId}-${simulation.tick}-${level}`,
           clientId: client.clientId,
           moniker: client.moniker,
           level,
@@ -547,26 +609,6 @@ export function DashboardPage() {
           attentionLabel: client.attentionLabel,
           riskScore: latest.riskScore,
           timestampMs: latest.timestampMs,
-          suggestionStatus: 'pending',
-          suggestionSource: insight.source,
-        })
-
-        suggestionJobs.push({
-          alertId,
-          fallbackSummary: insight.summary,
-          request: {
-            moniker: client.moniker,
-            level,
-            attentionLabel: client.attentionLabel,
-            riskScore: latest.riskScore,
-            behaviorRatePerHour: latest.behaviorRatePerHour,
-            skillAccuracyPct: latest.skillAccuracyPct,
-            promptDependencePct: latest.promptDependencePct,
-            celerationValue: latest.celerationValue,
-            celerationDeltaPct: latest.celerationDeltaPct,
-            behaviors: behaviorSnapshots,
-            skills: skillSnapshots,
-          },
         })
       }
 
@@ -582,9 +624,6 @@ export function DashboardPage() {
         if (!isAlertMenuOpen) {
           setUnseenAlertCount((previous) => previous + inboxUpdates.length)
         }
-        suggestionJobs.forEach((job) => {
-          pendingSuggestionJobsRef.current[job.alertId] = job
-        })
       }, 0)
 
       return () => {
@@ -593,24 +632,7 @@ export function DashboardPage() {
     }
 
     return undefined
-  }, [insightsByClient, isAlertMenuOpen, rankedClients, simulation.tick, streamSuggestionForAlert])
-
-  useEffect(() => {
-    if (!isAlertMenuOpen || !hasOpenedInbox) {
-      return
-    }
-
-    const pendingAlertIds = alertInbox
-      .filter((item) => item.suggestionStatus === 'pending')
-      .map((item) => item.id)
-
-    pendingAlertIds.forEach((alertId) => {
-      const job = pendingSuggestionJobsRef.current[alertId]
-      if (job) {
-        void streamSuggestionForAlert(job)
-      }
-    })
-  }, [alertInbox, hasOpenedInbox, isAlertMenuOpen, streamSuggestionForAlert])
+  }, [insightsByClient, isAlertMenuOpen, rankedClients, simulation.tick])
 
   const stmStatus = useMemo(() => {
     const values = Object.values(insightsByClient)
@@ -625,7 +647,9 @@ export function DashboardPage() {
     setIsAlertMenuOpen((previous) => {
       const next = !previous
       if (next) {
-        setHasOpenedInbox(true)
+        if (unseenAlertCount >= 3 || inboxSummaryStatus === 'idle') {
+          void streamInboxSummary()
+        }
         setUnseenAlertCount(0)
       }
       return next
@@ -656,8 +680,20 @@ export function DashboardPage() {
 
           {isAlertMenuOpen ? (
             <div className="alert-dropdown-menu" role="region" aria-label="Recent alerts">
+              <section className="inbox-summary-card" aria-live="polite">
+                <header>
+                  <strong>Caseload Summary</strong>
+                  <span>{inboxSummaryStatus === 'streaming' ? 'gpt-5 streaming' : 'gpt-5'}</span>
+                </header>
+                <p>{inboxSummaryText}</p>
+                <footer>
+                  <span>{view.totalClients} clients in view</span>
+                  <span>{inboxSummaryTimestampMs ? formatMsAgo(inboxSummaryTimestampMs) : 'not generated yet'}</span>
+                </footer>
+              </section>
+
               <ul>
-                {alertInbox.slice(0, 12).map((alert) => (
+                {alertInbox.slice(0, 8).map((alert) => (
                   <li key={alert.id} className={badgeClassByAlert(alert.level)}>
                     <header>
                       <strong>{alert.moniker}</strong>
@@ -666,15 +702,7 @@ export function DashboardPage() {
                     <p>{alert.summary}</p>
                     <footer>
                       <span>{alert.attentionLabel}</span>
-                      <span>
-                        {alert.suggestionStatus === 'streaming'
-                          ? 'gpt-5 stream'
-                          : alert.suggestionSource === 'gpt-5-chat'
-                            ? 'gpt-5'
-                            : alert.suggestionSource}
-                        {' | '}
-                        {formatMsAgo(alert.timestampMs)}
-                      </span>
+                      <span>{formatMsAgo(alert.timestampMs)}</span>
                     </footer>
                   </li>
                 ))}
@@ -684,6 +712,40 @@ export function DashboardPage() {
                   </li>
                 ) : null}
               </ul>
+
+              <div className="inbox-chat-shell">
+                <div className="inbox-chat-log" aria-label="Inbox chat">
+                  {inboxChatMessages.length === 0 ? (
+                    <p className="chat-empty">Ask for a drill-down, protocol suggestion, or next-session focus.</p>
+                  ) : (
+                    inboxChatMessages.slice(-6).map((message) => (
+                      <article key={message.id} className={`chat-message ${message.role}`}>
+                        <span>{message.role === 'assistant' ? 'Agent' : 'You'}</span>
+                        <p>{message.text}</p>
+                      </article>
+                    ))
+                  )}
+                </div>
+                <div className="inbox-chat-compose">
+                  <input
+                    id="inbox-chat-input"
+                    name="inbox-chat-input"
+                    type="text"
+                    placeholder="Ask the inbox agent..."
+                    value={inboxChatInput}
+                    onChange={(event) => setInboxChatInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        void handleInboxChatSend()
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={() => void handleInboxChatSend()} disabled={isInboxChatStreaming}>
+                    Send
+                  </button>
+                </div>
+              </div>
             </div>
           ) : null}
         </div>
