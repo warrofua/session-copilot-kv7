@@ -8,6 +8,7 @@ type AlertSignalSnapshot = {
     behaviorRatePerHour: number;
     skillAccuracyPct: number;
     promptDependencePct: number;
+    celerationValue: number;
     celerationDeltaPct: number;
 };
 
@@ -19,6 +20,7 @@ type InboxContext = {
     averageBehaviorRate: number;
     averageSkillAccuracy: number;
     alerts: AlertSignalSnapshot[];
+    clients: AlertSignalSnapshot[];
 };
 
 type InboxSummaryRequest = InboxContext & {
@@ -57,8 +59,24 @@ const buildSummaryPrompt = (payload: InboxSummaryRequest): string => {
     ].join('\n');
 };
 
+const buildClientDigest = (payload: InboxContext): string => payload.clients
+        .slice(0, 8)
+        .map(
+            (client) =>
+                `${client.moniker} (${client.level}, risk ${client.riskScore.toFixed(1)}, ` +
+                `${client.behaviorRatePerHour.toFixed(1)}/hr, ${client.skillAccuracyPct.toFixed(1)}% skills, ` +
+                `${client.promptDependencePct.toFixed(1)}% prompt dep, celeration ${client.celerationValue.toFixed(2)}, ` +
+                `delta ${client.celerationDeltaPct.toFixed(1)}%)`
+        )
+        .join('; ');
+
 const buildChatPrompt = (payload: InboxChatRequest): string => {
     const alertDigest = buildAlertDigest(payload);
+    const clientDigest = buildClientDigest(payload);
+    const nonZeroCeleration = payload.clients
+        .filter((client) => Math.abs(client.celerationDeltaPct) >= 0.1)
+        .map((client) => `${client.moniker} (${client.celerationDeltaPct.toFixed(1)}%)`)
+        .join(', ');
     const recentTurns = (payload.recentMessages || [])
         .slice(-6)
         .map((turn) => `${turn.role}: ${turn.text}`)
@@ -69,6 +87,8 @@ const buildChatPrompt = (payload: InboxChatRequest): string => {
         `Review load: ${payload.criticalCount} review, ${payload.watchCount} monitor`,
         `Averages: behavior ${payload.averageBehaviorRate.toFixed(1)}/hr, skill accuracy ${payload.averageSkillAccuracy.toFixed(1)}%`,
         `Top alerts: ${alertDigest || 'none'}`,
+        `All clients snapshot: ${clientDigest || 'none'}`,
+        `Clients with non-zero celeration delta: ${nonZeroCeleration || 'none'}`,
         `Current summary: ${payload.currentSummary || 'none'}`,
         `Recent chat:\n${recentTurns || 'none'}`,
         `User question: ${payload.message}`
@@ -103,7 +123,7 @@ async function inboxSuggestionHandler(request: HttpRequest, context: InvocationC
         };
     }
 
-    if (!payload?.summaryScope || !Array.isArray(payload.alerts)) {
+    if (!payload?.summaryScope || !Array.isArray(payload.alerts) || !Array.isArray(payload.clients)) {
         return {
             status: 400,
             jsonBody: { error: 'Missing required fields' }
@@ -119,9 +139,17 @@ async function inboxSuggestionHandler(request: HttpRequest, context: InvocationC
     const systemPrompt = payload.summaryScope === 'caseload'
         ? 'You are a BCBA assistant. Write one calm, concise caseload-level summary for the Inbox. ' +
           'Use ABA language (antecedent strategy, reinforcement schedule, prompt fading, procedural fidelity). ' +
-          'Mention key risk concentration and actionable next steps. Return plain text, max 95 words.'
+          'Mention key risk concentration and actionable next steps. ' +
+          'Grounding rule: use only provided caseload data and do not invent thresholds or values. ' +
+          'Return plain text, max 95 words.'
         : 'You are a BCBA assistant in an inbox chat. Answer the user question with concise, clinically grounded guidance. ' +
-          'Use ABA terms and reference provided caseload measures. Return plain text, max 120 words.';
+          'Use ABA terms and reference provided caseload measures. ' +
+          'Grounding rules: use only provided numbers and definitions; if a value is unavailable, explicitly say it is unavailable in current snapshot; ' +
+          'do not invent thresholds, formulas, or extra clients. ' +
+          'Known definitions: risk critical if score >= 78, watch if >= 58; ' +
+          'risk formula = 22 + behaviorRate*4.5 + (100-skillAccuracy)*0.55 + promptDependence*0.35 + max(0, celerationDeltaPct)*1.2; ' +
+          'celeration delta comes from recent log-slope trend of behavior rate and can be positive, zero, or negative. ' +
+          'Return plain text, max 120 words.';
 
     const userPrompt = payload.summaryScope === 'caseload'
         ? buildSummaryPrompt(payload as InboxSummaryRequest)

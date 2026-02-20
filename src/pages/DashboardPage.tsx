@@ -400,7 +400,7 @@ export function DashboardPage() {
       averageSkillAccuracy: view.averageSkillAccuracy,
       alerts: rankedClients
         .filter((client) => client.alertLevel !== 'stable')
-        .slice(0, 8)
+        .slice(0, FIXED_CLIENT_COUNT)
         .map((client) => {
           const latest = client.points[client.points.length - 1]
           return {
@@ -411,9 +411,24 @@ export function DashboardPage() {
             behaviorRatePerHour: latest.behaviorRatePerHour,
             skillAccuracyPct: latest.skillAccuracyPct,
             promptDependencePct: latest.promptDependencePct,
+            celerationValue: latest.celerationValue,
             celerationDeltaPct: latest.celerationDeltaPct,
           }
         }),
+      clients: rankedClients.slice(0, FIXED_CLIENT_COUNT).map((client) => {
+        const latest = client.points[client.points.length - 1]
+        return {
+          moniker: client.moniker,
+          level: client.alertLevel,
+          attentionLabel: client.attentionLabel,
+          riskScore: latest.riskScore,
+          behaviorRatePerHour: latest.behaviorRatePerHour,
+          skillAccuracyPct: latest.skillAccuracyPct,
+          promptDependencePct: latest.promptDependencePct,
+          celerationValue: latest.celerationValue,
+          celerationDeltaPct: latest.celerationDeltaPct,
+        }
+      }),
     }),
     [rankedClients, view.averageBehaviorRate, view.averageSkillAccuracy, view.criticalCount, view.totalClients, view.watchCount]
   )

@@ -8,6 +8,19 @@ export type CaseloadAlertSnapshot = {
   behaviorRatePerHour: number
   skillAccuracyPct: number
   promptDependencePct: number
+  celerationValue: number
+  celerationDeltaPct: number
+}
+
+export type CaseloadClientSnapshot = {
+  moniker: string
+  level: AlertLevel
+  attentionLabel: string
+  riskScore: number
+  behaviorRatePerHour: number
+  skillAccuracyPct: number
+  promptDependencePct: number
+  celerationValue: number
   celerationDeltaPct: number
 }
 
@@ -19,6 +32,7 @@ type InboxContext = {
   averageBehaviorRate: number
   averageSkillAccuracy: number
   alerts: CaseloadAlertSnapshot[]
+  clients: CaseloadClientSnapshot[]
 }
 
 export type InboxSummaryRequest = InboxContext & {
