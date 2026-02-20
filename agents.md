@@ -30,7 +30,7 @@ To prevent CI/CD failures (like unused imports or type errors):
 -   **Authentication:** HttpOnly Cookie-based with role-based access control (Manager, BCBA, RBT, Parent)
 -   **LLM Integration:**
     -   `src/services/llmService.ts` handles parsing.
-    -   **Hybrid Strategy:** Tries GitHub Models API (Online) -> Falls back to Regex/Heuristics (Offline).
+    -   **Hybrid Strategy:** Tries Azure OpenAI GPT-5 via backend proxy (Online) -> Falls back to Regex/Heuristics (Offline).
 -   **Hosting:** Azure Static Web Apps with integrated Azure Functions.
 
 ## Key Files
@@ -110,13 +110,11 @@ To run E2E tests locally as an agent:
 If the user or tests report a "bug" or "crash":
 1.  Check `useSyncStore` for offline status.
 2.  Check Dexie.js transaction failures.
-3.  Verify the LLM token in `.env`.
+3.  Verify Azure OpenAI app settings (`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`).
 4.  **Role Toggle Missing?** Ensure `App.tsx` renders `<RoleToggle />` outside the main layout container.
 5.  **Browser Tool Fails?** Ensure the dev server wasn't started on port 5174.
 
 ## Deployment
 -   **CI/CD:** GitHub Actions (`.github/workflows/azure-static-web-apps-*.yml`).
--   **Secrets:** `VITE_GITHUB_TOKEN`, `COSMOS_CONNECTION_STRING`, `JWT_SECRET`.
+-   **Secrets:** `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `COSMOS_CONNECTION_STRING`, `JWT_SECRET`.
 -   **Routing:** React Router + `staticwebapp.config.json`.
-
-

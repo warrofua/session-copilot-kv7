@@ -17,7 +17,7 @@ graph TD
 
     subgraph Intelligence Layer
         UI -->|Input| Router{Router}
-        Router -->|Online| API[GitHub Models API]
+        Router -->|Online| API[Azure OpenAI via Functions]
         Router -->|Offline| Regex[Local Regex Logic]
         API -->|JSON| Parser[Response Parser]
         Regex -->|JSON| Parser
@@ -69,8 +69,8 @@ This is the **Core** of the application.
 
 ### 4. Intelligence Layer (Hybrid)
 We use a **Fallback Strategy** for AI:
-1.  **Attempt Online:** valid `VITE_GITHUB_TOKEN` exists? -> Call GitHub Models API (GPT-4o-mini).
-2.  **Fallback Offline:** Token missing or Network Error? -> Run `mockParseInput` (Regular Expressions).
+1.  **Attempt Online:** Remote LLM enabled and API reachable -> Call Azure OpenAI GPT-5 through Azure Functions.
+2.  **Fallback Offline:** Remote LLM disabled/unavailable or Network Error? -> Run `mockParseInput` (Regular Expressions).
     -   *Note:* The Regex engine has been robustly tuned to handle standard ABA terminology ("elopement", "SIB", "trials", durations).
 
 ### 5. Backend Layer (Azure Functions)
@@ -107,7 +107,9 @@ We use a **Fallback Strategy** for AI:
 | Secret | Location | Purpose |
 |--------|----------|---------|
 | `AZURE_STATIC_WEB_APPS_API_TOKEN` | GitHub Secrets | Deployment authentication |
-| `VITE_GITHUB_TOKEN` | GitHub Secrets | Frontend build-time (AI API) |
+| `AZURE_OPENAI_ENDPOINT` | Azure App Settings | Runtime API LLM endpoint |
+| `AZURE_OPENAI_API_KEY` | Azure App Settings | Runtime API LLM authentication |
+| `AZURE_OPENAI_DEPLOYMENT` | Azure App Settings | Runtime API model deployment |
 | `COSMOS_CONNECTION_STRING` | Azure App Settings | Runtime API database |
 | `JWT_SECRET` | Azure App Settings | Runtime API auth tokens |
 | `STRIPE_SECRET_KEY` | Azure App Settings | Runtime API payments |

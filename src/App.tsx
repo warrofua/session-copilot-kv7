@@ -11,7 +11,7 @@ import { IncidentButton } from './components/IncidentButton';
 import { useSessionStore } from './stores/sessionStore';
 import { useSyncStore } from './stores/syncStore';
 import { addBehaviorEvent, addIncident, addSessionNote, addSkillTrial, getBehaviorEventsBySession, getSessionNotesBySession, getSkillTrialsBySession, updateBehaviorEventIntervention, type BehaviorEvent, type Incident, type SessionNote, type SkillTrial } from './db/db';
-import { parseUserInput, generateConfirmation, generateNoteDraft, type ParsedInput } from './services/llmService';
+import { parseUserInput, generateConfirmation, generateNoteDraft, generateSessionChatReply, type ParsedInput } from './services/llmService';
 import { TermsModal } from './components/TermsModal';
 import { useEncryptionStore } from './stores/encryptionStore';
 import { useAuth } from './hooks/useAuth';
@@ -223,18 +223,33 @@ function App() {
     if (!inputValue.trim() || isProcessing) return;
 
     const userMessage = inputValue.trim();
+    const askMatch = userMessage.match(/^\/ask\s+(.+)/i);
     setInputValue('');
     addMessage('user', userMessage);
     setIsProcessing(true);
 
     try {
+      const chatContext = {
+        clientName,
+        behaviorCount: behaviorEvents.length,
+        skillTrialCount: skillTrials.length,
+        noteDraft,
+      };
+
+      if (askMatch?.[1]) {
+        const chatReply = await generateSessionChatReply(askMatch[1], chatContext);
+        addMessage('assistant', chatReply);
+        return;
+      }
+
       // Parse the input using LLM or mock
       const parsed = await parseUserInput(userMessage);
       setSelectedFunction(null);
 
       // If no data extracted, ask for clarification
       if (parsed.behaviors.length === 0 && (!parsed.skillTrials || parsed.skillTrials.length === 0) && !parsed.incident && !parsed.note && !parsed.reinforcement) {
-        addMessage('assistant', "I didn't catch any specific behaviors or skills. Could you try rephrasing? (e.g. 'Log elopement for 2 mins')");
+        const chatReply = await generateSessionChatReply(userMessage, chatContext);
+        addMessage('assistant', chatReply);
         return;
       }
 
@@ -271,7 +286,7 @@ function App() {
     } finally {
       setIsProcessing(false);
     }
-  }, [inputValue, isProcessing, addMessage]);
+  }, [addMessage, behaviorEvents.length, clientName, inputValue, isProcessing, noteDraft, skillTrials.length]);
 
   const handleButtonClick = useCallback(async (action: string, value: string) => {
     if (!isEncryptionReady) {
@@ -543,7 +558,7 @@ function App() {
             onChange={setInputValue}
             onSend={handleSendMessage}
             disabled={isProcessing}
-            placeholder={isProcessing ? 'Processing...' : 'Type a message...'}
+            placeholder={isProcessing ? 'Processing...' : 'Type session data or /ask a question...'}
           />
         </section>
 

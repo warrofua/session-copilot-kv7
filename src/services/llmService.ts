@@ -1,16 +1,8 @@
-// LLM Service using GitHub Models API (OpenAI-compatible)
-// Uses GPT-4o-mini for free tier access
-
-const GITHUB_MODELS_ENDPOINT = 'https://models.inference.ai.azure.com';
-const MODEL_NAME = 'gpt-4o-mini';
-
-// Get token from environment or localStorage for demo
-function getApiToken(): string {
-    // In production, this would come from secure backend
-    // For demo, we use localStorage or env variable
-    return ''; // Force offline demo mode
-    // return localStorage.getItem('github_token') || import.meta.env.VITE_GITHUB_TOKEN || '';
-}
+// Session assistant client with GPT-5 backend + offline fallback.
+const SESSION_ASSISTANT_ENDPOINT = '/api/llm/session-assistant';
+const REMOTE_LLM_TIMEOUT_MS = 4200;
+const REMOTE_LLM_BACKOFF_MS = 2 * 60 * 1000;
+let remoteLlmDisabledUntilMs = 0;
 
 export interface ParsedInput {
     behaviors: {
@@ -45,27 +37,175 @@ export interface ConfirmationResponse {
     followUpQuestions?: string[];
 }
 
-const SYSTEM_PROMPT = `You are an ABA (Applied Behavior Analysis) session data assistant. Your job is to help therapists log behavioral data during therapy sessions.
+interface ParseTaskRequest {
+    task: 'parse';
+    message: string;
+}
 
-When the user describes what happened, extract:
-1. Behavior types (elopement, tantrum, aggression, SIB, property destruction, etc.)
-2. Frequency counts
-3. Duration in seconds
-4. Antecedents (what happened before)
-5. Consequences/interventions used
-6. Likely behavioral function (escape, tangible, attention, automatic)
-7. SKILL TRIALS: If the user mentions a skill trial, even implicitly (e.g. "DTT", "matching", "naming", "tried tying shoes", "practiced counting"), extract:
-   - Skill name
-   - Target (e.g. "blue", "apple", or implied target)
-   - Response (correct/incorrect/prompted)
+interface ParseTaskResponse {
+    parsed: unknown;
+}
 
-Common ABA abbreviations:
-- SIB = Self-Injurious Behavior
-- FCR = Functional Communication Response
-- DTT = Discrete Trial Training
-- NET = Natural Environment Teaching
+interface NoteTaskRequest {
+    task: 'note';
+    clientName: string;
+    behaviors: { type: string; count?: number; duration?: number; antecedent?: string; function?: string; intervention?: string }[];
+    skillTrials: { skill: string; target: string; response: string }[];
+    reinforcements: string[];
+}
 
-Always respond in valid JSON format matching the ParsedInput interface.`;
+interface NoteTaskResponse {
+    note: string;
+}
+
+export interface SessionChatContext {
+    clientName?: string;
+    behaviorCount?: number;
+    skillTrialCount?: number;
+    noteDraft?: string;
+}
+
+interface ChatTaskRequest {
+    task: 'chat';
+    message: string;
+    context?: SessionChatContext;
+}
+
+interface ChatTaskResponse {
+    reply: string;
+}
+
+const shouldUseRemoteLlm = (): boolean => {
+    if (import.meta.env.MODE === 'test') {
+        return false;
+    }
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        return false;
+    }
+    const configuredFlag = String(import.meta.env.VITE_ENABLE_REMOTE_LLM ?? '').trim().toLowerCase();
+    const explicitlyDisabled = configuredFlag === 'false' || configuredFlag === '0';
+    return !explicitlyDisabled && Date.now() >= remoteLlmDisabledUntilMs;
+};
+
+const setRemoteLlmBackoff = (): void => {
+    remoteLlmDisabledUntilMs = Date.now() + REMOTE_LLM_BACKOFF_MS;
+};
+
+const readErrorDetails = async (response: Response): Promise<string> => {
+    try {
+        const body = await response.text();
+        return body || response.statusText || `status ${response.status}`;
+    } catch {
+        return response.statusText || `status ${response.status}`;
+    }
+};
+
+const requestSessionAssistant = async <TResponse>(payload: ParseTaskRequest | NoteTaskRequest | ChatTaskRequest): Promise<TResponse> => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), REMOTE_LLM_TIMEOUT_MS);
+
+    try {
+        const response = await fetch(SESSION_ASSISTANT_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+        });
+
+        if (!response.ok) {
+            if (response.status === 429 || response.status === 503 || response.status >= 500) {
+                setRemoteLlmBackoff();
+            }
+            throw new Error(await readErrorDetails(response));
+        }
+
+        return await response.json() as TResponse;
+    } finally {
+        window.clearTimeout(timeoutId);
+    }
+};
+
+const toNonEmptyString = (value: unknown): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+};
+
+const toOptionalNumber = (value: unknown): number | undefined => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    return undefined;
+};
+
+const normalizeFunctionGuess = (value: unknown): ParsedInput['functionGuess'] => {
+    if (value === 'escape' || value === 'tangible' || value === 'attention' || value === 'automatic') {
+        return value;
+    }
+    return undefined;
+};
+
+const sanitizeParsedInput = (candidate: unknown): ParsedInput => {
+    const parsed = (candidate || {}) as Record<string, unknown>;
+
+    const behaviorsRaw = Array.isArray(parsed.behaviors) ? parsed.behaviors : [];
+    const behaviors: ParsedInput['behaviors'] = [];
+    behaviorsRaw.forEach((item) => {
+        const behavior = item as Record<string, unknown>;
+        const type = toNonEmptyString(behavior.type);
+        if (!type) return;
+        const count = toOptionalNumber(behavior.count);
+        const duration = toOptionalNumber(behavior.duration);
+        behaviors.push({
+            type,
+            ...(count !== undefined ? { count } : {}),
+            ...(duration !== undefined ? { duration } : {}),
+        });
+    });
+
+    const skillTrialsRaw = Array.isArray(parsed.skillTrials) ? parsed.skillTrials : [];
+    const skillTrials: NonNullable<ParsedInput['skillTrials']> = [];
+    skillTrialsRaw.forEach((item) => {
+        const trial = item as Record<string, unknown>;
+        const skill = toNonEmptyString(trial.skill);
+        const target = toNonEmptyString(trial.target);
+        if (!skill || !target) return;
+        const promptLevel = toNonEmptyString(trial.promptLevel);
+        const response = toNonEmptyString(trial.response);
+        skillTrials.push({
+            skill,
+            target,
+            ...(promptLevel ? { promptLevel } : {}),
+            ...(response ? { response } : {}),
+        });
+    });
+
+    const reinforcementRaw = parsed.reinforcement as Record<string, unknown> | undefined;
+    const reinforcementType = toNonEmptyString(reinforcementRaw?.type);
+    const reinforcementDelivered = typeof reinforcementRaw?.delivered === 'boolean'
+        ? reinforcementRaw.delivered
+        : undefined;
+    const reinforcementDetails = toNonEmptyString(reinforcementRaw?.details);
+    const reinforcement = reinforcementType && reinforcementDelivered !== undefined
+        ? {
+            type: reinforcementType,
+            delivered: reinforcementDelivered,
+            details: reinforcementDetails,
+        }
+        : undefined;
+
+    return {
+        behaviors,
+        antecedent: toNonEmptyString(parsed.antecedent),
+        functionGuess: normalizeFunctionGuess(parsed.functionGuess),
+        intervention: toNonEmptyString(parsed.intervention),
+        skillTrials,
+        reinforcement,
+        incident: typeof parsed.incident === 'boolean' ? parsed.incident : undefined,
+        note: typeof parsed.note === 'boolean' ? parsed.note : undefined,
+        needsClarification: typeof parsed.needsClarification === 'boolean' ? parsed.needsClarification : false,
+        clarificationQuestion: toNonEmptyString(parsed.clarificationQuestion),
+        narrativeFragment: toNonEmptyString(parsed.narrativeFragment) || '',
+    };
+};
 
 /**
  * Parses raw user input into structured ABA data using an LLM.
@@ -75,61 +215,17 @@ Always respond in valid JSON format matching the ParsedInput interface.`;
  * @returns Structured data matching ParsedInput interface.
  */
 export async function parseUserInput(userMessage: string): Promise<ParsedInput> {
-    const token = getApiToken();
-
-    if (!token) {
-        // Demo mode - return mock parsed data
-        return mockParseInput(userMessage);
-    }
+    if (!shouldUseRemoteLlm()) return mockParseInput(userMessage);
 
     try {
-        const response = await fetch(`${GITHUB_MODELS_ENDPOINT}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: MODEL_NAME,
-                messages: [
-                    { role: 'system', content: SYSTEM_PROMPT },
-                    { role: 'user', content: `Parse this therapy session input and extract structured data:\n\n"${userMessage}"\n\nRespond with valid JSON only.` }
-                ],
-                temperature: 0.3,
-                max_tokens: 500,
-                response_format: { type: 'json_object' }
-            })
+        const response = await requestSessionAssistant<ParseTaskResponse>({
+            task: 'parse',
+            message: userMessage,
         });
-
-        if (!response.ok) {
-            console.error('LLM API error:', response.statusText);
-            return mockParseInput(userMessage);
-        }
-
-        const data = await response.json();
-        const content = data.choices[0]?.message?.content;
-
-        if (content) {
-            try {
-                const parsed = JSON.parse(content);
-                // Validate and sanitize structure
-                return {
-                    behaviors: Array.isArray(parsed.behaviors) ? parsed.behaviors : [],
-                    skillTrials: Array.isArray(parsed.skillTrials) ? parsed.skillTrials : [],
-                    antecedent: parsed.antecedent || undefined,
-                    functionGuess: parsed.functionGuess || undefined,
-                    intervention: parsed.intervention || undefined,
-                    needsClarification: parsed.needsClarification || false,
-                    clarificationQuestion: parsed.clarificationQuestion || undefined,
-                    narrativeFragment: parsed.narrativeFragment || ''
-                };
-            } catch (e) {
-                console.error('Failed to parse LLM JSON:', e);
-                return mockParseInput(userMessage);
-            }
-        }
+        return sanitizeParsedInput(response.parsed);
     } catch (error) {
-        console.error('Error calling LLM:', error);
+        setRemoteLlmBackoff();
+        console.error('Error calling session assistant parse:', error);
     }
 
     return mockParseInput(userMessage);
@@ -150,45 +246,40 @@ export async function generateNoteDraft(
     clientName: string,
     reinforcements: string[] = []
 ): Promise<string> {
-    const token = getApiToken();
-
-    if (!token) {
-        return mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
-    }
+    if (!shouldUseRemoteLlm()) return mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
 
     try {
-        const response = await fetch(`${GITHUB_MODELS_ENDPOINT}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: MODEL_NAME,
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are an ABA session note writer. Write professional, clinical session notes based on the data provided. Use third person and past tense.'
-                    },
-                    {
-                        role: 'user',
-                        content: `Write a brief session note for ${clientName}:\n\nBehaviors: ${JSON.stringify(behaviors)}\n\nSkill Trials: ${JSON.stringify(skillTrials)}\n\nReinforcement: ${JSON.stringify(reinforcements)}`
-                    }
-                ],
-                temperature: 0.5,
-                max_tokens: 300
-            })
+        const response = await requestSessionAssistant<NoteTaskResponse>({
+            task: 'note',
+            clientName,
+            behaviors,
+            skillTrials,
+            reinforcements
         });
-
-        if (!response.ok) {
-            return mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
-        }
-
-        const data = await response.json();
-        return data.choices[0]?.message?.content || mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
+        const note = toNonEmptyString(response.note);
+        return note || mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
     } catch (error) {
-        console.error('Error generating note:', error);
+        setRemoteLlmBackoff();
+        console.error('Error generating note with session assistant:', error);
         return mockGenerateNote(behaviors, skillTrials, clientName, reinforcements);
+    }
+}
+
+export async function generateSessionChatReply(message: string, context?: SessionChatContext): Promise<string> {
+    if (!shouldUseRemoteLlm()) return mockSessionChatReply(message, context);
+
+    try {
+        const response = await requestSessionAssistant<ChatTaskResponse>({
+            task: 'chat',
+            message,
+            context,
+        });
+        const reply = toNonEmptyString(response.reply);
+        return reply || mockSessionChatReply(message, context);
+    } catch (error) {
+        setRemoteLlmBackoff();
+        console.error('Error generating session chat reply:', error);
+        return mockSessionChatReply(message, context);
     }
 }
 
@@ -588,6 +679,22 @@ function mockGenerateNote(
     }
 
     return parts.join(' ') || 'Session data pending.';
+}
+
+function mockSessionChatReply(message: string, context?: SessionChatContext): string {
+    const trimmed = message.trim();
+    if (!trimmed) {
+        return 'Share a brief session question and I can help with a concise ABA-aligned response.';
+    }
+
+    const behaviorCount = context?.behaviorCount ?? 0;
+    const skillTrialCount = context?.skillTrialCount ?? 0;
+    const clientLabel = context?.clientName ? ` for ${context.clientName}` : '';
+
+    return (
+        `I can help${clientLabel}. Currently logged: ${behaviorCount} behavior events and ${skillTrialCount} skill trials. ` +
+        'If you want this entered as structured data, include behavior type, count or duration, and antecedent in one sentence.'
+    );
 }
 
 export function generateConfirmation(parsed: ParsedInput): ConfirmationResponse {

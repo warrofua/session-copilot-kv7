@@ -5,7 +5,7 @@ An **Offline-First** AI assistant for ABA (Applied Behavior Analysis) therapists
 ## Features
 -   **Natural Language Logging:** "He had 2 tantrums and an elopement (30s) after I took the iPad." -> Parsed automatically.
 -   **Offline-First:** Built with [Dexie.js](https://dexie.org/) (IndexedDB). Works completely without internet.
--   **Hybrid AI:** Uses **GPT-4o-mini** (GitHub Models) when online, falls back to **Logic Engine** when offline.
+-   **Hybrid AI:** Uses **GPT-5 (Azure OpenAI via backend proxy)** when online, falls back to **Logic Engine** when offline.
 -   **Smart Hints:** Asks for missing context (Antecedents, Functions, Interventions) only when needed.
 -   **Safety First:** Dedicated "Oh Crap" button for reporting critical incidents.
 -   **Multi-User Authentication:** Secure HttpOnly Cookie auth with role-based access control (Manager, BCBA, RBT, Parent).
@@ -17,7 +17,7 @@ An **Offline-First** AI assistant for ABA (Applied Behavior Analysis) therapists
 graph LR
     User -->|Chat| ReactApp
     ReactApp -->|Offline| RegexEngine
-    ReactApp -->|Online| GPT-4o
+    ReactApp -->|Online| GPT-5 (API Proxy)
     ReactApp -->|Persist| IndexedDB
 ```
 For deep dive, see [Architecture Guide](architecture.md), [Agent Guide](agents.md), and [Payment Plan](pay_plan.md).
@@ -28,7 +28,7 @@ For deep dive, see [Architecture Guide](architecture.md), [Agent Guide](agents.m
 -   **PWA:** Service Workers for offline caching (`vite-plugin-pwa`)
 -   **State:** Zustand + React Context (Auth)
 -   **Database:** Dexie.js (Client-side IndexedDB)
--   **LLM:** GitHub Models API (OpenAI SDK compatible)
+-   **LLM:** Azure OpenAI GPT-5 via Azure Functions proxy
 -   **Backend:** Azure Functions (Node.js) - Secured with HttpOnly Cookies
 -   **Cloud Database:** Azure Cosmos DB
 -   **Hosting:** Azure Static Web Apps
@@ -52,12 +52,15 @@ For deep dive, see [Architecture Guide](architecture.md), [Agent Guide](agents.m
 3.  Set up Environment
     Create a `.env` file:
     ```env
-    VITE_GITHUB_TOKEN=gho_your_token_here
+    VITE_ENABLE_REMOTE_LLM=true
     ```
     Create `api/.env` for backend:
     ```env
     COSMOS_CONNECTION_STRING=your_cosmos_connection_string
     JWT_SECRET=your_secure_secret
+    AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+    AZURE_OPENAI_API_KEY=your_api_key
+    AZURE_OPENAI_DEPLOYMENT=gpt-5-chat
     ```
 4.  Start Development
     ```bash
@@ -81,7 +84,7 @@ The project uses **Vitest** for unit testing, focused on the offline logic engin
 ## Deployment (Azure)
 This project is configured for **Azure Static Web Apps** with Azure Functions backend.
 -   **CI/CD:** Commits to `master` automatically trigger a build/deploy via GitHub Actions.
--   **Secrets:** Set `VITE_GITHUB_TOKEN` as a GitHub Repository Secret.
+-   **Secrets:** Set `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_OPENAI_DEPLOYMENT` in Static Web App app settings.
 -   **API:** Azure Functions in `api/` directory automatically deploy with the Static Web App.
 
 ## Architecture
