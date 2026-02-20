@@ -934,6 +934,7 @@ export function DashboardPage() {
                         className="multi-sparkline"
                         series={behaviorSeries}
                         threshold={6}
+                        dualAxis
                         showLegend
                         legendMaxItems={signalLines}
                         ariaLabel="Behavior trend signals"
