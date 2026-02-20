@@ -331,6 +331,7 @@ export function DashboardPage() {
   )
   const [insightsByClient, setInsightsByClient] = useState<Record<string, StmInsight>>({})
   const [isAlertMenuOpen, setIsAlertMenuOpen] = useState(false)
+  const [hasOpenedInbox, setHasOpenedInbox] = useState(false)
   const [unseenAlertCount, setUnseenAlertCount] = useState(0)
   const [alertInbox, setAlertInbox] = useState<AlertInboxItem[]>([])
   const [expandedNoteClientId, setExpandedNoteClientId] = useState<string | null>(null)
@@ -346,6 +347,7 @@ export function DashboardPage() {
     setInsightsByClient({})
     setAlertInbox([])
     setUnseenAlertCount(0)
+    setHasOpenedInbox(false)
     setExpandedNoteClientId(null)
     previousAlertRef.current = {}
     pendingSuggestionJobsRef.current = {}
@@ -594,7 +596,7 @@ export function DashboardPage() {
   }, [insightsByClient, isAlertMenuOpen, rankedClients, simulation.tick, streamSuggestionForAlert])
 
   useEffect(() => {
-    if (!isAlertMenuOpen) {
+    if (!isAlertMenuOpen || !hasOpenedInbox) {
       return
     }
 
@@ -608,7 +610,7 @@ export function DashboardPage() {
         void streamSuggestionForAlert(job)
       }
     })
-  }, [alertInbox, isAlertMenuOpen, streamSuggestionForAlert])
+  }, [alertInbox, hasOpenedInbox, isAlertMenuOpen, streamSuggestionForAlert])
 
   const stmStatus = useMemo(() => {
     const values = Object.values(insightsByClient)
@@ -623,6 +625,7 @@ export function DashboardPage() {
     setIsAlertMenuOpen((previous) => {
       const next = !previous
       if (next) {
+        setHasOpenedInbox(true)
         setUnseenAlertCount(0)
       }
       return next
